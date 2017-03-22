@@ -1,0 +1,25 @@
+photon times:
+
+100,000 photons:
+user	0m13.319s
+sys	0m1.044s
+
+
+1,000,000 photons:
+user	0m22.448s
+sys	0m2.377s
+
+2,000,000 photons:
+user	0m32.792s
+sys	0m3.892s
+
+user	0m32.984s
+sys	0m3.694s
+
+3,000,000:
+
+user	0m44.363s
+sys	0m5.890s
+
+user	0m44.930s
+sys	0m6.469s
