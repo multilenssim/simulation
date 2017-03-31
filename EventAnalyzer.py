@@ -250,6 +250,9 @@ class EventAnalyzer(object):
         # Only used for analytic (matrix) solution, not numpy's fmin() optimization function
         vtx_scale_factor = 0.5
 
+		# Sets whether to use Gauss probability (additive) or NLL (additive, equivalent to multiplying probs)
+        doNLL = False
+
         vtcs = [] # List of vertices found
         tracks0 = copy.deepcopy(tracks) # Keep track of tracks - such meta
         
@@ -265,30 +268,39 @@ class EventAnalyzer(object):
             f_squared = np.zeros((self.det_res.detectorxbins, self.det_res.detectorybins, self.det_res.detectorzbins))
  
             t0 = time.time()
-            for hit_pos, mean, sig in tracks:
+            for ii, (hit_pos, mean, sig) in enumerate(tracks):
                 # print hit_pos
                 # print mean
                 # print sig
                 # print 'bin_pos shape: ' + str(np.shape(bin_pos_array))
+                #if ii > 10:
+					#break
                 
                 angles = np.reshape(self.get_angles(hit_pos, bin_pos_array, mean),np.shape(final_pdf))
                 #print 'angles shape: ' + str(np.shape(angles))
-                dists_scaled = np.tan(angles)
+                dists_scaled = np.tan(angles) # scaled so that projection of vector onto mean angle is 1
                 #print 'dists scaled shape: ' + str(np.shape(dists_scaled)) # sig is (n,)
                 if np.isnan(sig):
                     print "Track sig is nan - skipping."
-                gp = self.gauss_prob(dists_scaled, sig)
+                if doNLL:
+					gp = self.gauss_nll(dists_scaled, sig)
+                else:
+					gp = self.gauss_prob(dists_scaled, sig)
                 final_pdf += gp
-                f_squared += gp**2
+                #final_pdf *= gp
+                #f_squared += gp**2
             # Replace any value divided by 0 with 0, replace negative values with 0
-            zero_mask = 1.0*(final_pdf == 0.)
-            final_pdf_mask = np.ma.masked_array(final_pdf, zero_mask, fill_value=0.)
-            f_squared_mask = np.ma.masked_array(f_squared, zero_mask, fill_value=0.)
-            V_temp = np.array(f_squared_mask/final_pdf_mask)
-            V_final = np.maximum(final_pdf - V_temp, 0.)
-            V_final = np.float32(V_final/float(np.sum(V_final)))
+            #zero_mask = 1.0*(final_pdf == 0.)
+            #final_pdf_mask = np.ma.masked_array(final_pdf, zero_mask, fill_value=0.)
+            #f_squared_mask = np.ma.masked_array(f_squared, zero_mask, fill_value=0.)
+            #V_temp = np.array(f_squared_mask/final_pdf_mask)
+            #V_final = np.maximum(final_pdf - V_temp, 0.)
+            #V_final = np.float32(V_final/float(np.sum(V_final)))
 
-            final_pdf = np.float32(final_pdf/float(np.sum(final_pdf))) #normalize, for plotting purposes
+            #print np.sum(final_pdf)
+            #print np.argmax(final_pdf), np.max(final_pdf)
+            #print bin_pos_array[np.argmax(final_pdf)]
+            #final_pdf = np.float32(final_pdf/float(np.sum(final_pdf))) #normalize, for plotting purposes
 
             t1 = time.time()
             #print "Initial vtx location time: " + str(t1-t0)
@@ -310,11 +322,16 @@ class EventAnalyzer(object):
             if debug:
                 
                 self.plot_tracks(tracks,highlight_pt=v_pos_max)
+                if doNLL:
+					plotpdf = 1./final_pdf # Take inverse if using NLL method (since values close to 0 are better)
+                else:
+					plotpdf = final_pdf
+                plotpdf = np.float32(plotpdf/float(np.sum(plotpdf))) #normalize, for plotting purposes
 
-                # fig=self.det_res.plot_pdf(final_pdf, "Initial vtx position finding", bin_pos=bin_pos_array, show=False)
-                # plt.show(fig)
-                # ax = fig.gca()
-                # ax.scatter(v_pos_max[0],v_pos_max[1],v_pos_max[2],color='green')
+                fig=self.det_res.plot_pdf(plotpdf, "Initial vtx position finding", bin_pos=bin_pos_array, show=False)
+                plt.show(fig)
+                ax = fig.gca()
+                ax.scatter(v_pos_max[0],v_pos_max[1],v_pos_max[2],color='green')
                 print "Initial vertex position: " + str(v_pos_max)
 
                 # codethis = raw_input('Do some code tweaks>')
@@ -903,19 +920,19 @@ class EventAnalyzer(object):
     def gauss_prob(vals, sig):
         #Returns an array of Gaussian probabilities with mean=0, sigma=sig
         #Normalizes the array, so that the sum over all is 1
-        
-        prob = np.exp(-np.power(vals,2.)/(2*sig**2)) # Gaussian form
 
-        # Normalize
+        prob = np.exp(-np.power(vals,2.)/(2*sig**2)) # Gaussian form
+           
+		# Normalize
         p_sum = np.sum(prob)
+		
         if p_sum == 0:
             return prob
         if np.isnan(p_sum):
             print "Nan encountered in gauss_prob!"
-            print sig
             return 
         prob /= p_sum
-        # Zero out tiny values (speeds things up, makes plotting cleaner)
+		# Zero out tiny values (speeds things up, makes plotting cleaner)
         tol = 1e-20 # Smaller than we possibly care about
 
         near_zero = prob < tol
@@ -923,6 +940,15 @@ class EventAnalyzer(object):
 
         return prob # Return normalized probabilities
 
+    @staticmethod
+    def gauss_nll(vals, sig):
+        #Returns an array of log likelihood values, mean=0, sigma=sig
+        #Not negated, to keep the optimal value as a maximum
+
+        nll = -np.power(vals,2.)/(sig**2) # NLL model; ignoring the factor of 2
+
+        return nll
+        
     @staticmethod
     def set_style():
         # Set matplotlib style
