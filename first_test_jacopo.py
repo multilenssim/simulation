@@ -1,4 +1,4 @@
-import time,os
+import time,os,argparse
 import numpy as np
 import lensmaterials as lm
 import kabamland2 as kbl
@@ -11,6 +11,10 @@ from chroma.sample import uniform_sphere
 from chroma.loader import load_bvh
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 
+
+# To run this script: python first_test_jacopo.py 1 will plot the simulation of one track distance distribution from one source
+# python first_test_jacopo.py 2 will run the simulation with two sources with various separation and relative amount
+# add the flag -save to save the histogram without plotting it
 
 def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 	# produces a list of Photons objects, each with two different photon sources
@@ -54,7 +58,7 @@ def track_dist(ofst,drct):
 		arr_dist.extend(dist)
 	return arr_dist
 
-def plot_hist(arr_dist,out_print,tot_tracks,directory=None):
+def plot_hist(arr_dist,out_print,tot_tracks,save=None,directory=None):
 	plt.hist(np.asarray(arr_dist),bins=1000,normed=True)
 	plt.xlim((0,7500))
 	plt.ylim((1e-7,1e-2))
@@ -62,15 +66,21 @@ def plot_hist(arr_dist,out_print,tot_tracks,directory=None):
 	plt.title('Distance distribution for %s with a total of %i entries'%(out_print,tot_tracks))
 	plt.yscale('log')
 	plt.subplots_adjust(left=0.03, right=0.99, top=0.97, bottom=0.06)
-	F = pylab.gcf()
-	ds = F.get_size_inches()
-	F.set_size_inches((ds[0]*2.45,ds[1]*1.83))
-	if directory == None: F.savefig(out_print.replace(' ','')+'.png')
-	else: F.savefig(directory+out_print.replace(' ','')+'.png')
-	plt.close()
+	if save == False:
+		plt.show()
+	else:
+		F = pylab.gcf()
+		ds = F.get_size_inches()
+		F.set_size_inches((ds[0]*2.45,ds[1]*1.83))
+		if directory == None:
+			F.savefig(out_print.replace(' ','')+'.png')
+			print 'save no dir'
+		else:
+			F.savefig(directory+out_print.replace(' ','')+'.png')
+			print 'save w dir'
 
 
-def create_event(location, sigma, amount, config,in_file):
+def create_event(location, sigma, amount, config,in_file,save=None):
 	#simulates a single event within the detector for a given configuration adapted from kambamland2.
 	fname = 'SS'
 	kabamland = Detector(lm.ls)
@@ -85,10 +95,10 @@ def create_event(location, sigma, amount, config,in_file):
 	for ev in sim.simulate(sim_event, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 		tracks = analyzer.generate_tracks(ev)
 		arr_dist.extend(track_dist(tracks.hit_pos.T,tracks.means.T))
-	plot_hist(arr_dist,fname,len(arr_dist))
+	plot_hist(arr_dist,fname,len(arr_dist),save)
 
 
-def double_event_eff_test(config, detres=None, detbins=10, n_repeat=10, sig_pos=0.01, n_ph_sim=300, n_ratio=10, n_pos=10, max_rad_frac=1.0, loc1=(0,0,0)):
+def double_event_eff_test(config, detres=None, detbins=10, n_repeat=10, sig_pos=0.01, n_ph_sim=300, n_ratio=10, n_pos=10, max_rad_frac=1.0, loc1=(0,0,0),save=None):
 	# Creates a simulation of the given config, etc. (actual lenses set in kabamland2.py)
 	# Simulates events with total number of photons given by n_ph_sim, split into two sources
 	# One source is set at loc1, while the other is varied in radial distance from loc1 
@@ -130,12 +140,23 @@ def double_event_eff_test(config, detres=None, detbins=10, n_repeat=10, sig_pos=
 			for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 				tracks = analyzer.generate_tracks(ev)
 				arr_dist.extend(track_dist(tracks.hit_pos.T,tracks.means.T))
-			plot_hist(arr_dist,out_print,len(arr_dist),directory)
-			
+			plot_hist(arr_dist,out_print,len(arr_dist),save,directory)
 
-if __name__ == '__main__':
+
+def run_sim(idx,sv):
 	datadir = "/home/miladmalek/TestData/"#"/home/skravitz/TestData/"#
 	fileinfo = 'cfJiani3_4'#'configpc6-meniscus6-fl1_027-confined'#'configpc7-meniscus6-fl1_485-confined'#'configview-meniscus6-fl2_113-confined'
 	in_file = datadir+'detresang-'+fileinfo+'_noreflect_100million.root'
-	create_event((0,0,0), 0.01,4000,fileinfo,in_file)
-	#double_event_eff_test(fileinfo,detres=in_file, detbins=10, n_repeat=10, sig_pos=0.01, n_ph_sim=4000, n_ratio=10, n_pos=5, max_rad_frac=0.2, loc1=(0,0,0))
+	if idx == 1:
+		create_event((0,0,0), 0.01,4000,fileinfo,in_file,save=sv)
+	if idx == 2:
+		double_event_eff_test(fileinfo,detres=in_file, detbins=10, n_repeat=10, sig_pos=0.01, n_ph_sim=4000, n_ratio=10, n_pos=5, max_rad_frac=0.2, loc1=(0,0,0),save=sv)	
+
+if __name__ == '__main__':
+	parser = argparse.ArgumentParser()
+	parser.add_argument('n_source', help='insert 1 for SS, 2 for DS')
+	parser.add_argument('-save', help='save plot', action='store_const', dest='save', const='a', default=None)
+	args = parser.parse_args()
+	mult = int(args.n_source)
+	sv = bool(args.save)
+	run_sim(mult,sv)
