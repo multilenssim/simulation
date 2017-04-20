@@ -41,12 +41,13 @@ class Tracks(object):
         
 class Vertex(object):
     '''A Vertex object contains an estimated photon source location, along with
-    its energy (in number of photons) and position uncertainty.
+    its energy (in number of photons), Tracks associated to it, and position uncertainty.
     '''
-    def __init__(self, pos, err, n_ph):
+    def __init__(self, pos, err, n_ph, tracks=None):
         self.pos = pos # (3,) numpy array
         self.err = err # (3,) numpy array
         self.n_ph = n_ph # float
+        self.tracks = tracks # Tracks object
         
     def dist(self, r):
         # Returns distances from vertex to array of positions, r, with shape (3, n)

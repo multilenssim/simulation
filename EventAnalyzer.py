@@ -587,6 +587,7 @@ class EventAnalyzer(object):
             #tracks_assoc.cull(np.nonzero(np.logical_and(vtx_closest==ind, dists[ind,:] < chiC))) 
             # Keep only tracks closest to this vtx
             tracks_assoc.cull(np.nonzero(vtx_closest==ind)) 
+            vtx.tracks = tracks_assoc # Record the tracks for this vertex
             vtx.n_ph = len(tracks_assoc)
             _, _, _, _, _, obj_assoc = self.get_track_fit_params(tracks_assoc, vtx, chiC, 1.0)
             vtx.err = obj_assoc # use objective function to judge quality of vertex
