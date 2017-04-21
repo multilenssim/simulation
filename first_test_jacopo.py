@@ -18,7 +18,7 @@ from mpl_toolkits.mplot3d import Axes3D
 # add the flag -save to save the histogram without plotting it
 
 def fixed_dist(sample,radius):
-	loc1 = sph_scatter(sample,in_shell = 0,out_shell = 1000)
+	loc1 = sph_scatter(sample,in_shell = 1000,out_shell = 2000)
 	loc2 = sph_scatter(sample)
 	rads = np.linspace(0.01*radius,0.1*radius,sample)
 	dist = loc1-loc2
@@ -147,8 +147,7 @@ def plot_hist(arr_dist,out_print,save=None,directory=None):
 		else:
 			F.savefig(directory+out_print.replace(' ','')+'.png')
 
-
-def create_event(location, sigma, amount, config,in_file,save=None,sgm=None):
+def create_event(location, sigma, amount, config,in_file,sgm=None):
 	#simulates a single event within the detector for a given configuration adapted from kambamland2.
 	fname = 'SS'
 	kabamland = Detector(lm.ls)
@@ -177,18 +176,14 @@ def create_event(location, sigma, amount, config,in_file,save=None,sgm=None):
 			l_arr_dist.extend(tr_dist)
 		arr_dist.append(l_arr_dist)
 		arr_sgm.append(np.asarray(l_arr_sgm))
-		#print time.time()-start_time
-	if __name__ == '__main__':
-		plot_hist(arr_dist,fname,save)
+	if sgm != None:
+		arr_sgm = np.asarray(arr_sgm)
+		return arr_dist,1./arr_sgm
 	else:
-		if sgm != None:
-			arr_sgm = np.asarray(arr_sgm)
-			return arr_dist,1./arr_sgm
-		else:
-			return arr_dist
+		return arr_dist
 
 
-def double_event_eff_test(config, detres=None, detbins=10, n_repeat=10, sig_pos=0.01, n_ph_sim=300, n_ratio=10, n_pos=10, max_rad_frac=1.0, loc1=(0,0,0), save=None, max_int=0.99,sgm=None):
+def double_event_eff_test(config, detres=None, detbins=10, n_repeat=10, sig_pos=0.01, n_ph_sim=300, n_ratio=10, n_pos=10, max_rad_frac=1.0, loc1=(0,0,0), max_int=0.99,sgm=None):
 	# Creates a simulation of the given config, etc. (actual lenses set in kabamland2.py)
 	# Simulates events with total number of photons given by n_ph_sim, split into two sources
 	# One source is set at loc1, while the other is varied in radial distance from loc1 
@@ -240,14 +235,10 @@ def double_event_eff_test(config, detres=None, detbins=10, n_repeat=10, sig_pos=
 					arr_sgm.extend(err_dist)
 				else:
 					tr_dist = track_dist(tracks.hit_pos.T,tracks.means.T)
-				arr_dist.extend(tr_dist)
-			if __name__ == '__main__':
-				plot_hist(arr_dist,out_print,save,directory)
-			else:				
-				tot_arr_dist.append(arr_dist)
-				tot_arr_sgm.append(np.asarray(arr_sgm))
-	if not __name__ == '__main__':
-		if sgm != None:
-			return tot_arr_dist, 1./np.asarray(tot_arr_sgm), rads
-		else:
-			return tot_arr_dist, rads
+				arr_dist.extend(tr_dist)			
+			tot_arr_dist.append(arr_dist)
+			tot_arr_sgm.append(np.asarray(arr_sgm))
+	if sgm != None:
+		return tot_arr_dist, 1./np.asarray(tot_arr_sgm), rads
+	else:
+		return tot_arr_dist, rads
