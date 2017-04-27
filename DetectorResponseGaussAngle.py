@@ -44,7 +44,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
          loops = 0
          end_direction_array = None
          pmt_bins = None
-         max_storage = min(nevents*1000000,300000000) #600M is too much, 400M is OK (for np.float32; using 300M)
+         max_storage = min(nevents*1000000,120000000) #600M is too much, 400M is OK (for np.float32; using 300M)
          end_direction_array = np.empty((max_storage,3),dtype=np.float32) 
          pmt_bins = np.empty(max_storage,dtype=np.float32) 
          n_det = 0
@@ -109,46 +109,67 @@ class DetectorResponseGaussAngle(DetectorResponse):
                 continue
             norms = np.repeat(1.0, n_angles)
             mean_angle = normalize(np.mean(angles_for_pmt, axis=0))
+            
+			# For each PMT, get a pair of axes which form an 
+            # orthonormal coordinate system with the PMT mean direction
+            u_dir = np.cross(mean_angle,np.array([0,0,1]))
+            if not (np.dot(u_dir, u_dir) > 0): # In case mean_angle = [0,0,1]
+				u_dir = np.cross(mean_angle,np.array([0,1,0]))
+            u_dir = normalize(u_dir)
+            v_dir = np.cross(mean_angle, u_dir)
+            
+            u_proj = np.dot(angles_for_pmt, u_dir)
+            u_var = np.var(u_proj, ddof=1)
+            v_proj = np.dot(angles_for_pmt, v_dir)
+            v_var = np.var(v_proj, ddof=1)
+            variance = (u_var+v_var)/2.
+            
+            # Old method, which calculated variance of projected norma, even though
+            # the mean of the projections wasn't 0 due to the solid angle factor
             projection_norms = np.dot(angles_for_pmt, mean_angle)
-            #print np.shape(norms), np.shape(mean_angle), np.shape(projection_norms)
-            #print norms[:5]
-            #print mean_angle
-            #print projection_norms[:5]
             orthogonal_complements = np.sqrt(np.maximum(norms**2 - projection_norms**2, 0.))
-            variance = np.var(orthogonal_complements, ddof=1)
+            #variance = np.var(orthogonal_complements, ddof=1)
+            
             try:
 				draw_pmt_ind = int(draw_pmt_ind)
 				if i == draw_pmt_ind or draw_pmt_ind<0:
 					# Temporary, to visualize histogram of angles, distances
-					angles = np.arccos(projection_norms)
-					ang_variance = np.var(angles, ddof=1)
-					fig1 = plt.figure(figsize=(7.8, 6))
-					plt.hist(angles, bins=20)
-					plt.xlabel('Angular Separation to Mean Angle')
-					plt.ylabel('Counts per bin')
-					plt.title('Angles Histogram for PMT ' + str(i))
-					#plt.show()
-					
-					fig2 = plt.figure(figsize=(7.8, 6))
-					plt.hist(angles, bins=20, weights=1./np.sin(angles))
-					plt.xlabel('Angular Separation to Mean Angle')
-					plt.ylabel('Counts per solid angle')
-					plt.title('Angles Histogram for PMT ' + str(i))
+					#angles = np.arccos(projection_norms)
+					#ang_variance = np.var(angles, ddof=1)
+					#fig1 = plt.figure(figsize=(7.8, 6))
+					#plt.hist(angles, bins=20)
+					#plt.xlabel('Angular Separation to Mean Angle')
+					#plt.ylabel('Counts per bin')
+					#plt.title('Angles Histogram for PMT ' + str(i))
+					##plt.show()
+					#
+					#fig2 = plt.figure(figsize=(7.8, 6))
+					#plt.hist(angles, bins=20, weights=1./np.sin(angles))
+					#plt.xlabel('Angular Separation to Mean Angle')
+					#plt.ylabel('Counts per solid angle')
+					#plt.title('Angles Histogram for PMT ' + str(i))
 					
 					fig3 = plt.figure(figsize=(7.8, 6))
 					plt.hist(orthogonal_complements, bins=20)
 					plt.xlabel('Normalized Distance to Mean Angle')
 					plt.ylabel('Counts per bin')
-					plt.title('Distances Histogram for PMT ' + str(i))
+					plt.title('Distances Histogram for PMT ' + str(i))					
 					
-					#print np.shape(angles_for_pmt-mean_angle)
-					x_resid = (angles_for_pmt-mean_angle)[:,0]
 					fig4 = plt.figure(figsize=(7.8, 6))
-					plt.hist(x_resid, bins=20)
-					plt.xlabel('X Distance to Mean Angle')
+					plt.hist(u_proj, bins=20)
+					plt.xlabel('U Distance to Mean Angle')
 					plt.ylabel('Counts per bin')
-					plt.title('X Distances Histogram for PMT ' + str(i))
+					plt.title('U Distances Histogram for PMT ' + str(i))
+					
+					fig5 = plt.figure(figsize=(7.8, 6))
+					plt.hist(v_proj, bins=20)
+					plt.xlabel('V Distance to Mean Angle')
+					plt.ylabel('Counts per bin')
+					plt.title('V Distances Histogram for PMT ' + str(i))
 					plt.show()
+					
+					#print "Average projected variance: ", variance
+					#print "Variance of projected 2D norms: ", np.var(orthogonal_complements, ddof=1)
 					draw_pmt_ind = raw_input("Enter index of next PMT to draw; will stop drawing if not a valid PMT index.\n")
             except ValueError:
 				pass
