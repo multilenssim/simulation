@@ -11,23 +11,27 @@ from chroma.sample import uniform_sphere
 from chroma.loader import load_bvh
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.patches import Rectangle
 
 
 # To run this script: python first_test_jacopo.py 1 will plot the simulation of one track distance distribution from one source
 # python first_test_jacopo.py 2 will run the simulation with two sources with various separation and relative amount
 # add the flag -save to save the histogram without plotting it
 
-def fixed_dist(sample,radius):
-	loc1 = sph_scatter(sample,in_shell = 1000,out_shell = 2000)
+def fixed_dist(sample,radius,rads=None):
+	loc1 = sph_scatter(sample)
 	loc2 = sph_scatter(sample)
-	rads = np.linspace(0.01*radius,0.1*radius,sample)
+	if rads == None:
+		rads = np.linspace(50,500,sample)
+	else:
+		rads = np.full(sample,rads)
 	dist = loc1-loc2
 	loc2 = loc1 + np.einsum('i,ij->ij',rads,dist/np.linalg.norm(dist,axis=1)[:,None])
 	bl_idx = np.linalg.norm(loc2,axis=1)>radius
 	loc2[bl_idx] = 2 * loc1[bl_idx] - loc2[bl_idx]
 	return loc1,loc2,rads
 
-def sph_scatter(sample,in_shell = 0,out_shell = 5000):
+def sph_scatter(sample,in_shell = 4000,out_shell = 5000):
 	loc = np.random.uniform(-out_shell,out_shell,(sample,3))
 	while len(loc[(np.linalg.norm(loc,axis=1)>in_shell) & (np.linalg.norm(loc,axis=1)<=out_shell)]) != sample:
 		bl_idx = np.logical_not((np.linalg.norm(loc,axis=1)>in_shell) & (np.linalg.norm(loc,axis=1)<=out_shell))
@@ -48,9 +52,8 @@ def plot_sphere(loc1,loc2=None,rads=None):
 		ax.plot(loc1[:,0]/5000,loc1[:,1]/5000,loc1[:,2]/5000,'.')
 	else:
 		color = plt.cm.rainbow(np.linspace(0, 1, len(rads)))
-		for i,j,lab,col in zip(loc1/5000,loc2/5000,rads,color):
-			ax.plot([i[0],j[0]],[i[1],j[1]],[i[2],j[2]],'.',c=col,label='distance %0.0f mm'%lab)
-		plt.legend(ncol=4, prop={'size': 10})
+		for i,j in zip(loc1/5000,loc2/5000):
+			ax.plot([i[0],j[0]],[i[1],j[1]],[i[2],j[2]],'.')
 	ax.plot_surface(x,y,z,linewidth=0.2,alpha=0.1)
 	plt.show()
 	plt.close()
@@ -90,19 +93,18 @@ def syst_solve(drct,r_drct,ofst_diff):
 
 def track_dist(ofst,drct,sgm=None):
 	half = ofst.shape[0]/2
-	arr_dist = []
-	arr_sgm = []
+	arr_dist, arr_sgm = [], []
 	for i in range(1,(ofst.shape[0]-1)/2+1):
 		ofst_diff = ofst - np.roll(ofst,i,axis=0)
 		r_drct = np.roll(drct,i,axis=0)
-		r_sgm = np.roll(sgm,i,axis=0)
-		sm = np.stack((sgm,r_sgm),axis=1)
 		b_drct = np.cross(drct,r_drct)
 		norm_d = b_drct/np.linalg.norm(b_drct,axis=1).reshape(-1,1)
 		dist = np.absolute(np.einsum('ij,ij->i',ofst_diff,norm_d))
 		remove_nan(dist,ofst_diff,drct)
 		arr_dist.extend(dist)
 		if sgm != None:
+			r_sgm = np.roll(sgm,i,axis=0)
+			sm = np.stack((sgm,r_sgm),axis=1)
 			multp = syst_solve(drct,r_drct,ofst_diff)
 			multp[np.where(multp==0)] = 1
 			arr_sgm.extend(np.linalg.norm(np.einsum('ij,ij->ij',sm,multp),axis=1))
@@ -110,14 +112,14 @@ def track_dist(ofst,drct,sgm=None):
 	else:
 		ofst_diff = ofst[:half]-np.roll(ofst,half,axis=0)[:half]
 		r_drct = np.roll(drct,half,axis=0)[:half]
-		r_sgm = np.roll(sgm,half,axis=0)[:half]
-		sm = np.stack((sgm[:half],r_sgm),axis=1)
 		b_drct = np.cross(drct[:half],r_drct)
 		norm_d = b_drct/np.linalg.norm(b_drct,axis=1).reshape(-1,1)
 		dist = np.absolute(np.einsum('ij,ij->i',ofst_diff,norm_d))
 		remove_nan(dist,ofst_diff,drct[:half])
 		arr_dist.extend(dist)
 		if sgm != None:
+			r_sgm = np.roll(sgm,half,axis=0)[:half]
+			sm = np.stack((sgm[:half],r_sgm),axis=1)
 			multp = syst_solve(drct[:half],r_drct,ofst_diff)
 			multp[np.where(multp==0)] = 1
 			arr_sgm.extend(np.linalg.norm(np.einsum('ij,ij->ij',sm,multp),axis=1))
@@ -147,9 +149,60 @@ def plot_hist(arr_dist,out_print,save=None,directory=None):
 		else:
 			F.savefig(directory+out_print.replace(' ','')+'.png')
 
-def create_event(location, sigma, amount, config,in_file,sgm=None):
-	#simulates a single event within the detector for a given configuration adapted from kambamland2.
-	fname = 'SS'
+def make_hist(bn_arr,arr,c_wgt,norm=True):
+	wgt = []
+	np_double = np.asarray(arr)
+	for bn in bn_arr:
+		wgt.extend(np.dot([(np_double>=bn) & (np_double<(bn+bn_arr[1]))],c_wgt))
+	if norm:
+		return np.asarray(wgt)/sum(wgt)
+	else:
+		return np.asarray(wgt)
+
+
+def substract_hist(bn_arr,bkg,sgnl,sigma_sgnl,dists):
+	dist = len(dists)
+	color = plt.cm.rainbow(np.linspace(0, 1, dist))
+	rct, label = [],[]
+	for i in reversed(xrange(dist)):
+		plt.fill_between(bn_arr,sgnl[i]-bkg[0]+sigma_sgnl[i],sgnl[i]-bkg[0]-sigma_sgnl[i],color=color[i])
+		rct.append(Rectangle((0, 0), 1, 1, fc=color[i]))
+		label.append('respective distance %0.2f mm'%dists[i])
+	plt.fill_between(bn_arr,bkg[1],-bkg[1])
+	plt.xlabel('respective distance between tracks [mm]')
+	plt.ylabel('normalized residuals (compared to SS)')
+	plt.title('Spherical shell 4000-5000mm')
+	plt.legend(rct,label)
+	plt.xlim(0,3000)
+	plt.ylim(-0.04,0.02)
+	plt.subplots_adjust(left=0.06, right=0.99, top=0.97, bottom=0.06)	
+	plt.show()
+	plt.close()
+
+def avg_hist(ss_arr_dist,bn_arr,sgm=None):
+	wgt = []
+	for arr,i in zip(ss_arr_dist,range(len(ss_arr_dist))):
+		if sgm != None:
+			c_wgt = sgm[i]
+		else:
+			c_wgt = np.ones(len(arr))
+		wgt.append(make_hist(bn_arr,arr,c_wgt))
+	wgt = np.asarray(wgt)
+	av_wgt = np.mean(wgt,axis=0)
+	s_wgt = np.std(wgt,axis=0)
+	return av_wgt,s_wgt
+
+def overlap_hist(arr_dist,double_arr_dist,bn_arr,radius):
+	plt.hist(np.asarray(arr_dist),bins=bn_arr,normed=True,label='one source',histtype='step')
+	for lab,arr in zip(radius,double_arr_dist):
+		plt.hist(np.asarray(arr),bins=bn_arr,normed=True,label='respective distance %0.0f mm'%lab,histtype='step')
+	plt.xlabel('respective distance between tracks [mm]')
+	plt.legend()
+	plt.subplots_adjust(left=0.03, right=0.99, top=0.97, bottom=0.06)	
+	plt.show()
+	plt.close()
+
+def sim_setup(config,in_file):
 	kabamland = Detector(lm.ls)
 	kbl.build_kabamland(kabamland, config)
 	kabamland.flatten()
@@ -157,88 +210,48 @@ def create_event(location, sigma, amount, config,in_file,sgm=None):
 	sim = Simulation(kabamland)
 	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)
 	analyzer = EventAnalyzer(det_res)
-	arr_dist = []
-	arr_sgm = []
-	if type(location) != np.ndarray:
-		location = location.reshape((1,-1))
+	return sim, analyzer
+
+def band_shell_bkg(sample,bn_arr,amount,sim,analyzer,i_shell,o_shell,sgm=False,plot=False,sigma=0.01):
+	arr_dist, arr_sgm = [], []
+	location = sph_scatter(sample,in_shell=i_shell,out_shell=o_shell)
+	if plot:
+		plot_sphere(location)
 	for lg in location:
-		start_time = time.time()
 		sim_event = kbl.gaussian_sphere(lg, sigma, amount)
-		l_arr_dist = []
-		l_arr_sgm = []
 		for ev in sim.simulate(sim_event, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 			tracks = analyzer.generate_tracks(ev)
-			if sgm != None:
-				tr_dist,err_dist = track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas)
-				l_arr_sgm.extend(err_dist)
-			else:
-				tr_dist = track_dist(tracks.hit_pos.T,tracks.means.T)
-			l_arr_dist.extend(tr_dist)
-		arr_dist.append(l_arr_dist)
-		arr_sgm.append(np.asarray(l_arr_sgm))
-	if sgm != None:
-		arr_sgm = np.asarray(arr_sgm)
-		return arr_dist,1./arr_sgm
-	else:
-		return arr_dist
+		if sgm:
+			tr_dist,err_dist = track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas)
+			arr_sgm.append(1./np.asarray(err_dist))
+		else:
+			tr_dist = track_dist(tracks.hit_pos.T,tracks.means.T)
+			arr_sgm = None
+		arr_dist.append(tr_dist)
+	print 'ss events produced'
+	return avg_hist(arr_dist,bn_arr,sgm=arr_sgm)
 
-
-def double_event_eff_test(config, detres=None, detbins=10, n_repeat=10, sig_pos=0.01, n_ph_sim=300, n_ratio=10, n_pos=10, max_rad_frac=1.0, loc1=(0,0,0), max_int=0.99,sgm=None):
-	# Creates a simulation of the given config, etc. (actual lenses set in kabamland2.py)
-	# Simulates events with total number of photons given by n_ph_sim, split into two sources
-	# One source is set at loc1, while the other is varied in radial distance from loc1 
-	# (up to max_rad_frac*inscribed radius in n_pos steps)
-	# The size of each photon source is given by sig_pos
-	# The ratio of photons from each source is also varied from 0.5 to 0.99 (n_ratio steps)
-	# Each (pos, ratio) pair is repeated n_repeat times
-	
-	kabamland = Detector(lm.ls)
-	kbl.build_kabamland(kabamland, config)
-	kabamland.flatten()
-	kabamland.bvh = load_bvh(kabamland)
-	sim = Simulation(kabamland)
-	print "Simulation started."
-
-	det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins, detres)
-	analyzer = EventAnalyzer(det_res)
-	
-	# make list of radii and energy ratios
-	# Keep events inside detector
-	start_time = time.time()
-	ratios = np.linspace(0.5,max_int,n_ratio)
-	amount1 = n_ph_sim*ratios
-	amount2 = n_ph_sim*(1.0-ratios)
-	if loc1 == None: 
-		locs1, locs2, rads = fixed_dist(5,5000)
-		plot_sphere(locs1,loc2=locs2,rads=rads)
-	else:
-		max_rad = min(max_rad_frac*det_res.inscribed_radius, det_res.inscribed_radius-np.linalg.norm(np.array(loc1)))
-		rads = np.linspace(max_rad/n_pos,max_rad,n_pos)
-		locs1 = np.tile(np.asarray([loc1]*n_repeat),(len(rads),1,1))
-		locs2 = np.multiply(np.tile(uniform_sphere(n_repeat),(len(rads),1,1)),rads.reshape(len(rads),1,1))+loc1
-	tot_arr_dist = []
-	tot_arr_sgm = []
-	for a1,a2 in zip(amount1,amount2):
-		directory = 'ratio_%0.2f/' %(a1/n_ph_sim)
-		if not os.path.exists(directory):
-    			os.makedirs(directory)
+def band_shell_sgn(r_dist,sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,sigma=0.01):
+	av_hist, sigma_hist = [], []
+	dists = np.linspace(50,500,r_dist)
+	for rads in dists:
+		locs1, locs2, rad = fixed_dist(sample,5000,rads=rads)
+		av_dist_hist, av_sgm_hist = [], []
+		if plot:
+			plot_sphere(locs1,loc2=locs2,rads=rad)
 		for lc1,lc2 in zip(locs1,locs2):
-			out_print = "ratio %0.2f - separation %d" %(a1/n_ph_sim,np.linalg.norm(lc1-lc2))
-			print out_print
-			sim_events = create_double_source_events(lc1, lc2, sig_pos, a1, a2)
-			arr_dist = []
-			arr_sgm = []
+			sim_events = create_double_source_events(lc1, lc2, sigma, amount/2, amount/2)
 			for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 				tracks = analyzer.generate_tracks(ev)
-				if sgm != None:
-					tr_dist,err_dist = track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas)
-					arr_sgm.extend(err_dist)
-				else:
-					tr_dist = track_dist(tracks.hit_pos.T,tracks.means.T)
-				arr_dist.extend(tr_dist)			
-			tot_arr_dist.append(arr_dist)
-			tot_arr_sgm.append(np.asarray(arr_sgm))
-	if sgm != None:
-		return tot_arr_dist, 1./np.asarray(tot_arr_sgm), rads
-	else:
-		return tot_arr_dist, rads
+			if sgm:
+				tr_dist,err_dist = track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas)
+				av_sgm_hist.append(1./np.asarray(err_dist))
+			else:
+				tr_dist = track_dist(tracks.hit_pos.T,tracks.means.T)
+				av_sgm_hist.append(np.ones(len(tr_dist)))
+			av_dist_hist.append(tr_dist)
+		h, h_sigma = avg_hist(av_dist_hist,bn_arr,av_sgm_hist)
+		av_hist.append(h)
+ 		sigma_hist.append(h_sigma)
+		print 'dist %dmm done'%rads
+	return av_hist, sigma_hist, dists
