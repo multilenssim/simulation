@@ -253,13 +253,15 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
         #initial_lens = mh.rotate(disk(lensdiameter/2.0), make_rotation_matrix(-np.pi/2, (1,0,0)))
         ##end changed
         lenses = [initial_lens]
-    else: # Get the list of lens meshes from the appropriate lens system
+        lensmat = lm.lensmat # default lens material
+    else: # Get the list of lens meshes from the appropriate lens system as well as the lens material
         scale_rad = max_radius*diameter_ratio
         lenses = lenssystem.get_lens_mesh_list(lens_system_name, scale_rad)
+        lensmat = lenssystem.get_lens_material(lens_system_name)
     
     face = None
     for lens_i in lenses: # Add all the lenses for the first lens system to solid 'face'
-        lens_solid_i = Solid(mh.shift(lens_i, (lens_xcoords[0], lens_ycoords[0], 0.)), lm.lensmat, lm.ls) 
+        lens_solid_i = Solid(mh.shift(lens_i, (lens_xcoords[0], lens_ycoords[0], 0.)), lensmat, lm.ls) 
         if not face:
             face = lens_solid_i
         else:
@@ -267,7 +269,7 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
     # Repeat for all lens systems on this face
     for i in np.linspace(1, triangular_number(base)-1, triangular_number(base)-1):
         for lens_i in lenses:
-            face = face + Solid(mh.shift(lens_i, (lens_xcoords[np.int(i)], lens_ycoords[np.int(i)], 0.)), lm.lensmat, lm.ls)
+            face = face + Solid(mh.shift(lens_i, (lens_xcoords[np.int(i)], lens_ycoords[np.int(i)], 0.)), lensmat, lm.ls)
         
     
     #creating the various blocker shapes to fill in the empty space of a single face.
@@ -277,7 +279,7 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
         if light_confinement:
             shield = mh.rotate(cylindrical_shell(max_radius*(1 - 0.001), max_radius, focal_length), make_rotation_matrix(np.pi/2.0, (1,0,0)))
             for i in np.linspace(0, triangular_number(base)-1, triangular_number(base)):  
-                face = face + Solid(mh.shift(shield, (lens_xcoords[np.int(i)], lens_ycoords[np.int(i)], -focal_length/2.0)), lm.lensmat, lm.ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(shield, (lens_xcoords[np.int(i)], lens_ycoords[np.int(i)], -focal_length/2.0)), lensmat, lm.ls, black_surface, 0xff0000)
 
         if base >= 2:
             down_blocker = inner_blocker_mesh(max_radius, blocker_thickness)
@@ -287,7 +289,7 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
             down_blocker_xcoords = max_radius*down_blocker_xindices + first_down_blocker_xcoord - xshift
             down_blocker_ycoords = np.sqrt(3)*max_radius*down_blocker_yindices + first_down_blocker_ycoord - yshift
             for i in range(triangular_number(base-1)):
-                face = face + Solid(mh.shift(down_blocker, (down_blocker_xcoords[i], down_blocker_ycoords[i], 0)), lm.lensmat, lm.ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(down_blocker, (down_blocker_xcoords[i], down_blocker_ycoords[i], 0)), lensmat, lm.ls, black_surface, 0xff0000)
 
             bottom_blocker = outer_blocker_mesh(max_radius, blocker_thickness)
             right_blocker = mh.rotate(bottom_blocker, make_rotation_matrix(-2*np.pi/3.0, (0, 0, 1)))
@@ -299,9 +301,9 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
             left_blocker_xcoords = distances*np.cos(np.pi/3.0) - xshift
             left_blocker_ycoords = distances*np.sin(np.pi/3.0) - yshift
             for i in range(base-1):
-                face = face + Solid(mh.shift(bottom_blocker, (bottom_blocker_xcoords[i], -yshift, 0)), lm.lensmat, lm.ls, black_surface, 0xff0000)
-                face = face + Solid(mh.shift(right_blocker, (right_blocker_xcoords[i], right_blocker_ycoords[i], 0)), lm.lensmat, lm.ls, black_surface, 0xff0000)
-                face = face + Solid(mh.shift(left_blocker, (left_blocker_xcoords[i], left_blocker_ycoords[i], 0)), lm.lensmat, lm.ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(bottom_blocker, (bottom_blocker_xcoords[i], -yshift, 0)), lensmat, lm.ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(right_blocker, (right_blocker_xcoords[i], right_blocker_ycoords[i], 0)), lensmat, lm.ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(left_blocker, (left_blocker_xcoords[i], left_blocker_ycoords[i], 0)), lensmat, lm.ls, black_surface, 0xff0000)
 
         if base >= 3:
             up_blocker = mh.rotate(down_blocker, make_rotation_matrix(np.pi, (0, 0, 1)))
@@ -311,19 +313,19 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
             up_blocker_xcoords = max_radius*up_blocker_xindices + first_up_blocker_xcoord - xshift
             up_blocker_ycoords = np.sqrt(3)*max_radius*up_blocker_yindices + first_up_blocker_ycoord - yshift
             for i in range(triangular_number(base-2)):    
-                face = face + Solid(mh.shift(up_blocker, (up_blocker_xcoords[i], up_blocker_ycoords[i], 0)), lm.lensmat, lm.ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(up_blocker, (up_blocker_xcoords[i], up_blocker_ycoords[i], 0)), lensmat, lm.ls, black_surface, 0xff0000)
         
         corner_blocker = corner_blocker_mesh(max_radius, blocker_thickness)
         for i in range(3):
             theta = 2*np.pi/3.0*i + np.pi/2.0 
             rotated_corner_blocker = mh.rotate(corner_blocker, make_rotation_matrix(-2*np.pi/3.0*i, (0, 0, 1)))
-            face = face + Solid(mh.shift(rotated_corner_blocker, (2*yshift*np.cos(theta), 2*yshift*np.sin(theta), 0)), lm.lensmat, lm.ls, black_surface, 0xff0000)
+            face = face + Solid(mh.shift(rotated_corner_blocker, (2*yshift*np.cos(theta), 2*yshift*np.sin(theta), 0)), lensmat, lm.ls, black_surface, 0xff0000)
 
         # Build entrance pupil blockers if needed
         if half_EPD < max_radius:
             annulus_blocker = mh.rotate(cylindrical_shell(half_EPD, max_radius, blocker_thickness), make_rotation_matrix(np.pi/2.0, (1,0,0)))
             for i in range(triangular_number(base)):
-                face = face + Solid(mh.shift(annulus_blocker, (lens_xcoords[i], lens_ycoords[i], 0)), lm.lensmat, lm.ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(annulus_blocker, (lens_xcoords[i], lens_ycoords[i], 0)), lensmat, lm.ls, black_surface, 0xff0000)
 
     #creating all 20 faces and putting them into the detector with the correct orientations.
     for k in range(20):   

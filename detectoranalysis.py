@@ -195,7 +195,6 @@ def check_detres_sigmas(config, detres, datadir=""):
 	ax.set_zlabel('Z')
 	ax.set_title('PMTs with high angular uncertainty')
 	plt.show()
-	
 
 def testing(config):
 	#use this to test various functions in DetectorResponse

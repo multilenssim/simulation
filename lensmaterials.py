@@ -3,6 +3,7 @@ import numpy as np
 
 ls_refractive_index = 1.5
 lensmat_refractive_index = 2.0
+lensmat_ohara_refractive_index = 1.923
 
 #ls stands for "liquid scintillator"
 ls = Material('ls')
@@ -16,6 +17,11 @@ lensmat = Material('lensmat')
 lensmat.set('refractive_index', lensmat_refractive_index)
 lensmat.set('absorption_length', 1e8)
 lensmat.set('scattering_length', 1e8)
+
+lensmat_ohara = Material('lensmat_ohara')
+lensmat_ohara.set('refractive_index', lensmat_ohara_refractive_index)
+lensmat_ohara.set('absorption_length', 1e8)
+lensmat_ohara.set('scattering_length', 1e8)
 
 blackhole = Material('blackhole')
 blackhole.set('refractive_index', 1.0)

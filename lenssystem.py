@@ -2,17 +2,19 @@ from chroma import make
 from chroma.transform import make_rotation_matrix
 import meshhelper as mh
 import numpy as np
+import lensmaterials as lm
 
 class LensSys(object):
-    def __init__ (self, sys_rad, focal_length, detector_r_curve, lens_rad):
+    def __init__ (self, sys_rad, focal_length, detector_r_curve, lens_rad, lensmat=lm.lensmat):
         # Contains parameters common to all lens systems
         self.sys_rad = sys_rad # Radius of detecting surface
         self.focal_length = focal_length # Focal length (distance from center of first lens to center of detecting surface)
         self.detector_r_curve = detector_r_curve # Radius of curvature of detecting surface
         self.lens_rad = lens_rad # Radius of first lens in lens system
+        self.lensmat = lensmat # Lens material
         
 lensdict = {'Jiani3': LensSys(sys_rad=643., focal_length=1074., detector_r_curve=943., lens_rad=488.)}
-lensdict['Sam1'] = LensSys(sys_rad=350., focal_length=737.4, detector_r_curve=480., lens_rad=350.)
+lensdict['Sam1'] = LensSys(sys_rad=350., focal_length=737.4, detector_r_curve=480., lens_rad=350., lensmat=lm.lensmat_ohara)
 
 def get_lens_sys(lens_system_name):
     if lens_system_name in lensdict:
@@ -98,6 +100,11 @@ def get_lens_mesh_list(lens_system_name, scale_rad):
         l2_mesh = mh.shift(l2_mesh, (0., 0., -d2)) # Shift relative to first lens along optical axis
         lenses.append(l2_mesh)
     return lenses
+        
+def get_lens_material(lens_system_name):
+    # Returns the lens material for the given lens_system_name
+    lens_sys = get_lens_sys(lens_system_name)
+    return lens_sys.lensmat
         
 def asphere_func(x, c, k, d, e, f):
     # General aspheric lens parametrization
