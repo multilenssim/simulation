@@ -159,7 +159,7 @@ class EventAnalyzer(object):
                                 
                         
                     elif recon_mode=='angle':
-                        det_tree = spatial.KDTree(detector_array)
+                        det_tree = spatial.cKDTree(detector_array)
                         nearest_detector_index = det_tree.query(end_direction)[1]
                         if detector_array[nearest_detector_index][0] < -1:
                             print "bad angle"
@@ -600,7 +600,7 @@ class EventAnalyzer(object):
             for vtx in vtcs:
                 print "Vtx pos: " + str(vtx.pos)
                 print "Vtx n_ph: " + str(vtx.n_ph)
-                print "Vtx uncertainty: " + str(vtx.err)
+                print "Vtx quality: " + str(vtx.err)
             
         return vtcs
 
@@ -611,8 +611,8 @@ class EventAnalyzer(object):
         reflected_specular = (ev.photons_end.flags & (0x1 <<6)).astype(bool)
         good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
              
-        beginning_photons = ev.photons_beg.pos[good_photons]
-        ending_photons = ev.photons_end.pos[good_photons]
+        beginning_photons = ev.photons_beg.pos[detected] # Include reflected photons
+        ending_photons = ev.photons_end.pos[detected]
         length = np.shape(ending_photons)[0]
         if debug:
             print "Total detected photons in event: " + str(sum(detected*1))
@@ -685,6 +685,7 @@ class EventAnalyzer(object):
             if debug:
                 print "Tracks for calibrated PMTs: " + str(len(tracks))
             #tracks.cull(np.where(tracks.sigmas<0.2)) # Remove tracks with too large uncertainty
+            #tracks.sigmas[:] = 0.054 # Temporary! Checking if setting all sigmas equal to each other helps or hurts
             return tracks     
     
     @staticmethod
@@ -813,7 +814,7 @@ class EventAnalyzer(object):
             print "You need a starting type!"
             
         coord_array = self.det_res.bin_to_position_array() 
-        tree = spatial.KDTree(coord_array)
+        tree = spatial.cKDTree(coord_array)
 
         probabilities = np.zeros(n)
         radii = np.linspace(0, 2*self.det_res.inscribed_radius, n)

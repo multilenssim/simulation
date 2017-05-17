@@ -2,6 +2,7 @@ from ShortIO.root_short import GaussAngleRootWriter, GaussAngleRootReader, Short
 from chroma.transform import normalize
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 from DetectorResponse import DetectorResponse
 
@@ -37,6 +38,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
              nevents = len(reader)
          total_means = np.zeros((self.npmt_bins, 3))
          total_variances = np.zeros((self.npmt_bins))
+         total_u_minus_v = np.zeros((self.npmt_bins))
          amount_of_hits = np.zeros((self.npmt_bins))
 
          # Loop through events, store for each photon the index of the PMT it hit (pmt_bins)
@@ -49,7 +51,6 @@ class DetectorResponseGaussAngle(DetectorResponse):
          pmt_bins = np.empty(max_storage,dtype=np.float32) 
          n_det = 0
          for ev in reader:
-
              loops += 1
              if loops > nevents:
                  break
@@ -64,8 +65,8 @@ class DetectorResponseGaussAngle(DetectorResponse):
              good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
              print "Total detected and not reflected: " + str(sum(good_photons*1))
              
-             beginning_photons = ev.photons_beg.pos[good_photons]
-             ending_photons = ev.photons_end.pos[good_photons]
+             beginning_photons = ev.photons_beg.pos[detected] # Include reflected photons
+             ending_photons = ev.photons_end.pos[detected]
              length = np.shape(ending_photons)[0]
              end_dir = normalize(ending_photons-beginning_photons)
              # if end_direction_array is None:
@@ -131,6 +132,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
             #variance = np.var(orthogonal_complements, ddof=1)
             
             try:
+				#draw_pmt_ind = None
 				draw_pmt_ind = int(draw_pmt_ind)
 				if i == draw_pmt_ind or draw_pmt_ind<0:
 					# Temporary, to visualize histogram of angles, distances
@@ -172,10 +174,13 @@ class DetectorResponseGaussAngle(DetectorResponse):
 					#print "Variance of projected 2D norms: ", np.var(orthogonal_complements, ddof=1)
 					draw_pmt_ind = raw_input("Enter index of next PMT to draw; will stop drawing if not a valid PMT index.\n")
             except ValueError:
+                pass
+            except TypeError:
 				pass
             
             total_means[i] = mean_angle
             total_variances[i] = variance
+            total_u_minus_v[i] = np.abs(u_var-v_var)
             amount_of_hits[i] = n_angles
             if np.isnan(variance):
                 print "Nan for PMT " + str(i)
@@ -193,6 +198,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
          print "PMTs w/ < n_events hits: " + str(len(np.where(amount_of_hits < nevents)[0])*1.0/self.npmt_bins)
          print "PMTs w/ < n_min hits: " + str(len(np.where(amount_of_hits < n_min)[0])*1.0/self.npmt_bins)
          print "PMTs w/ < 100 hits: " + str(len(np.where(amount_of_hits < 100)[0])*1.0/self.npmt_bins)
+         print "Mean U-V variance (abs): " + str(np.mean(total_u_minus_v))
          
          # Store final calibrated values
          self.means = -total_means.astype(np.float32).T

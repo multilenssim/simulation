@@ -6,6 +6,7 @@ import numpy as np
 import lensmaterials as lm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import time
 
 from kabamland2 import get_curved_surf_triangle_centers, find_max_radius
 
@@ -57,7 +58,7 @@ class DetectorResponse(object):
         self.lens_inverse_rotated_displacement_matrix = self.build_lensplane_inverse_rotated_displacement_matrix()
         #new properties for curved surface detectors 
         self.triangle_centers = get_curved_surf_triangle_centers(self.edge_length, config.base, self.detector_r, self.focal_length, self.nsteps)
-        self.triangle_centers_tree = spatial.KDTree(self.triangle_centers)
+        self.triangle_centers_tree = spatial.cKDTree(self.triangle_centers)
         
         self.calc1 = self.pmtxbins/self.pmt_side_length
         self.calc2 = self.pmtxbins/2.0
@@ -331,14 +332,14 @@ class DetectorResponse(object):
             
     def find_closest_triangle_center(self, pos_array, max_dist = 1.):
         #print "Finding closest triangle centers..."
-        
         if(max_dist == 1.):
             max_dist = 1.1*2*np.pi*find_max_radius(self.edge_length, self.base)/self.nsteps # Circumference of detecting surface divided by number of steps, with 1.1x of wiggle room
             #print max_dist
         #max_dist = 1
         #max_dist=1000
-        closest_triangle_index = self.triangle_centers_tree.query(pos_array,distance_upper_bound = max_dist)[1].tolist()
-        closest_triangle_dist = self.triangle_centers_tree.query(pos_array,distance_upper_bound = max_dist)[0].tolist()
+        query_results = self.triangle_centers_tree.query(pos_array,distance_upper_bound = max_dist)
+        closest_triangle_index = query_results[1].tolist()
+        closest_triangle_dist = query_results[0].tolist()
         #print max(closest_triangle_dist)
         
         #fig = plt.figure(figsize=(15, 10))

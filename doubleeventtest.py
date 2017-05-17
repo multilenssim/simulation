@@ -128,8 +128,8 @@ if __name__ == '__main__':
         #Lists of efficiencies, errors, displacements generated
         # print rad_plot
         # print ratio_plot
-        print "Two-Vertex Reconstruction Efficiencies: ", effs
-        print "Average Photon-Weighted Euclidean Distance to True Vertex: ", avg_errs
+        print "Two-Vertex Reconstruction Efficiencies: \n", effs
+        print "Average Photon-Weighted Euclidean Distance to True Vertex: \n", avg_errs
         plot_eff_contours(rad_plot, ratio_plot, effs)
 
     def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
@@ -141,8 +141,8 @@ if __name__ == '__main__':
         for ind in range(n_loc):
             loc1 = locs1[ind]
             loc2 = locs2[ind]
-            event1 = kbl.gaussian_sphere(loc1, sigma, amount1)
-            event2 = kbl.gaussian_sphere(loc2, sigma, amount2)
+            event1 = kbl.gaussian_sphere(loc1, sigma, int(amount1))
+            event2 = kbl.gaussian_sphere(loc2, sigma, int(amount2))
             event = event1 + event2 # Just add the list of photons from the two sources into a single event
             events.append(event)
         return events
@@ -197,8 +197,8 @@ if __name__ == '__main__':
 
         
         loc2 = tuple((uniform_sphere(1)*rad_frac*det_res.inscribed_radius).flatten()+loc1)
-        amount1 = n_ph_sim*ratio
-        amount2 = n_ph_sim*(1-ratio)
+        amount1 = int(n_ph_sim*ratio)
+        amount2 = int(n_ph_sim*(1-ratio))
 
         # Create and simulate event
         photons = create_double_source_events([loc1], [loc2], sig_pos, amount1, amount2)
@@ -243,13 +243,12 @@ if __name__ == '__main__':
 
     set_style()
 
-    fileinfo = 'cfJiani3_4'#'configpc6-meniscus6-fl1_027-confined'#'configpc7-meniscus6-fl1_485-confined'#'configview-meniscus6-fl2_113-confined'
+    fileinfo = 'cfJiani3_2'#'configpc6-meniscus6-fl1_027-confined'#'configpc7-meniscus6-fl1_485-confined'#'configview-meniscus6-fl2_113-confined'
 
-    double_event_eff_test('cfJiani3_4', detres='detresang-'+fileinfo+'_noreflect_100million.root', detbins=10, n_repeat=10, sig_pos=0.01, n_ph_sim=4000, n_ratio=10, n_pos=5, max_rad_frac=0.2, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.05, chiC=2., temps=[256, 0.25], tol=1.0, debug=False)
+    double_event_eff_test('cfJiani3_2', detres='detresang-'+fileinfo+'_1DVariance_100million.root', detbins=10, n_repeat=10, sig_pos=0.01, n_ph_sim=4000, n_ratio=10, n_pos=5, max_rad_frac=0.2, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.4, temps=[256, 0.25], tol=1.0, debug=False)
 
 
     #double_event_eff_test('configpc6', detres=None, detbins=10, n_repeat=2, sig_pos=0.1, n_ph_sim=300, n_ratio=2, n_pos=2, max_rad_frac=1.0, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.05, chiC=3., temps=[256, 0.25], tol=1.0, debug=True)
 
     #double_event_recon('cfJiani3_2', detres='detresang-'+fileinfo+'_noreflect_100million.root', detbins=10, sig_pos=0.01, n_ph_sim=4000, ratio=0.9, rad_frac=0.6, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.05, chiC=1.5, temps=[256, 0.25], tol=1.0, debug=True)
-
     
