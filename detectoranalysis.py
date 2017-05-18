@@ -196,6 +196,27 @@ def check_detres_sigmas(config, detres, datadir=""):
 	ax.set_title('PMTs with high angular uncertainty')
 	plt.show()
 
+def compare_sigmas(config1, detres1, config2, detres2, datadir=""):
+	det_res1 = DetectorResponseGaussAngle(config1, infile=(datadir+detres1))
+	det_res2 = DetectorResponseGaussAngle(config2, infile=(datadir+detres2))
+	npmt = det_res1.npmt_bins
+	if npmt != det_res2.npmt_bins:
+		print "Can't compare the detector responses - different numbers of PMTs!"
+		return
+	calibrated_pmts = np.where(np.logical_and(det_res1.sigmas > 0.001, det_res2.sigmas > 0.001))[0]
+	#print det_res1.means[:,calibrated_pmts], np.shape(det_res1.means[:,calibrated_pmts])
+	cos_ang = np.einsum('ij,ij->j',det_res1.means[:,calibrated_pmts], det_res2.means[:,calibrated_pmts])
+	ang = np.rad2deg(np.arccos(np.clip(cos_ang, -1.0, 1.0)))
+	#mean_diff = det_res1.means[:,calibrated_pmts] - det_res2.means[:,calibrated_pmts]
+	max_ang = 15
+	max_y = 0.6
+	plt.hist(ang,100,normed=True,range=(0.,max_ang))
+	plt.axis([0.,max_ang, 0., max_y])
+	plt.xlabel('Relative angle (deg)')
+	plt.ylabel('PMTs/Unit Angle')
+	plt.show()
+	
+
 def testing(config):
 	#use this to test various functions in DetectorResponse
 	test = DetectorResponse(config)
