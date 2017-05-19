@@ -31,7 +31,7 @@ def fixed_dist(sample,radius,rads=None):
 	loc2[bl_idx] = 2 * loc1[bl_idx] - loc2[bl_idx]
 	return loc1,loc2,rads
 
-def sph_scatter(sample,in_shell = 4000,out_shell = 5000):
+def sph_scatter(sample,in_shell = 0,out_shell = 1000):
 	loc = np.random.uniform(-out_shell,out_shell,(sample,3))
 	while len(loc[(np.linalg.norm(loc,axis=1)>in_shell) & (np.linalg.norm(loc,axis=1)<=out_shell)]) != sample:
 		bl_idx = np.logical_not((np.linalg.norm(loc,axis=1)>in_shell) & (np.linalg.norm(loc,axis=1)<=out_shell))
@@ -40,7 +40,7 @@ def sph_scatter(sample,in_shell = 4000,out_shell = 5000):
 	return loc
 
 
-def plot_sphere(loc1,loc2=None,rads=None):
+def plot_sphere(loc1,loc2=None,rads=None,cl=None):
 	u = np.linspace(0, 2 * np.pi, 100)
 	v = np.linspace(0, np.pi, 100)
 	x = np.outer(np.cos(u), np.sin(v))
@@ -50,6 +50,8 @@ def plot_sphere(loc1,loc2=None,rads=None):
 	ax = fig.gca(projection='3d')
 	if loc2 == None:
 		ax.plot(loc1[:,0]/5000,loc1[:,1]/5000,loc1[:,2]/5000,'.')
+		if cl != None:
+			ax.plot(cl[:,0]/5000,cl[:,1]/5000,cl[:,2]/5000,'.')
 	else:
 		color = plt.cm.rainbow(np.linspace(0, 1, len(rads)))
 		for i,j in zip(loc1/5000,loc2/5000):
@@ -152,10 +154,11 @@ def plot_hist(arr_dist,out_print,save=None,directory=None):
 def make_hist(bn_arr,arr,c_wgt,norm=True):
 	wgt = []
 	np_double = np.asarray(arr)
+	bn_wdt = bn_arr[1] - bn_arr[0]
 	for bn in bn_arr:
-		wgt.extend(np.dot([(np_double>=bn) & (np_double<(bn+bn_arr[1]))],c_wgt))
+		wgt.extend(np.dot([(np_double>=bn) & (np_double<(bn+bn_wdt))],c_wgt))
 	if norm:
-		return np.asarray(wgt)/sum(wgt)
+		return np.asarray(wgt)/abs(sum(wgt))
 	else:
 		return np.asarray(wgt)
 
@@ -171,7 +174,7 @@ def substract_hist(bn_arr,bkg,sgnl,sigma_sgnl,dists):
 	plt.fill_between(bn_arr,bkg[1],-bkg[1])
 	plt.xlabel('respective distance between tracks [mm]')
 	plt.ylabel('normalized residuals (compared to SS)')
-	plt.title('Spherical shell 4000-5000mm')
+	plt.title('Spherical shell 0-1000mm')
 	plt.legend(rct,label)
 	plt.xlim(0,3000)
 	plt.ylim(-0.04,0.02)
@@ -213,23 +216,28 @@ def sim_setup(config,in_file):
 	return sim, analyzer
 
 def band_shell_bkg(sample,bn_arr,amount,sim,analyzer,i_shell,o_shell,sgm=False,plot=False,sigma=0.01):
-	arr_dist, arr_sgm = [], []
+	arr_dist = np.zeros(len(bn_arr))
+	arr_sgm, chi2 = [], []
 	location = sph_scatter(sample,in_shell=i_shell,out_shell=o_shell)
 	if plot:
 		plot_sphere(location)
+	i = 0
 	for lg in location:
 		sim_event = kbl.gaussian_sphere(lg, sigma, amount)
 		for ev in sim.simulate(sim_event, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 			tracks = analyzer.generate_tracks(ev)
 		if sgm:
 			tr_dist,err_dist = track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas)
-			arr_sgm.append(1./np.asarray(err_dist))
+			arr_sgm = 1./np.asarray(err_dist)
 		else:
 			tr_dist = track_dist(tracks.hit_pos.T,tracks.means.T)
-			arr_sgm = None
-		arr_dist.append(tr_dist)
+			arr_sgm = np.ones(len(tr_dist))
+		one_ev_hist = make_hist(bn_arr,tr_dist,arr_sgm)
+		chi2.append(one_ev_hist)
+		arr_dist = np.stack((one_ev_hist,arr_dist))
+		arr_dist = np.sum(arr_dist,axis=0)
 	print 'ss events produced'
-	return avg_hist(arr_dist,bn_arr,sgm=arr_sgm)
+	return arr_dist/sample, chi2
 
 def band_shell_sgn(r_dist,sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,sigma=0.01):
 	av_hist, sigma_hist = [], []
@@ -254,4 +262,4 @@ def band_shell_sgn(r_dist,sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False
 		av_hist.append(h)
  		sigma_hist.append(h_sigma)
 		print 'dist %dmm done'%rads
-	return av_hist, sigma_hist, dists
+	return np.asarray(av_hist), np.asarray(sigma_hist), dists
