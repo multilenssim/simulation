@@ -23,23 +23,13 @@ if __name__ == '__main__':
     from matplotlib import rcParams
     from matplotlib import cm
     import detectorconfig
+    import math
     
     datadir = "/home/exo/"
     
     def eff_test(config, detres=None, detbins=10, n_repeat=10, sig_pos=0.01, n_ph_sim=300, n_ratio=10, n_pos=10, max_rad_frac=1.0, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.05, chiC=3., temps=[256, 0.25], tol=0.1, debug=False):
-        # Produces a plot of reconstruction efficiency for double source events (# of events w/ 
-        # 2 reconstructed # vtcs/# of events) as a function of event separation and ratio of source photons.
-        # Creates a simulation of the given config, etc. (actual lenses set in kabamland2.py)
-        # Simulates events with total number of photons given by n_ph_sim, split into two sources
-        # One source is set at loc1, while the other is varied in radial distance from loc1 
-        # (up to max_rad_frac*inscribed radius in n_pos steps)
-        # The size of each photon source is given by sig_pos
-        # The ratio of photons from each source is also varied from 0.5 to 0.99 (n_ratio steps)
-        # Each (pos, ratio) pair is repeated n_repeat times
-        # The event is then analyzed using the AVF algorithm to reconstruct vertex positions, and
-        # the average reconstruction efficiency is recorded
-        # Uses a DetectorResponse given by detres (or idealized resolution model, if detres=None)
-        # AVF params (including n_ph, which can be used to fix the number of detected photons) also included
+		###############################################
+		
 		
         kabamland = Detector(lm.ls)
         kbl.build_kabamland(kabamland, config)
@@ -56,27 +46,29 @@ if __name__ == '__main__':
         else:
             det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins, infile=(datadir+detres))
         analyzer = EventAnalyzer(det_res)
-
-
-        # make list of radii and energy ratios
-        # Keep events inside detector
         
-        #max_rad = min(max_rad_frac*det_res.inscribed_radius, det_res.inscribed_radius-np.linalg.norm(np.array(loc1)))
-        max_rad = 3000
-        rads = [max_rad*float(ii+1)/n_pos for ii in range(n_pos)]
+        max_rad = 6000
+        #previous definition of rads 
+        #rads = [max_rad*float(ii+1)/n_pos for ii in range(n_pos)]
+        
+        rads = radius_equal_vol(max_rad = max_rad, steps = n_pos)
+        
         rad_plot = np.tile(rads/det_res.inscribed_radius, (n_ratio,1))
  
-        #print "max_rad: ", max_rad
-        print "rads: ", rads
+        #print "rads: ", rads
         #print "rad_plot: ", rad_plot
+        
         effs = np.zeros((n_ratio, n_pos))
         avg_errs = np.zeros((n_ratio, n_pos))
         amount = n_ph_sim
         
         repetition = 30
+        
         #energies = [500,1000,2000,3000,4000,6000,8000]
-        energies = [500,1000,2000,3000,4000]
+        #energies = [500,1000,2000,3000,4000]
+        energies = [6600]
         recon = np.zeros((len(energies),repetition, n_pos, 3))
+        
         for ii in range(len(energies)):	
 			amount = energies[ii]
 			for iy, rad in enumerate(rads):
@@ -84,8 +76,7 @@ if __name__ == '__main__':
 				print "Radius step:		", iy 
 				
 				events = []
-				
-
+	
 				points = np.zeros((repetition, 3))
 
 				for x in range(repetition):
@@ -96,32 +87,7 @@ if __name__ == '__main__':
 					points[x,2] = rad*np.cos(theta)
 					event = kbl.gaussian_sphere(points[x,:], sig_pos, amount)
 					events.append(event)
-					#print x 
 					
-				#fig = plt.figure(figsize=(15, 10))
-				#ax = fig.add_subplot(111, projection='3d')
-				#ax.view_init(elev=0, azim=90)
-				#ax.set_xlabel('X Label')
-				#ax.set_ylabel('Y Label')
-				#ax.set_zlabel('Z Label')
-				#axis_range = 6000
-				#ax.set_xlim([-axis_range,axis_range])
-				#ax.set_ylim([-axis_range,axis_range])
-				#ax.set_zlim([-axis_range,axis_range])
-			
-				#ax.scatter(points[:,0].tolist(), points[:,1].tolist(), points[:,2].tolist(), c='r')
-				#plt.show()
-				#quit()
-				
-				
-				#rd = [np.sqrt(entry[0]*entry[0]+entry[1]*entry[1]+entry[2]*entry[2]) for entry in points]
-				#print points 
-				#print rd 
-				
-				#quit() 
-
-				#sim_events = create_single_source_event(rad, sig_pos, amount)
-
 				times = []
 				vtx_disp = []
 				vtx_err = []
@@ -129,13 +95,11 @@ if __name__ == '__main__':
 				n_vtcs = []
 				
 				for ind, ev in enumerate(sim.simulate(events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100)):
-			
-					#print "Iteration " + str(ind+1) + " of " + str(n_repeat)
 					t0 = time.time()
 					# Do AVF event reconstruction
 					vtcs = analyzer.analyze_one_event_AVF(ev, sig_cone, n_ph, min_tracks, chiC, temps, tol, debug, lens_dia)
 					t1 = time.time()
-					#print t1-t0, "	sec"
+					print t1-t0, "	sec"
 					# Check performance: speed, dist from recon vertex to event pos for each, uncertainty for each
 					doWeights = True # Weight vertices by n_ph
 					if vtcs: # Append results unless no vertices were found
@@ -182,51 +146,88 @@ if __name__ == '__main__':
 				#print "avg distance: ", np.mean(vtx_err)
 				#print "avg n_vtcs: " + str(np.mean(n_vtcs))
 				#print "avg time: " + str(np.mean(times))
+        
+        #print recon   
+        #fig = plt.figure(figsize=(10, 10))
+        #plt.scatter(recon[:,:,:,0], recon[:,:,:,1])
+        #plt.xlabel("true radius [mm]")
+        #plt.ylabel("reconstructed radius [mm]")
+        #t = np.arange(0.,6000.,10) 
+        #plt.plot(t,t, 'r--')
+        #plt.xlim(0., 5500)
+        #plt.ylim(0., 5500)
+        #plt.show()
+        
+        #fig = plt.figure(figsize=(10, 10))
+        #plt.xlabel("true radius [mm]")
+        #plt.ylabel("reconstructed radius [mm]")
+        #for ii in range(n_pos):
+			#print ii 
+			#plt.scatter(recon[0,0,ii,0], np.mean(recon[0,:,ii,1]),color="b")
+			#plt.errorbar(recon[0,0,ii,0], np.mean(recon[0,:,ii,1]), yerr=np.std(recon[0,:,ii,1]), linestyle="None", color="k")
 		
-        #Lists of efficiencies, errors, displacements generated
-        # print rad_plot
-        # print ratio_plot
-        #print "Two-Vertex Reconstruction Efficiencies: ", effs
-        #print "Average Photon-Weighted Euclidean Distance to True Vertex: ", avg_errs
-        #plot_eff_contours(rad_plot, ratio_plot, effs)
+        #for ii in range(n_pos):
+			#print ii 
+			#plt.scatter(recon[1,0,ii,0], np.mean(recon[1,:,ii,1]),color="r")
+			#plt.errorbar(recon[1,0,ii,0], np.mean(recon[1,:,ii,1]), yerr=np.std(recon[0,:,ii,1]), linestyle="None", color="k")
+		
+		
+        #for ii in range(n_pos):
+			#print ii 
+			#plt.scatter(recon[2,0,ii,0], np.mean(recon[2,:,ii,1]),color="g")
+			#plt.errorbar(recon[2,0,ii,0], np.mean(recon[2,:,ii,1]), yerr=np.std(recon[0,:,ii,1]), linestyle="None", color="k")
+        #for ii in range(n_pos):
+			#print ii 
+			#plt.scatter(recon[2,0,ii,0], np.mean(recon[2,:,ii,1]),color="y")
+			#plt.errorbar(recon[2,0,ii,0], np.mean(recon[2,:,ii,1]), yerr=np.std(recon[0,:,ii,1]), linestyle="None", color="k")
+        #t = np.arange(0.,6000.,10) 
+        #plt.plot(t,t, 'r--')
+        #plt.show()
         
         
-        print recon   
-        fig = plt.figure(figsize=(10, 10))
-        plt.scatter(recon[:,:,:,0], recon[:,:,:,1])
-        plt.xlabel("true radius [mm]")
-        plt.ylabel("reconstructed radius [mm]")
-        t = np.arange(0.,6000.,10) 
-        plt.plot(t,t, 'r--')
-        plt.xlim(0., 5500)
-        plt.ylim(0., 5500)
+        ax1 = plt.gca()
+        ax1.set_xlim([0,6100])
+        ax2 = ax1.twinx()
+        
+        ax1.set_xlabel('true radius [mm]')
+        ax1.set_ylabel('position resolution [%]', color='blue')
+        ax2.set_ylabel('light collection efficiency [%]', color='red')
+        
+        
+        for zz in range(len(energies)):
+            for ii in range(n_pos):
+			    ax1.scatter(recon[zz,0,ii,0],np.std(recon[zz,:,ii,1])/recon[zz,0,ii,0]*100, label = str(energies[zz]), color="blue")
+
+        for zz in range(len(energies)):
+			for ii in range(n_pos):
+				ax2.scatter(recon[zz,0,ii,0],np.mean(recon[zz,:,ii,2]/n_ph_sim)*100, color="red")
+				ax2.errorbar(recon[zz,0,ii,0], np.mean(recon[zz,:,ii,2]/n_ph_sim)*100, yerr=np.std(recon[zz,:,ii,2]/n_ph_sim)*100, linestyle="None", color="red")
+        
         plt.show()
         
-        fig = plt.figure(figsize=(10, 10))
-        plt.xlabel("true radius [mm]")
-        plt.ylabel("reconstructed radius [mm]")
-        for ii in range(n_pos):
-			print ii 
-			plt.scatter(recon[0,0,ii,0], np.mean(recon[0,:,ii,1]),color="b")
-			plt.errorbar(recon[0,0,ii,0], np.mean(recon[0,:,ii,1]), yerr=np.std(recon[0,:,ii,1]), linestyle="None", color="k")
-		
-        for ii in range(n_pos):
-			print ii 
-			plt.scatter(recon[1,0,ii,0], np.mean(recon[1,:,ii,1]),color="r")
-			plt.errorbar(recon[1,0,ii,0], np.mean(recon[1,:,ii,1]), yerr=np.std(recon[0,:,ii,1]), linestyle="None", color="k")
-		
-		
-        for ii in range(n_pos):
-			print ii 
-			plt.scatter(recon[2,0,ii,0], np.mean(recon[2,:,ii,1]),color="g")
-			plt.errorbar(recon[2,0,ii,0], np.mean(recon[2,:,ii,1]), yerr=np.std(recon[0,:,ii,1]), linestyle="None", color="k")
-        for ii in range(n_pos):
-			print ii 
-			plt.scatter(recon[2,0,ii,0], np.mean(recon[2,:,ii,1]),color="y")
-			plt.errorbar(recon[2,0,ii,0], np.mean(recon[2,:,ii,1]), yerr=np.std(recon[0,:,ii,1]), linestyle="None", color="k")
-        t = np.arange(0.,6000.,10) 
-        plt.plot(t,t, 'r--')
+        
+        
+        ax1 = plt.gca()
+        ax1.set_xlim([0,6100])
+        ax2 = ax1.twinx()
+        
+        ax1.set_xlabel('true radius [mm]')
+        ax1.set_ylabel('position resolution [%]', color='blue')
+        ax2.set_ylabel('light collection efficiency [%]', color='red')
+        
+        
+        for zz in range(len(energies)):
+            for ii in range(n_pos):
+			    ax1.scatter(recon[zz,0,ii,0],np.mean(recon[zz,:,ii,1])/recon[zz,0,ii,0]*100-1, label = str(energies[zz]), color="blue")
+
+        for zz in range(len(energies)):
+			for ii in range(n_pos):
+				ax2.scatter(recon[zz,0,ii,0],np.mean(recon[zz,:,ii,2]/n_ph_sim)*100, color="red")
+				ax2.errorbar(recon[zz,0,ii,0], np.mean(recon[zz,:,ii,2]/n_ph_sim)*100, yerr=np.std(recon[zz,:,ii,2]/n_ph_sim)*100, linestyle="None", color="red")
+        
         plt.show()
+        
+        quit()
         
         fig = plt.figure(figsize=(10, 10))
         plt.xlabel("true radius [mm]")
@@ -240,17 +241,7 @@ if __name__ == '__main__':
 		
         plt.savefig(datadir+'std.pdf')
         plt.show()
-        
-        fig = plt.figure(figsize=(10, 10))
-        plt.xlabel("true radius [mm]")
-        plt.ylabel("standard deviation of reconstructed radius [mm]")
-        plt.ylim(0., 50)
-        
-        colors = ['b', 'r', 'g', 'y', 'm', 'c', 'k']
-        
-        for zz in range(len(energies)):
-			plt.plot(recon[zz,0,:,0],np.std(recon[zz,:,:,1]), color=colors[zz], label = str(energies[zz]))
-        plt.show()
+     
         
         fig = plt.figure(figsize=(10, 10))
         plt.xlabel("true radius [mm]")
@@ -307,6 +298,15 @@ if __name__ == '__main__':
         plt.colorbar(cset)
         
         plt.show()
+        
+    def radius_equal_vol(steps = 11, max_rad = 6000):
+		max_vol = pow(max_rad, 3)*4/3*math.pi
+		#print "Volume: ", max_vol 
+		rads = [math.pow(3.0/4.0*max_vol/steps/math.pi*ii, 1/3.0) for ii in range(steps)]
+		print rads 
+		return rads 
+			
+		
 
     def set_style():
         # Set matplotlib style
@@ -320,4 +320,4 @@ if __name__ == '__main__':
     print "Efficiency test started"
     
     set_style()
-    eff_test(fileinfo, detres='detresang-'+fileinfo+'_noreflect_100million.root', detbins=10, n_repeat=10, sig_pos=0.01, n_ph_sim=4000, n_ratio=10, n_pos=3, max_rad_frac=0.7, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.05, chiC=3, temps=[256, 0.25], tol=0.1, debug=False)
+    eff_test(fileinfo, detres='detresang-'+fileinfo+'_noreflect_100million.root', detbins=10, n_repeat=10, sig_pos=0.01, n_ph_sim=4000, n_ratio=10, n_pos=11, max_rad_frac=0.7, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
