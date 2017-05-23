@@ -18,6 +18,10 @@ import meshhelper as mh
 import lensmaterials as lm
 import numpy as np
 from scipy.spatial import distance
+from matplotlib.tri import Triangulation
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+from scipy.spatial import Delaunay
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -291,14 +295,15 @@ def build_kabamland(kabamland, configname):
     kabamland.add_solid(Solid(surf2, lm.ls, lm.ls, lm.fulldetect, 0x0000FF), rotation=None, displacement=(0,0,0))
     kabamland.add_solid(Solid(lens2, lm.lensmat, lm.ls) , rotation=None, displacement=None)
     
-    pos = 6
+    pos = 5
     off = (pos-1)*100/2
+    upshift = 500
     for i in range(pos):
 		for k in range(pos):
 			if(k==0 and i==0):
-				connect = mk.box(60, 60, 60, center=(a2[0]+off, a2[1]+off, a2[2]+1000))
+				connect = mk.box(60, 60, 60, center=(a2[0]+off, a2[1]+off, a2[2]+upshift))
 			else: 
-				connect = connect + mk.box(60, 60, 60, center=(a2[0]-i*100+off, a2[1]-k*100+off, a2[2]+1000))
+				connect = connect + mk.box(60, 60, 60, center=(a2[0]-i*100+off, a2[1]-k*100+off, a2[2]+upshift))
     box = Solid(connect, lm.ls, lm.ls, lm.fulldetect, 0x0000FF)
     #kabamland.add_solid(box, rotation=None, displacement=(0,0,0))
     
@@ -313,44 +318,61 @@ def getRandom():
 	doRandom = [nthreads_per_block, max_blocks, rng_states]
 	return doRandom  
 
-def event_display(numPhotons, photon_track, vertex,surf2, lens2, pos, rep):
+def event_display(numPhotons, photon_track, vertex,surf2, lens2, pos, rep, config):
+	
 	fig = plt.figure(figsize=(20, 10))
-	ax = fig.add_subplot(111, projection='3d')
-	ax.plot_wireframe(lens2.get_triangle_centers()[:,0], lens2.get_triangle_centers()[:,1], lens2.get_triangle_centers()[:,2], color = (1,1,1,.5), edgecolor='black', linewidth=.3, antialiased=True)
-	ax.plot_trisurf(surf2.get_triangle_centers()[:,0], surf2.get_triangle_centers()[:,1], surf2.get_triangle_centers()[:,2], color=(1,1,1,0.0), edgecolor='black', linewidth=0.3, antialiased=True)
+	ax = fig.gca(projection='3d')
+	
+	ax._axis3don = False
+	lens2.remove_duplicate_vertices()
+	lens_vertices = lens2.assemble()
+	surf_vertices = surf2.assemble()
+	
+	nr_triangles2 = len(surf2.get_triangle_centers()[:,1])
+	
+	X2 = lens_vertices[:,:,0].flatten()
+	Y2 = lens_vertices[:,:,1].flatten()
+	Z2 = lens_vertices[:,:,2].flatten()
+	
+	X3 = surf_vertices[:,:,0].flatten()
+	Y3 = surf_vertices[:,:,1].flatten()
+	Z3 = surf_vertices[:,:,2].flatten()
+
+	triangles = [[3*ii,3*ii+1,3*ii+2] for ii in range(len(X2)/3)]
+	triang = Triangulation(X2, Y2, triangles)
+	
+	triangles2 = [[3*ii,3*ii+1,3*ii+2] for ii in range(len(X3)/3)]
+	triang2 = Triangulation(X3, Y3, triangles2)
+	
+	#ax.plot_trisurf(triang2, Z3, color="white", linewidth = 0.0, shade = True, alpha = 1.0)
+	
+	for ii in range(nr_triangles2/2):
+		ax.plot(surf_vertices[ii,:,0], surf_vertices[ii,:,1], surf_vertices[ii,:,2], color='black', lw = .5)
 
 	for i in range(numPhotons):
 		X,Y,Z = photon_track[:,i,0].tolist(), photon_track[:,i,1].tolist(), photon_track[:,i,2].tolist()
 		X.insert(0, pos[i,0])
 		Y.insert(0, pos[i,1])
 		Z.insert(0, pos[i,2])
-		print i 
-		if(i < rep*rep/3):
-			ax.plot(X,Y,Z, linewidth=3, color='g')
-			print "test"
-		if(i > rep*rep/3 and i < rep*rep*2/3):
-			ax.plot(X,Y,Z, linewidth=3,color='b')	
-			print "test2"
-		if(i > rep*rep*2/3):
-			ax.plot(X,Y,Z,linewidth=3, color='r')	
-			print "test3"
+		ax.plot(X,Y,Z, linewidth=2, color='r')	
 		ax.scatter(X,Y,Z , c='k', s=0.)		
-	#ax.scatter(vertex[:,0], vertex[:,1], vertex[:,2], c='r', s=30)	
 	ax.set_xlabel('X Label')
 	ax.set_ylabel('Y Label')
 	ax.set_zlabel('Z Label')
-	ax.view_init(elev=30, azim=180)
+	ax.view_init(elev=10, azim=90)
+	
+	ax.plot_trisurf(triang, Z2, color="white", shade = True, alpha = .95)
+	
 	plt.show()
 		
 def photon_angle(pos, rep):
     off = (rep-1)*100/2
     photon_pos = np.zeros((rep*rep,3))
+    upshift = 800
     for i in range(rep):
 		for k in range(rep):
-			photon_pos[i*rep+k,:] = [pos[0]-i*100+off, pos[1]-k*100+off, pos[2]+500]
-    photon_dir = np.tile(np.array([0.,-0.,-1]),(rep*rep/3,1))
-    photon_dir = np.concatenate((photon_dir, (np.tile(np.array([0.2,-0.5,-1]),(rep*rep/3,1)))))
-    photon_dir = np.concatenate((photon_dir, (np.tile(np.array([0.7,0.5,-1]),(rep*rep/3,1)))))
+			photon_pos[i*rep+k,:] = [pos[0]-i*100+off, pos[1]-k*100+off, pos[2]+upshift]
+    photon_dir = np.tile(np.array([0.4,-0.1,-1]),(rep*rep,1))
     pol = np.cross(photon_dir, uniform_sphere(rep*rep))
     wavelength = np.repeat(300.0, rep*rep)
     return Photons(photon_pos, photon_dir, pol, wavelength), photon_pos
@@ -360,20 +382,13 @@ def propagate_photon(photon_type, numPhotons, nr_steps, geometry, nthreads_per_b
 	gpu_photons = gpu.GPUPhotons(photon_type);
 	gpu_geometry = gpu.GPUGeometry(geometry)
 	photon_track = np.zeros((nr_steps, numPhotons, 3))
-	#sim_time = np.zeros((nr_steps))
 	for i in range(nr_steps):
-		#start_sim = time.time()
 		gpu_photons.propagate(gpu_geometry, rng_states, nthreads_per_block=nthreads_per_block, max_blocks=max_blocks, max_steps=1)
 		photons = gpu_photons.get()
 		photon_track[i,:,0] = photons.pos[:,0] 
 		photon_track[i,:,1] = photons.pos[:,1] 
 		photon_track[i,:,2] = photons.pos[:,2]
-		#absorb = (photons.flags & (0x1 << 3)).astype(bool) 
-		#sim_time [i] = time.time() - start_sim
-		#print  len(photons.pos[absorb])
 	return photons, photon_track
-	#return photons
-
 
 
 if __name__ == '__main__':
@@ -386,6 +401,7 @@ if __name__ == '__main__':
     kabamland.bvh = load_bvh(kabamland)
     #view(kabamland)
     #quit()
+    config2 = detectorconfig.configdict[config]
     sim = Simulation(kabamland, geant4_processes=0)
     runs = 1
     nr_hits = np.zeros((runs))
@@ -398,7 +414,7 @@ if __name__ == '__main__':
 		print "  Number of photons detected			", nr_hits[eg]
     
     vertex = photons.pos[detected] 
-    event_display(numPhotons, photon_track, vertex, surf2, lens2, pos, rep)
+    event_display(numPhotons, photon_track, vertex, surf2, lens2, pos, rep, config2)
     
     
     
