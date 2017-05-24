@@ -4,11 +4,6 @@ if __name__ == '__main__':
     from DetectorResponseGaussAngle import DetectorResponseGaussAngle
     from ShortIO.root_short import ShortRootReader
     from EventAnalyzer import EventAnalyzer
-
-
-
-
-
     import kabamland2 as kbl
     import lensmaterials as lm
     from chroma.sample import uniform_sphere
@@ -48,32 +43,32 @@ if __name__ == '__main__':
         analyzer = EventAnalyzer(det_res)
         
         max_rad = 6000
+        
         #previous definition of rads 
         #rads = [max_rad*float(ii+1)/n_pos for ii in range(n_pos)]
         
-        rads = radius_equal_vol(max_rad = max_rad, steps = n_pos)
         
-        rad_plot = np.tile(rads/det_res.inscribed_radius, (n_ratio,1))
- 
-        #print "rads: ", rads
-        #print "rad_plot: ", rad_plot
+        #Get radius for equal volumes within the detector up to the maximum radius max_rad 
+        #rads = radius_equal_vol(max_rad = max_rad, steps = n_pos)
         
-        effs = np.zeros((n_ratio, n_pos))
-        avg_errs = np.zeros((n_ratio, n_pos))
+        #Get equally seperated radii within the detector up to the maximum radius max_rad
+        rads = [ii*max_rad/n_pos for ii in range(n_pos+1)]
+        
         amount = n_ph_sim
         
-        repetition = 30
+        repetition = 10
         
         #energies = [500,1000,2000,3000,4000,6000,8000]
         #energies = [500,1000,2000,3000,4000]
         energies = [6600]
-        recon = np.zeros((len(energies),repetition, n_pos, 3))
+        
+        recon = np.zeros((len(energies),repetition, n_pos+1, 6))
         
         for ii in range(len(energies)):	
 			amount = energies[ii]
 			for iy, rad in enumerate(rads):
 				print "Energy: " + str(amount) + ", radius: " + str(rad)
-				print "Radius step:		", iy 
+				#print "Radius step:		", iy 
 				
 				events = []
 	
@@ -99,7 +94,7 @@ if __name__ == '__main__':
 					# Do AVF event reconstruction
 					vtcs = analyzer.analyze_one_event_AVF(ev, sig_cone, n_ph, min_tracks, chiC, temps, tol, debug, lens_dia)
 					t1 = time.time()
-					print t1-t0, "	sec"
+					#print t1-t0, "	sec"
 					# Check performance: speed, dist from recon vertex to event pos for each, uncertainty for each
 					doWeights = True # Weight vertices by n_ph
 					if vtcs: # Append results unless no vertices were found
@@ -114,10 +109,9 @@ if __name__ == '__main__':
 								
 								if np.linalg.norm(vtx.pos) > det_res.inscribed_radius: # Skip vertices outside detector
 									break 
-								errs = [vtx.pos-ev_pos for ev_pos in event_pos] # Get distances to true source locs
-								#print "Distance to true event location:		", errs 
+								errs = vtx.pos-event_pos # Get distances to true source locs
 								r_recon = np.sqrt(vtx.pos[0]*vtx.pos[0]+vtx.pos[1]*vtx.pos[1]+vtx.pos[2]*vtx.pos[2])
-								print "Reconstructed radius:		", r_recon
+								print iy, ind, r_recon
 								min_ind = np.argmin([np.linalg.norm(err) for err in errs])
 								if doWeights:
 									min_errs.append(errs[min_ind]*vtx.n_ph)
@@ -128,136 +122,20 @@ if __name__ == '__main__':
 								#break #To use only the first vtx found
 							#vtx_err = np.linalg.norm(min_errs)
 							#print "n vertices: ", len(vtcs)
-							vtx_err_dist = np.linalg.norm(min_errs, axis=1)
-							vtx_avg_dist = np.sum(vtx_err_dist)/np.sum(weights)
-							vtx_err_disp = np.sum(min_errs,axis=0)/np.sum(weights)
+							#vtx_err_dist = np.linalg.norm(min_errs, axis=1)
+							#vtx_avg_dist = np.sum(vtx_err_dist)/np.sum(weights)
+							#vtx_err_disp = np.sum(min_errs,axis=0)/np.sum(weights)
 							#print "average displacement to true event: ", vtx_err_disp
 							#print "average distance to true event: ", vtx_avg_dist
 							
-							vtx_disp.append(vtx_err_disp)
-							vtx_err.append(vtx_avg_dist)
+							#vtx_disp.append(vtx_err_disp)
+							#vtx_err.append(vtx_avg_dist)
 							#print rad, r_recon, vtx.n_ph
-							print iy, ind 
-							recon[ii,ind,iy,:] = [rad, r_recon, vtx.n_ph]
-							#print recon[iy,ind,:]
-				#effs[iy] = np.mean([1.0*(int(nii)==2) for nii in n_vtcs])
-				#avg_errs[iy] = np.mean(vtx_err)
-				#print "avg displacement: ", np.mean(vtx_disp,axis=0)
-				#print "avg distance: ", np.mean(vtx_err)
-				#print "avg n_vtcs: " + str(np.mean(n_vtcs))
-				#print "avg time: " + str(np.mean(times))
-        
-        #print recon   
-        #fig = plt.figure(figsize=(10, 10))
-        #plt.scatter(recon[:,:,:,0], recon[:,:,:,1])
-        #plt.xlabel("true radius [mm]")
-        #plt.ylabel("reconstructed radius [mm]")
-        #t = np.arange(0.,6000.,10) 
-        #plt.plot(t,t, 'r--')
-        #plt.xlim(0., 5500)
-        #plt.ylim(0., 5500)
-        #plt.show()
-        
-        #fig = plt.figure(figsize=(10, 10))
-        #plt.xlabel("true radius [mm]")
-        #plt.ylabel("reconstructed radius [mm]")
-        #for ii in range(n_pos):
-			#print ii 
-			#plt.scatter(recon[0,0,ii,0], np.mean(recon[0,:,ii,1]),color="b")
-			#plt.errorbar(recon[0,0,ii,0], np.mean(recon[0,:,ii,1]), yerr=np.std(recon[0,:,ii,1]), linestyle="None", color="k")
-		
-        #for ii in range(n_pos):
-			#print ii 
-			#plt.scatter(recon[1,0,ii,0], np.mean(recon[1,:,ii,1]),color="r")
-			#plt.errorbar(recon[1,0,ii,0], np.mean(recon[1,:,ii,1]), yerr=np.std(recon[0,:,ii,1]), linestyle="None", color="k")
-		
-		
-        #for ii in range(n_pos):
-			#print ii 
-			#plt.scatter(recon[2,0,ii,0], np.mean(recon[2,:,ii,1]),color="g")
-			#plt.errorbar(recon[2,0,ii,0], np.mean(recon[2,:,ii,1]), yerr=np.std(recon[0,:,ii,1]), linestyle="None", color="k")
-        #for ii in range(n_pos):
-			#print ii 
-			#plt.scatter(recon[2,0,ii,0], np.mean(recon[2,:,ii,1]),color="y")
-			#plt.errorbar(recon[2,0,ii,0], np.mean(recon[2,:,ii,1]), yerr=np.std(recon[0,:,ii,1]), linestyle="None", color="k")
-        #t = np.arange(0.,6000.,10) 
-        #plt.plot(t,t, 'r--')
-        #plt.show()
-        
-        
-        ax1 = plt.gca()
-        ax1.set_xlim([0,6100])
-        ax2 = ax1.twinx()
-        
-        ax1.set_xlabel('true radius [mm]')
-        ax1.set_ylabel('position resolution [%]', color='blue')
-        ax2.set_ylabel('light collection efficiency [%]', color='red')
-        
-        
-        for zz in range(len(energies)):
-            for ii in range(n_pos):
-			    ax1.scatter(recon[zz,0,ii,0],np.std(recon[zz,:,ii,1])/recon[zz,0,ii,0]*100, label = str(energies[zz]), color="blue")
+							recon[ii,ind,iy,:] = [rad, r_recon, vtx.n_ph, errs[0], errs[1], errs[2]]
 
-        for zz in range(len(energies)):
-			for ii in range(n_pos):
-				ax2.scatter(recon[zz,0,ii,0],np.mean(recon[zz,:,ii,2]/n_ph_sim)*100, color="red")
-				ax2.errorbar(recon[zz,0,ii,0], np.mean(recon[zz,:,ii,2]/n_ph_sim)*100, yerr=np.std(recon[zz,:,ii,2]/n_ph_sim)*100, linestyle="None", color="red")
         
-        plt.show()
+        plot_double_yaxis(recon, energies, n_pos, n_ph_sim, max_rad)
         
-        
-        
-        ax1 = plt.gca()
-        ax1.set_xlim([0,6100])
-        ax2 = ax1.twinx()
-        
-        ax1.set_xlabel('true radius [mm]')
-        ax1.set_ylabel('position resolution [%]', color='blue')
-        ax2.set_ylabel('light collection efficiency [%]', color='red')
-        
-        
-        for zz in range(len(energies)):
-            for ii in range(n_pos):
-			    ax1.scatter(recon[zz,0,ii,0],np.mean(recon[zz,:,ii,1])/recon[zz,0,ii,0]*100-1, label = str(energies[zz]), color="blue")
-
-        for zz in range(len(energies)):
-			for ii in range(n_pos):
-				ax2.scatter(recon[zz,0,ii,0],np.mean(recon[zz,:,ii,2]/n_ph_sim)*100, color="red")
-				ax2.errorbar(recon[zz,0,ii,0], np.mean(recon[zz,:,ii,2]/n_ph_sim)*100, yerr=np.std(recon[zz,:,ii,2]/n_ph_sim)*100, linestyle="None", color="red")
-        
-        plt.show()
-        
-        quit()
-        
-        fig = plt.figure(figsize=(10, 10))
-        plt.xlabel("true radius [mm]")
-        plt.ylabel("standard deviation of reconstructed radius [mm]")
-        plt.ylim(0., 50)
-        
-        colors = ['b', 'r', 'g', 'y', 'm', 'c', 'k']
-        for zz in range(len(energies)):
-            for ii in range(n_pos):
-			    plt.scatter(recon[zz,0,ii,0],np.std(recon[zz,:,ii,1]), color=colors[zz], label = str(energies[zz]))
-		
-        plt.savefig(datadir+'std.pdf')
-        plt.show()
-     
-        
-        fig = plt.figure(figsize=(10, 10))
-        plt.xlabel("true radius [mm]")
-        plt.ylabel("light collection efficiency")
-        for ii in range(n_pos):
-			plt.scatter(recon[0,ii,0],np.mean(recon[:,ii,2]/n_ph_sim),)
-			plt.errorbar(recon[0,ii,0], np.mean(recon[:,ii,2]/n_ph_sim), yerr=np.std(recon[:,ii,2]/n_ph_sim), linestyle="None", color="k")
-        plt.show()
-        
-        
-        
-        fig = plt.figure(figsize=(10, 10))
-        plt.scatter(recon[:,:,1],recon[:,:,2]/n_ph_sim)
-        plt.xlabel("reconstructed radius [mm]")
-        plt.ylabel("light collection efficiency")
-        plt.show()
         
         #plot_eff_contours(recon[:,:,1],recon[:,:,0],recon[:,:,2]/n_ph_sim)
 
@@ -278,6 +156,36 @@ if __name__ == '__main__':
 			events.append(event)
 		return events
 
+
+    def plot_double_yaxis(recon, energies, n_pos, n_ph_sim, max_rad):
+		ax1 = plt.gca()
+		ax1.set_xlim([0,6100])
+		ax2 = ax1.twinx()
+        
+		ax1.set_xlabel('true radius [mm]')
+		ax1.set_ylabel('position resolution [mm]', color='blue')
+		ax2.set_ylabel('light collection efficiency [%]', color='red')
+        
+		ax1.set_xlim(-100, max_rad*1.1)
+        
+        
+		for zz in range(len(energies)):
+			for ii in range(n_pos):
+				#print recon[zz,:,ii,3], recon[zz,:,ii,4], recon[zz,:,ii,5]
+				resolution = np.sqrt((np.std(abs(recon[zz,:,ii,3]))/len(recon[zz,:,ii,3]))**2 + (np.std(abs(recon[zz,:,ii,4]))/len(recon[zz,:,ii,4]))**2 + (np.std(abs(recon[zz,:,ii,5]))/len(recon[zz,:,ii,5]))**2)
+				#print resolution 
+				ax1.scatter(recon[zz,0,ii,0], resolution, label = str(energies[zz]), color="blue")
+				#ax1.errorbar(recon[zz,0,ii,0], np.mean(recon[zz,:,ii,1]), yerr=np.std(recon[zz,:,ii,1]), linestyle="None", color="red")
+
+		for zz in range(len(energies)):
+			for ii in range(n_pos):
+				ax2.scatter(recon[zz,0,ii,0],np.mean(recon[zz,:,ii,2]/n_ph_sim)*100, color="red")
+				ax2.errorbar(recon[zz,0,ii,0], np.mean(recon[zz,:,ii,2]/n_ph_sim)*100, yerr=np.std(recon[zz,:,ii,2]/n_ph_sim)/len(recon[zz,:,ii,2])*100, linestyle="None", color="red")
+        
+		plt.show()
+		
+		
+	
     def plot_eff_contours(X, Y, Z):
         # Plot surface of efficiency (Z) versus radius (X) and photon ratio (Y)
         fig = plt.figure()
@@ -320,4 +228,6 @@ if __name__ == '__main__':
     print "Efficiency test started"
     
     set_style()
-    eff_test(fileinfo, detres='detresang-'+fileinfo+'_noreflect_100million.root', detbins=10, n_repeat=10, sig_pos=0.01, n_ph_sim=4000, n_ratio=10, n_pos=11, max_rad_frac=0.7, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
+    eff_test(fileinfo, detres='detresang-'+fileinfo+'_noreflect_100million.root', detbins=10, n_repeat=10, sig_pos=0.01, n_ph_sim=4000, n_ratio=10, n_pos=10, max_rad_frac=0.7, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
+    
+    print "Simulation done."

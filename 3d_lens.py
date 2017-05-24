@@ -347,7 +347,7 @@ def event_display(numPhotons, photon_track, vertex,surf2, lens2, pos, rep, confi
 	#ax.plot_trisurf(triang2, Z3, color="white", linewidth = 0.0, shade = True, alpha = 1.0)
 	
 	for ii in range(nr_triangles2/2):
-		ax.plot(surf_vertices[ii,:,0], surf_vertices[ii,:,1], surf_vertices[ii,:,2], color='black', lw = .5)
+		ax.plot(surf_vertices[ii,:,0], surf_vertices[ii,:,1], surf_vertices[ii,:,2], color='blue', lw = 1.)
 
 	for i in range(numPhotons):
 		X,Y,Z = photon_track[:,i,0].tolist(), photon_track[:,i,1].tolist(), photon_track[:,i,2].tolist()
@@ -361,7 +361,7 @@ def event_display(numPhotons, photon_track, vertex,surf2, lens2, pos, rep, confi
 	ax.set_zlabel('Z Label')
 	ax.view_init(elev=10, azim=90)
 	
-	ax.plot_trisurf(triang, Z2, color="white", shade = True, alpha = .95)
+	ax.plot_trisurf(triang, Z2, color="white", shade = True, alpha = .90)
 	
 	plt.show()
 		
@@ -371,8 +371,8 @@ def photon_angle(pos, rep):
     upshift = 800
     for i in range(rep):
 		for k in range(rep):
-			photon_pos[i*rep+k,:] = [pos[0]-i*100+off, pos[1]-k*100+off, pos[2]+upshift]
-    photon_dir = np.tile(np.array([0.4,-0.1,-1]),(rep*rep,1))
+			photon_pos[i*rep+k,:] = [pos[0]-i*100+off-100, pos[1]-k*100+off+400, pos[2]+upshift]
+    photon_dir = np.tile(np.array([0.2,-0.55,-1]),(rep*rep,1))
     pol = np.cross(photon_dir, uniform_sphere(rep*rep))
     wavelength = np.repeat(300.0, rep*rep)
     return Photons(photon_pos, photon_dir, pol, wavelength), photon_pos
