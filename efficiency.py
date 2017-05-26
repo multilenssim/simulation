@@ -11,6 +11,7 @@ if __name__ == '__main__':
     from chroma.sim import Simulation
     from chroma.loader import load_bvh
     from chroma.event import Photons
+    from chroma import make, view, sample
     import time
     import numpy as np
     import matplotlib.pyplot as plt
@@ -22,10 +23,10 @@ if __name__ == '__main__':
     
     datadir = "/home/exo/"
     
-    def eff_test(config, detres=None, detbins=10, n_repeat=10, sig_pos=0.01, n_ph_sim=300, n_ratio=10, n_pos=10, max_rad_frac=1.0, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.05, chiC=3., temps=[256, 0.25], tol=0.1, debug=False):
+    def eff_test(config, detres=None, detbins=10, sig_pos=0.01, n_ph_sim=[6600], repetition=10, max_rad=6600, n_pos=10, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.05, chiC=3., temps=[256, 0.25], tol=0.1, debug=False):
 		###############################################
 		
-		
+		# Build detector 
         kabamland = Detector(lm.ls)
         kbl.build_kabamland(kabamland, config)
         kabamland.flatten()
@@ -42,170 +43,136 @@ if __name__ == '__main__':
             det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins, infile=(datadir+detres))
         analyzer = EventAnalyzer(det_res)
         
-        max_rad = 6000
-        
-        #previous definition of rads 
+        # Previous definition of rads 
         #rads = [max_rad*float(ii+1)/n_pos for ii in range(n_pos)]
         
-        
-        #Get radius for equal volumes within the detector up to the maximum radius max_rad 
+        # Get radius for equal volumes within the detector up to the maximum radius max_rad 
         #rads = radius_equal_vol(max_rad = max_rad, steps = n_pos)
         
-        #Get equally seperated radii within the detector up to the maximum radius max_rad
+        # Get equally seperated radii within the detector up to the maximum radius max_rad
         rads = [ii*max_rad/n_pos for ii in range(n_pos+1)]
         
-        amount = n_ph_sim
+        recon = np.zeros((len(n_ph_sim), repetition, n_pos+1, 6))
         
-        repetition = 10
-        
-        #energies = [500,1000,2000,3000,4000,6000,8000]
-        #energies = [500,1000,2000,3000,4000]
-        energies = [6600]
-        
-        recon = np.zeros((len(energies),repetition, n_pos+1, 6))
-        
-        for ii in range(len(energies)):	
-			amount = energies[ii]
+        for ii, amount in enumerate(n_ph_sim):	
 			for iy, rad in enumerate(rads):
 				print "Energy: " + str(amount) + ", radius: " + str(rad)
-				#print "Radius step:		", iy 
-				
-				events = []
-	
-				points = np.zeros((repetition, 3))
-
-				for x in range(repetition):
-					theta = np.arccos(np.random.uniform(-1.0, 1.0))
-					phi = np.random.uniform(0.0, 2*np.pi)
-					points[x,0] = rad*np.sin(theta)*np.cos(phi)
-					points[x,1] = rad*np.sin(theta)*np.sin(phi)
-					points[x,2] = rad*np.cos(theta)
-					event = kbl.gaussian_sphere(points[x,:], sig_pos, amount)
-					events.append(event)
 					
-				times = []
-				vtx_disp = []
-				vtx_err = []
-				vtx_unc = []
-				n_vtcs = []
+				events, points = create_single_source_events(rad, sig_pos, amount, repetition)	
 				
 				for ind, ev in enumerate(sim.simulate(events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100)):
-					t0 = time.time()
+					
 					# Do AVF event reconstruction
 					vtcs = analyzer.analyze_one_event_AVF(ev, sig_cone, n_ph, min_tracks, chiC, temps, tol, debug, lens_dia)
-					t1 = time.time()
-					#print t1-t0, "	sec"
-					# Check performance: speed, dist from recon vertex to event pos for each, uncertainty for each
-					doWeights = True # Weight vertices by n_ph
-					if vtcs: # Append results unless no vertices were found
-						times.append(t1-t0)
-						n_vtcs.append(len(vtcs))
-						vtx_unc.append(np.mean([vtx.err for vtx in vtcs])) # weight by vtx.n_ph?
+					
+					# Weight vertices by n_ph
+					doWeights = True 
+					
+					# Append results unless no vertices were found
+					if vtcs: 
+						
+						photons = [vtx.n_ph for vtx in vtcs]
+						n_ph_total = np.sum(photons)
+						n_ph_max = np.max(photons)  
 						event_pos = points[ind,:]
+						
 						if event_pos is not None:
 							min_errs = []
 							weights = []
-							for vtx in vtcs:
+							for ii, vtx in enumerate(vtcs):
 								
-								if np.linalg.norm(vtx.pos) > det_res.inscribed_radius: # Skip vertices outside detector
+								#Skip vertex with smaller amount of photon tracks associated with 
+								if ii != np.argmax(n_ph_total):
+									print "Two vertices found! Smaller vertex with ", photons[ii],"photons out of ", n_ph_total
+									break
+									
+								# Skip vertices outside detector
+								if np.linalg.norm(vtx.pos) > det_res.inscribed_radius: 
 									break 
-								errs = vtx.pos-event_pos # Get distances to true source locs
+								
+								# Get distances to true source locs
+								errs = vtx.pos - event_pos 
+								
+								# Get reconstruced radius 
 								r_recon = np.sqrt(vtx.pos[0]*vtx.pos[0]+vtx.pos[1]*vtx.pos[1]+vtx.pos[2]*vtx.pos[2])
-								print iy, ind, r_recon
-								min_ind = np.argmin([np.linalg.norm(err) for err in errs])
-								if doWeights:
-									min_errs.append(errs[min_ind]*vtx.n_ph)
-									weights.append(vtx.n_ph) 
-								else:
-									min_errs.append(errs[min_ind])
-									weights.append(1.0)
-								#break #To use only the first vtx found
-							#vtx_err = np.linalg.norm(min_errs)
-							#print "n vertices: ", len(vtcs)
-							#vtx_err_dist = np.linalg.norm(min_errs, axis=1)
-							#vtx_avg_dist = np.sum(vtx_err_dist)/np.sum(weights)
-							#vtx_err_disp = np.sum(min_errs,axis=0)/np.sum(weights)
-							#print "average displacement to true event: ", vtx_err_disp
-							#print "average distance to true event: ", vtx_avg_dist
+								
+								# Get distance to true event location 
+								vtx_dist = np.sqrt(errs[0]*errs[0]+errs[1]*errs[1]+errs[2]*errs[2])
+									
+								recon[ii,ind,iy,:] = [rad, r_recon, n_ph_total, errs[0], errs[1], errs[2]]
 							
-							#vtx_disp.append(vtx_err_disp)
-							#vtx_err.append(vtx_avg_dist)
-							#print rad, r_recon, vtx.n_ph
-							recon[ii,ind,iy,:] = [rad, r_recon, vtx.n_ph, errs[0], errs[1], errs[2]]
-
+								print iy, ind, r_recon, vtx_dist, float(n_ph_total)/float(amount), len(vtcs)
+									
+        plot_double_yaxis(recon, n_ph_sim, n_pos, max_rad)
         
-        plot_double_yaxis(recon, energies, n_pos, n_ph_sim, max_rad)
-        
-        
-        #plot_eff_contours(recon[:,:,1],recon[:,:,0],recon[:,:,2]/n_ph_sim)
-
-        
-    def create_single_source_event(rad, sigma, amount1):
-        # produces a list of Photons objects, each with two different photon sources
-        # locs1 and locs2 are lists of locations (tuples)
-        # other parameters are single numbers
+    def create_single_source_events(rad, sigma, amount, repetition):
+        # produces a list of photon objects on the surface of a spherical shell with a fixed radius 
 		events = []
-		points = np.empty((3))
-		for x in range(10):
+		points = np.zeros((repetition, 3))
+		for x in range(repetition):
 			theta = np.arccos(np.random.uniform(-1.0, 1.0))
 			phi = np.random.uniform(0.0, 2*np.pi)
-			points[0] = rad*np.sin(theta)*np.cos(phi)
-			points[1] = rad*np.sin(theta)*np.sin(phi)
-			points[2] = rad*np.cos(theta)
-			event = kbl.gaussian_sphere(points, sigma, amount1)
+			points[x,0] = rad*np.sin(theta)*np.cos(phi)
+			points[x,1] = rad*np.sin(theta)*np.sin(phi)
+			points[x,2] = rad*np.cos(theta)
+			event = kbl.gaussian_sphere(points[x,:], sigma, amount)
 			events.append(event)
-		return events
+		return events, points 
 
 
-    def plot_double_yaxis(recon, energies, n_pos, n_ph_sim, max_rad):
+    def plot_double_yaxis(recon, n_ph_sim, n_pos, max_rad):
+		# Create double y-axis plot with position resolution shown on the left side in blue and the light collection efficiency on the right side in red 
+		
+		# Create axis object for plotting
 		ax1 = plt.gca()
-		ax1.set_xlim([0,6100])
+		
 		ax2 = ax1.twinx()
-        
+		
 		ax1.set_xlabel('true radius [mm]')
 		ax1.set_ylabel('position resolution [mm]', color='blue')
-		ax2.set_ylabel('light collection efficiency [%]', color='red')
+		ax2.set_ylabel('light collection efficiency', color='red')
         
 		ax1.set_xlim(-100, max_rad*1.1)
+		ax1.set_ylim(0, 800)
+		ax2.set_ylim(0, 1.0)
         
-        
-		for zz in range(len(energies)):
-			for ii in range(n_pos):
-				#print recon[zz,:,ii,3], recon[zz,:,ii,4], recon[zz,:,ii,5]
-				resolution = np.sqrt((np.std(abs(recon[zz,:,ii,3]))/len(recon[zz,:,ii,3]))**2 + (np.std(abs(recon[zz,:,ii,4]))/len(recon[zz,:,ii,4]))**2 + (np.std(abs(recon[zz,:,ii,5]))/len(recon[zz,:,ii,5]))**2)
-				#print resolution 
-				ax1.scatter(recon[zz,0,ii,0], resolution, label = str(energies[zz]), color="blue")
-				#ax1.errorbar(recon[zz,0,ii,0], np.mean(recon[zz,:,ii,1]), yerr=np.std(recon[zz,:,ii,1]), linestyle="None", color="red")
+		for zz, amount in enumerate(n_ph_sim):
+			for ii in range(n_pos+1):
+				distance = np.sqrt(recon[zz,:,ii,3]*recon[zz,:,ii,3] + recon[zz,:,ii,4]*recon[zz,:,ii,4] + recon[zz,:,ii,5]*recon[zz,:,ii,5])
+				distance_mean = np.mean(distance[:])
+				ax1.scatter(recon[zz,0,ii,0], distance_mean, color="blue")
+				ax1.errorbar(recon[zz,0,ii,0], distance_mean, yerr=np.std(distance[:]), linestyle="None", color="blue")
 
-		for zz in range(len(energies)):
-			for ii in range(n_pos):
-				ax2.scatter(recon[zz,0,ii,0],np.mean(recon[zz,:,ii,2]/n_ph_sim)*100, color="red")
-				ax2.errorbar(recon[zz,0,ii,0], np.mean(recon[zz,:,ii,2]/n_ph_sim)*100, yerr=np.std(recon[zz,:,ii,2]/n_ph_sim)/len(recon[zz,:,ii,2])*100, linestyle="None", color="red")
+		for zz, amount in enumerate(n_ph_sim):
+			for ii in range(n_pos+1):
+				ax2.scatter(recon[zz,0,ii,0],np.mean(recon[zz,:,ii,2]/float(amount)), color="red")
+				ax2.errorbar(recon[zz,0,ii,0], np.mean(recon[zz,:,ii,2]/float(amount)), yerr=np.std(recon[zz,:,ii,2]/float(amount)), linestyle="None", color="red")
         
 		plt.show()
 		
 		
-	
-    def plot_eff_contours(X, Y, Z):
-        # Plot surface of efficiency (Z) versus radius (X) and photon ratio (Y)
-        fig = plt.figure()
-        ax = fig.gca(projection='3d')
-        ax.plot_surface(X, Y, Z, rstride=1, cstride=1, alpha=0.3)
-        zmin = -0.2
-        cset = ax.contourf(X, Y, Z, zdir='z', offset=zmin, cmap=cm.coolwarm)
-        # Can draw 
-        #cset = ax.contourf(X, Y, Z, zdir='x', offset=-40, cmap=cm.coolwarm)
-        #cset = ax.contourf(X, Y, Z, zdir='y', offset=40, cmap=cm.coolwarm)
-
-        ax.set_xlabel('Reconstructed Radius')
-        #ax.set_xlim(0., 5500)
-        ax.set_ylabel('True Radius')
-        #ax.set_ylim(0., 5500)
-        ax.set_zlabel('Light Collection Efficiency')
-        #ax.set_zlim(zmin, 1.0)
-        plt.colorbar(cset)
-        
-        plt.show()
+		#Plot light collection efficiency and position resolution of all events as a scatter plot vs. the true radius 
+		fig = plt.figure()
+		plt.xlabel('true radius [mm]')
+		plt.ylabel('light collection efficiency')
+		plt.axis([-100, max_rad*1.1, 0, 1.0])
+		for zz, amount in enumerate(n_ph_sim):
+			for ii in range(n_pos+1):
+				for kk in range(len(recon[zz,:,ii,2])): 
+					plt.scatter(recon[zz,0,ii,0],recon[zz,kk,ii,2]/float(amount), color="blue")
+		plt.show()
+		
+		fig = plt.figure()
+		plt.xlabel('true radius [mm]')
+		plt.ylabel('position resolution [mm]')
+		plt.axis([-100, max_rad*1.1, 0, 800])
+		for zz, amount in enumerate(n_ph_sim):
+			for ii in range(n_pos+1):
+				distance = np.sqrt(recon[zz,:,ii,3]*recon[zz,:,ii,3] + recon[zz,:,ii,4]*recon[zz,:,ii,4] + recon[zz,:,ii,5]*recon[zz,:,ii,5])
+				for kk in range(len(distance)):
+					plt.scatter(recon[zz,0,ii,0], distance[kk], color="blue")	
+		plt.show()
+		
         
     def radius_equal_vol(steps = 11, max_rad = 6000):
 		max_vol = pow(max_rad, 3)*4/3*math.pi
@@ -213,21 +180,39 @@ if __name__ == '__main__':
 		rads = [math.pow(3.0/4.0*max_vol/steps/math.pi*ii, 1/3.0) for ii in range(steps)]
 		print rads 
 		return rads 
-			
-		
 
     def set_style():
         # Set matplotlib style
         #rcParams['lines.linewidth'] = 2
-        rcParams['lines.markersize'] = 8
+        rcParams['lines.markersize'] = 4
         rcParams['font.size'] = 16.0
         rcParams['figure.figsize'] = (12, 9)
-        
-    fileinfo = 'cfJiani3_2'
-    #fileinfo = 'cfJiani3_test2'
+       
+       
     print "Efficiency test started"
     
+    design = ['cfJiani3_2', 'cfJiani3_test2', 'cfJiani3_4', 'cfSam1_1', 'cfJiani3_2']
+    
+    suffix = '_1DVariance'
+    
+    select = 3
+    
+    detfile = design[select]
+    
+    if(select > 1): 
+		detfile += suffix
+    
     set_style()
-    eff_test(fileinfo, detres='detresang-'+fileinfo+'_noreflect_100million.root', detbins=10, n_repeat=10, sig_pos=0.01, n_ph_sim=4000, n_ratio=10, n_pos=10, max_rad_frac=0.7, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
+    
+    energy = [6600]
+    
+    #test = [4000, 5660, 34, 3434]
+    #print np.argmax(test) 
+    #quit() 
+    
+    print "Lens design used:	", design[select] 
+    
+    eff_test(design[select], detres='detresang-'+detfile+'_noreflect_100million.root', detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=100, max_rad=6600, n_pos=30, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
+    
     
     print "Simulation done."
