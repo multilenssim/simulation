@@ -27,111 +27,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 inputn = 16.0
-def lens(diameter, thickness, nsteps=inputn):
-    #constructs a parabolic lens
-    a = np.linspace(0, diameter/2, nsteps/2, endpoint=False)
-    b = np.linspace(diameter/2, 0, nsteps/2)
-    return make.rotate_extrude(np.concatenate((a, b)), np.concatenate((2*thickness/diameter**2*(a)**2-0.5*thickness, -2.0*thickness/diameter**2*(b)**2+0.5*thickness)), nsteps=inputn)
-
-##new
-## note that I should not use -ys (makes the mesh tracing clockwise)
-def pclens2(radius, diameter, nsteps=inputn):
-    #works best with angles endpoint=True
-    halfd = diameter/2.0
-    shift = np.sqrt(radius**2-(halfd)**2)
-    theta = np.arctan(shift/(halfd))
-    angles = np.linspace(theta, np.pi/2, nsteps)
-    x = radius*np.cos(angles)
-    y = radius*np.sin(angles) - shift
-    xs = np.concatenate((np.zeros(1), x))
-    ys = np.concatenate((np.zeros(1), y))
-    return make.rotate_extrude(xs, ys, nsteps=inputn)
-
-def spherical_lens(R1, R2, diameter, nsteps=16):
-    '''constructs a spherical lens with specified radii of curvature. Works with meniscus lenses. Make sure not to fold R1 through R2 or vica-versa in order to keep rotate_extrude going counterclockwise.
-    shift is the amount needed to move the hemisphere in the y direction to make the spherical cap. 
-    R1 goes towards positive y, R2 towards negative y.'''
-    if (abs(R1) < diameter/2.0) or (abs(R2) < diameter/2.0):
-        raise Exception('R1 and R2 must be larger than diameter/2.0')
-    signR1 = np.sign(R1)
-    signR2 = np.sign(R2)
-    shift1 = -signR1*np.sqrt(R1**2 - (diameter/2.0)**2)
-    shift2 = -signR2*np.sqrt(R2**2 - (diameter/2.0)**2)
-    theta1 = np.arctan(-shift1/(diameter/2.0))
-    theta2 = np.arctan(-shift2/(diameter/2.0))
-    angles1 = np.linspace(theta1, signR1*np.pi/2, nsteps/2)
-    angles2 = np.linspace(signR2*np.pi/2, theta2, nsteps/2, endpoint=False)
-    x1 = abs(R1*np.cos(angles1))
-    x2 = abs(R2*np.cos(angles2))
-    y1 = signR1*R1*np.sin(angles1) + shift1
-    y2 = signR2*R2*np.sin(angles2) + shift2
-    # thickness = y1[nsteps/2-1]-y2[0]
-    # print 'thickness: ' + str(thickness)
-    return make.rotate_extrude(np.concatenate((x2,x1)), np.concatenate((y2,y1)), nsteps=16)
-
-def disk(radius, nsteps=inputn):
-    return make.rotate_extrude([0, radius], [0, 0], nsteps)
- 
-##end new
-
-def cylindrical_shell(inner_radius, outer_radius, thickness, nsteps=inputn):
-    #make sure that nsteps is the same as that of rotate extrude in lens
-    #inner_radius must be less than outer_radius
-    return make.rotate_extrude([inner_radius, outer_radius, outer_radius, inner_radius], [-thickness/2.0, -thickness/2.0, thickness/2.0, thickness/2.0], nsteps)
-
-def inner_blocker_mesh(radius, thickness, nsteps=inputn):
-    #creates a mesh of the curved triangular shape between three tangent congruent circles.
-    right_angles = np.linspace(np.pi, 2*np.pi/3, nsteps, endpoint=False)
-    top_angles = np.linspace(5*np.pi/3, 4*np.pi/3, nsteps, endpoint=False)
-    left_angles = np.linspace(np.pi/3, 0, nsteps, endpoint=False)
-    rightx = radius*np.cos(right_angles) + radius
-    righty = radius*np.sin(right_angles) - np.sqrt(3)/3.0*radius
-    topx = radius*np.cos(top_angles)
-    topy = radius*np.sin(top_angles) + 2*radius/np.sqrt(3)
-    leftx = radius*np.cos(left_angles) - radius
-    lefty = radius*np.sin(left_angles) - np.sqrt(3)*radius/3.0
-    xs = np.concatenate((rightx, topx, leftx))
-    ys = np.concatenate((righty, topy, lefty))
-    return make.linear_extrude(xs, ys, thickness)
-                  
-def outer_blocker_mesh(radius, thickness, nsteps=16):
-    #produces half of the shape that is between four circles in a square array. 
-    #the center is halfway along the flat side.
-    right_angles = np.linspace(3*np.pi/2.0, np.pi, nsteps)
-    left_angles = np.linspace(0, -np.pi/2.0, nsteps)
-    rightx = radius*np.cos(right_angles) + radius
-    righty = radius*np.sin(right_angles) + radius
-    leftx = radius*np.cos(left_angles) - radius
-    lefty = radius*np.sin(left_angles) + radius
-    xs = np.concatenate((rightx, leftx))
-    ys = np.concatenate((righty, lefty))
-    return make.linear_extrude(xs, ys, thickness) 
-
-def corner_blocker_mesh(radius, thickness, nsteps=inputn):
-    #constructs triangular corners with a single curved side.
-    #center is at the point connecting the two straight edges.
-    angles = np.linspace(5*np.pi/6.0, np.pi/6.0, nsteps)
-    bottomx = radius*np.cos(angles)
-    bottomy = radius*np.sin(angles)-2*radius
-    xs = np.append(bottomx, 0)
-    ys = np.append(bottomy, 0)
-    return make.linear_extrude(xs, ys, thickness)   
-                         
-def triangle_mesh(side_length, thickness):
-    #creates an equilateral triangle centered at its centroid.
-    return make.linear_extrude([0, -side_length/2.0, side_length/2.0], [side_length/np.sqrt(3), -np.sqrt(3)/6*side_length, -np.sqrt(3)/6*side_length], thickness)
-
-
 
 def find_max_radius(edge_length, base):
     #finds the maximum possible radius for the lenses on a face.
     max_radius = edge_length/(2*(base+np.sqrt(3)-1))
     return max_radius
-
-def find_inscribed_radius(edge_length):
-    #finds the inscribed radius of the lens_icoshadron
-    inscribed_radius = np.sqrt(3)/12.0*(3+np.sqrt(5))*edge_length
-    return inscribed_radius
 
 def triangular_indices(base):
     # produces the x and y indices for a triangular array of points, given the amount of points at the base layer.
@@ -261,13 +161,6 @@ def build_single_curvedsurface(kabamland, edge_length, base, diameter_ratio, foc
     #kabamland.add_solid(face, rotation=np.dot(make_rotation_matrix(spin_angle[k], direction[k]), make_rotation_matrix(angle[k], axis[k])), displacement=facecoords[k] + focal_length*normalize(facecoords[k]))
     return initial_curved_surf, initial_curved_surf2
 
-def build_pmt_icosahedron(kabamland, edge_length, base, focal_length=1.0):
-    edge_length, facecoords, direction, axis, angle, spin_angle = return_values(edge_length, base)
-    pmt_side_length = np.sqrt(3)*(3-np.sqrt(5))*focal_length + edge_length
-    #for k in (0,1,2,3,4,5,6,7,9,11,12,13,14,15,16,17,18,19):
-    for k in range(20):
-        kabamland.add_pmt(Solid(triangle_mesh(pmt_side_length, .001*pmt_side_length), glass, lm.ls, lm.fullabsorb, 0xBBFFFFFF), rotation=np.dot(make_rotation_matrix(spin_angle[k], direction[k]), make_rotation_matrix(angle[k], axis[k])), displacement=facecoords[k] + focal_length*normalize(facecoords[k]) + 0.0000005*normalize(facecoords[k]))
-
 def build_kabamland(kabamland, configname):
     # focal_length sets dist between lens plane and PMT plane (or back of curved detecting surface);
     #(need not equal true lens focal length)
@@ -295,6 +188,9 @@ def build_kabamland(kabamland, configname):
     kabamland.add_solid(Solid(surf2, lm.ls, lm.ls, lm.fulldetect, 0x0000FF), rotation=None, displacement=(0,0,0))
     kabamland.add_solid(Solid(lens2, lm.lensmat, lm.ls) , rotation=None, displacement=None)
     
+    blocker = BuildBlocker(np.max(lens2.assemble()[:,:,0].flatten()), lens2.assemble()[:,:,2].flatten()[np.argmax(lens2.assemble()[:,:,0].flatten())])
+    kabamland.add_solid(Solid(blocker, lm.ls, lm.ls, lm.fullabsorb, 0x0000FF), rotation=None, displacement=(0,0,0))
+    
     pos = 5
     off = (pos-1)*100/2
     upshift = 500
@@ -317,51 +213,101 @@ def getRandom():
 	rng_states = gpu.get_rng_states(nthreads_per_block*max_blocks, seed=0)
 	doRandom = [nthreads_per_block, max_blocks, rng_states]
 	return doRandom  
+	
+def BuildBlocker(radius, height): 
+	nsteps = 30
+	x_value = np.linspace(radius, radius+200, nsteps)
+	y_value = [1]*nsteps
+	
+	blocker = make.rotate_extrude(x_value, y_value, nsteps)  
+	  
+	blocker = mh.rotate(blocker, make_rotation_matrix(+np.pi/2, (1,0,0)))
+	blocker = mh.shift(blocker, (0, 0, height))
+	
+	return blocker
+	
+def PlotBlocker(radius, height):
+	nsteps = 30
+	x_value = np.linspace(radius, radius+200, nsteps)
+	y_value = [1]*nsteps
+	
+	testt = make.rotate_extrude(x_value, y_value, nsteps)    
+	testt = mh.rotate(testt, make_rotation_matrix(+np.pi/2, (1,0,0)))
+	testt = mh.shift(testt, (0, 0, height))
+	
+	test_triangles = testt.get_triangle_centers() 
+	test_vertices = testt.assemble() 
+	
+	X2 = test_vertices[:,:,0].flatten()
+	Y2 = test_vertices[:,:,1].flatten()
+	Z2 = test_vertices[:,:,2].flatten()
+	
+	trianglestest = [[3*ii,3*ii+1,3*ii+2] for ii in range(len(X2)/3)]
+	triang = Triangulation(X2, Y2, trianglestest)
+	
+	return triang, Z2
+	#ax.plot_trisurf(triang, Z2, color="white", shade = True, alpha = .80)
+		
+	#plt.show() 
 
 def event_display(numPhotons, photon_track, vertex,surf2, lens2, pos, rep, config):
-	
 	fig = plt.figure(figsize=(20, 10))
 	ax = fig.gca(projection='3d')
-	
+	ax.set_xlabel('X Label')
+	ax.set_ylabel('Y Label')
+	ax.set_zlabel('Z Label')
 	ax._axis3don = False
-	lens2.remove_duplicate_vertices()
+	
+	# Get triangle vertices for entire mesh
 	lens_vertices = lens2.assemble()
+	
 	surf_vertices = surf2.assemble()
 	
+	# Get total number of triangles for the curved surface
 	nr_triangles2 = len(surf2.get_triangle_centers()[:,1])
 	
+	# Get a complete list of the 3 coordiantes seperately 
 	X2 = lens_vertices[:,:,0].flatten()
 	Y2 = lens_vertices[:,:,1].flatten()
 	Z2 = lens_vertices[:,:,2].flatten()
 	
-	X3 = surf_vertices[:,:,0].flatten()
-	Y3 = surf_vertices[:,:,1].flatten()
-	Z3 = surf_vertices[:,:,2].flatten()
+	# Construct blocker around the lens. The maximal radial distance is the first parameter and the second is the height at this position. 
+	triang_blocker, Z_blocker = PlotBlocker(np.max(X2), Z2[np.argmax(X2)])
+	
+	# Plot blocker. 
+	ax.plot_trisurf(triang_blocker, Z_blocker, color="white", shade = True, alpha = 0.8)
 
+	# Define triangulation, e.g. define which coordinates belong to one triangle, so that the mesh can be build properly. Typically, each pair of three subsequent coordinates in 3D belong to one triangle. 
 	triangles = [[3*ii,3*ii+1,3*ii+2] for ii in range(len(X2)/3)]
+	
+	# Compute triangulation 
 	triang = Triangulation(X2, Y2, triangles)
 	
-	triangles2 = [[3*ii,3*ii+1,3*ii+2] for ii in range(len(X3)/3)]
-	triang2 = Triangulation(X3, Y3, triangles2)
-	
-	#ax.plot_trisurf(triang2, Z3, color="white", linewidth = 0.0, shade = True, alpha = 1.0)
-	
+	# Plot only half of all the triangles, since we are grouping two triangles to one PMT pixel. 
 	for ii in range(nr_triangles2/2):
-		ax.plot(surf_vertices[ii,:,0], surf_vertices[ii,:,1], surf_vertices[ii,:,2], color='blue', lw = 1.)
-
+		ax.plot(surf_vertices[ii,:,0], surf_vertices[ii,:,1], surf_vertices[ii,:,2], color='black', lw = 1.)
+	
+	# Plot photon rays. 
 	for i in range(numPhotons):
+		# Convert the seperate coordinates into lists.
 		X,Y,Z = photon_track[:,i,0].tolist(), photon_track[:,i,1].tolist(), photon_track[:,i,2].tolist()
+		
+		# Insert the starting point of each photon. 
 		X.insert(0, pos[i,0])
 		Y.insert(0, pos[i,1])
 		Z.insert(0, pos[i,2])
-		ax.plot(X,Y,Z, linewidth=2, color='r')	
+		
+		# Plot rays as red lines. 
+		ax.plot(X,Y,Z, linewidth=2, color='r')
+		
+		# Additionally, one could also plot the points of refraction as small black dots. 	
 		ax.scatter(X,Y,Z , c='k', s=0.)		
-	ax.set_xlabel('X Label')
-	ax.set_ylabel('Y Label')
-	ax.set_zlabel('Z Label')
-	ax.view_init(elev=10, azim=90)
+		
+	# Specify view, that suits the purpose of visulizing how the design works.
+	ax.view_init(elev=15, azim=90)
 	
-	ax.plot_trisurf(triang, Z2, color="white", shade = True, alpha = .90)
+	#Plot the lens with the previously defined triangulation and make it a bit transparent with alpha < 1. 
+	ax.plot_trisurf(triang, Z2, color="white", shade = True, alpha = .80)
 	
 	plt.show()
 		
@@ -370,8 +316,7 @@ def photon_angle(pos, rep):
     photon_pos = np.zeros((rep*rep,3))
     upshift = 800
     for i in range(rep):
-		for k in range(rep):
-			photon_pos[i*rep+k,:] = [pos[0]-i*100+off-100, pos[1]-k*100+off+400, pos[2]+upshift]
+		photon_pos[i,:] = [pos[0]-i*100+off-100, pos[1]+off+400, pos[2]+upshift]      
     photon_dir = np.tile(np.array([0.2,-0.55,-1]),(rep*rep,1))
     pol = np.cross(photon_dir, uniform_sphere(rep*rep))
     wavelength = np.repeat(300.0, rep*rep)
@@ -416,13 +361,5 @@ if __name__ == '__main__':
     vertex = photons.pos[detected] 
     event_display(numPhotons, photon_track, vertex, surf2, lens2, pos, rep, config2)
     
-    
-    
-    #for ind, ev in enumerate(sim.simulate(events, keep_photons_beg=True,keep_photons_end=True, run_daq=True, max_steps=100)):
-		#print ind 
-		#detected = (ev.photons_end.flags & (0x1 << 2)).astype(bool)
-		#transmit = (ev.photons_end.flags & (0x1 << 8)).astype(bool)
-		#absorb = (ev.photons_end.flags & (0x1 << 3)).astype(bool) 
-		
 		
     
