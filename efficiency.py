@@ -185,7 +185,7 @@ if __name__ == '__main__':
         
 		ax1.set_xlim(-100, max_rad*1.1/10)
 		ax1.set_ylim(0, 400)
-		ax2.set_ylim(0, 1.0)
+		ax2.set_ylim(0, .35)
         
 		for zz, amount in enumerate(n_ph_sim):
 			for ii in range(n_pos+1):
@@ -199,32 +199,30 @@ if __name__ == '__main__':
 				ax2.scatter(recon[zz,0,ii,0],np.mean(recon[zz,:,ii,2]/float(amount)), color="red")
 				ax2.errorbar(recon[zz,0,ii,0], np.mean(recon[zz,:,ii,2]/float(amount)), yerr=np.std(recon[zz,:,ii,2]/float(amount)), linestyle="None", color="red")
         
-		plt.show()
+		#plt.show()
 		
 		
 		#Plot light collection efficiency and position resolution of all events as a scatter plot vs. the true radius 
-		fig = plt.figure()
-		plt.xlabel('Radius [cm]')
-		#plt.ylabel('$\epsilon$')
-		plt.ylabel('Light Collection Efficiency')
-		plt.axis([-100, max_rad*1.1/10, 0, 1.0])
-		for zz, amount in enumerate(n_ph_sim):
-			for ii in range(n_pos+1):
-				for kk in range(len(recon[zz,:,ii,2])): 
-					plt.scatter(recon[zz,0,ii,0],recon[zz,kk,ii,2]/float(amount), color="blue")
-		plt.show()
+		#fig = plt.figure()
+		#plt.xlabel('Radius [cm]')
+		#plt.ylabel('Light Collection Efficiency')
+		#plt.axis([-100, max_rad*1.1/10, 0, 1.0])
+		#for zz, amount in enumerate(n_ph_sim):
+			#for ii in range(n_pos+1):
+				#for kk in range(len(recon[zz,:,ii,2])): 
+					#plt.scatter(recon[zz,0,ii,0],recon[zz,kk,ii,2]/float(amount), color="blue")
+		#plt.show()
 		
-		fig = plt.figure()
-		plt.xlabel('Radius [cm]')
-		#plt.ylabel('$\Delta x $ [mm]')
-		plt.ylabel('Position Resolution [mm]')
-		plt.axis([-100, max_rad*1.1/10, 0, 400])
-		for zz, amount in enumerate(n_ph_sim):
-			for ii in range(n_pos+1):
-				distance = np.sqrt(recon[zz,:,ii,3]*recon[zz,:,ii,3] + recon[zz,:,ii,4]*recon[zz,:,ii,4] + recon[zz,:,ii,5]*recon[zz,:,ii,5])
-				for kk in range(len(distance)):
-					plt.scatter(recon[zz,0,ii,0], distance[kk], color="blue")	
-		plt.show()
+		#fig = plt.figure()
+		#plt.xlabel('Radius [cm]')
+		#plt.ylabel('Position Resolution [mm]')
+		#plt.axis([-100, max_rad*1.1/10, 0, 400])
+		#for zz, amount in enumerate(n_ph_sim):
+			#for ii in range(n_pos+1):
+				#distance = np.sqrt(recon[zz,:,ii,3]*recon[zz,:,ii,3] + recon[zz,:,ii,4]*recon[zz,:,ii,4] + recon[zz,:,ii,5]*recon[zz,:,ii,5])
+				#for kk in range(len(distance)):
+					#plt.scatter(recon[zz,0,ii,0], distance[kk], color="blue")	
+		#plt.show()
 		
         
     def radius_equal_vol(steps = 11, max_rad = 6000):
@@ -243,12 +241,8 @@ if __name__ == '__main__':
 		f = ROOT.TFile.Open(rootdir+filename+".root")
 		t = f.Get("data")  
 		recon = np.zeros((len(n_ph_sim), repetition, n_pos+1, 6)) 
-		counter_rep = 0
-		counter_pos = 0
-		counter_ph = 0
-		print "start parameter:	", repetition, n_pos, len(n_ph_sim)
+
 		for ii, entry in enumerate(t): 
-			print ii, entry.run, entry.pos 
 			recon[0, entry.run, entry.pos,:] = [np.sqrt(entry.xpos_true*entry.xpos_true + entry.ypos_true*entry.ypos_true + entry.zpos_true*entry.zpos_true)/10, np.sqrt(entry.xpos*entry.xpos + entry.ypos*entry.ypos + entry.zpos*entry.zpos)/10, entry.photon_true, np.abs(entry.xpos_true - entry.xpos), np.abs(entry.ypos_true - entry.ypos), np.abs(entry.zpos_true - entry.zpos)]
 		plot_double_yaxis(recon, n_ph_sim, n_pos, max_rad=6600)
 
@@ -259,22 +253,23 @@ if __name__ == '__main__':
     
     design = ['cfJiani3_2', 'cfJiani3_test2', 'cfJiani3_4', 'cfSam1_1', 'cfJiani3_2']
     suffix = '_1DVariance'
-    select = 2
-    detfile = design[select]
-    if(select > 1): 
-		detfile += suffix
-    
-    set_style()
-    
+  
     energy = [6600]
     repetition = 100
-    n_pos = 30 
+    n_pos = 50 
+    set_style()
     
-    print "Lens design used:	", design[select] 
+    for select in range(2,5):
+		#break
+		detfile = design[select]
+		if(select > 1): 
+			detfile += suffix
+		
+		print "Lens design used:	", design[select] 
+		
+		eff_test(design[select], detres='detresang-'+detfile+'_noreflect_100million.root', detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
     
-    eff_test(design[select], detres='detresang-'+detfile+'_noreflect_100million.root', detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
-    
-    filename = "cfJiani3_4_rep-"+str(repetition)+"_npos-"+str(n_pos)
+    filename = "cfJiani3_4"+"_rep-"+str(repetition)+"_npos-"+str(n_pos)
     #get_eff_from_root(filename=filename , n_ph_sim=energy, repetition=repetition, n_pos=n_pos)
     
     print "Simulation done."
