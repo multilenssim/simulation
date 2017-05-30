@@ -12,7 +12,6 @@ if __name__ == '__main__':
     from chroma.loader import load_bvh
     from chroma.event import Photons
     from chroma import make, view, sample
-    import time
     import numpy as np
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import axes3d
@@ -20,12 +19,48 @@ if __name__ == '__main__':
     from matplotlib import cm
     import detectorconfig
     import math
+    from array import array
+    import ROOT
+    import sys, getopt, time, os, datetime
     
     datadir = "/home/exo/"
+    rootdir = "/home/exo/Dropbox/Kabamland/efficiency/"
+    now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     
     def eff_test(config, detres=None, detbins=10, sig_pos=0.01, n_ph_sim=[6600], repetition=10, max_rad=6600, n_pos=10, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.05, chiC=3., temps=[256, 0.25], tol=0.1, debug=False):
 		###############################################
 		
+        run = array('i', [0])	# repetition
+        pos = array('i', [0])	# n_pos: number of steps 
+        xpos_true = array('f', [0])
+        ypos_true = array('f', [0])
+        zpos_true = array('f', [0])
+        xpos = array('f', [0])
+        ypos = array('f', [0])
+        zpos = array('f', [0])
+        multiplicity = array('i', [0])
+        photon_sim = array('i', [0])
+        photon_true = array('i', [0])
+        dist_event = array('f', [0])
+        
+        ROOT.gROOT.Reset()
+        #f1 = ROOT.TFile(rootdir+str(now)+"_"+config+"_rep-"+str(repetition)+"_npos-"+str(n_pos)+".root", "RECREATE") 
+        f1 = ROOT.TFile(rootdir+config+"_rep-"+str(repetition)+"_npos-"+str(n_pos)+".root", "RECREATE") 
+        ttree = ROOT.TTree("data","data")
+        
+        ttree.Branch("run", run, "run/I")
+        ttree.Branch("pos", pos, "pos/I")
+        ttree.Branch("xpos_true", xpos_true, "xpos_true/F")
+        ttree.Branch("ypos_true", ypos_true, "ypos_true/F")
+        ttree.Branch("zpos_true", zpos_true, "zpos_true/F")
+        ttree.Branch("xpos", xpos, "xpos/F")
+        ttree.Branch("ypos", ypos, "ypos/F")
+        ttree.Branch("zpos", zpos, "zpos/F")
+        ttree.Branch("dist_event", dist_event, "dist_event/F")
+        ttree.Branch("photon_sim", photon_sim, "photon_sim/I")	
+        ttree.Branch("photon_true", photon_true, "photon_true/I")	
+        ttree.Branch("multiplicity", multiplicity, "multiplicity/I")	
+       
 		# Build detector 
         kabamland = Detector(lm.ls)
         kbl.build_kabamland(kabamland, config)
@@ -99,10 +134,26 @@ if __name__ == '__main__':
 								# Get distance to true event location 
 								vtx_dist = np.sqrt(errs[0]*errs[0]+errs[1]*errs[1]+errs[2]*errs[2])
 									
-								recon[ii,ind,iy,:] = [rad, r_recon, n_ph_total, errs[0], errs[1], errs[2]]
-							
-								print iy, ind, r_recon, vtx_dist, float(n_ph_total)/float(amount), len(vtcs)
-									
+								recon[ii,ind,iy,:] = [rad/10, r_recon/10, n_ph_total, errs[0], errs[1], errs[2]]
+								
+								# Fill TTree 
+								run[0] = ind
+								pos[0] = iy
+								xpos_true[0] = event_pos[0]
+								ypos_true[0] = event_pos[1]
+								zpos_true[0] = event_pos[2]
+								xpos[0] = vtx.pos[0]
+								ypos[0] = vtx.pos[1]
+								zpos[0] = vtx.pos[2]
+								multiplicity[0] = len(vtcs)
+								photon_sim[0] = amount
+								photon_true[0] = n_ph_total
+								dist_event[0] = vtx_dist
+								#print run[0], pos[0], xpos_true[0], ypos_true[0], zpos_true[0], xpos[0], ypos[0], zpos[0], multiplicity[0], photon_sim[0], photon_true[0], dist_event[0]
+								#print iy, ind, r_recon, vtx_dist, float(n_ph_total)/float(amount), len(vtcs)
+								ttree.Fill()
+        f1.Write()
+        f1.Close()							
         plot_double_yaxis(recon, n_ph_sim, n_pos, max_rad)
         
     def create_single_source_events(rad, sigma, amount, repetition):
@@ -128,12 +179,12 @@ if __name__ == '__main__':
 		
 		ax2 = ax1.twinx()
 		
-		ax1.set_xlabel('true radius [mm]')
-		ax1.set_ylabel('position resolution [mm]', color='blue')
-		ax2.set_ylabel('light collection efficiency', color='red')
+		ax1.set_xlabel('R [cm]')
+		ax1.set_ylabel('Position resolution [mm]', color='blue')
+		ax2.set_ylabel('Light collection efficiency', color='red')
         
-		ax1.set_xlim(-100, max_rad*1.1)
-		ax1.set_ylim(0, 800)
+		ax1.set_xlim(-100, max_rad*1.1/10)
+		ax1.set_ylim(0, 400)
 		ax2.set_ylim(0, 1.0)
         
 		for zz, amount in enumerate(n_ph_sim):
@@ -153,9 +204,10 @@ if __name__ == '__main__':
 		
 		#Plot light collection efficiency and position resolution of all events as a scatter plot vs. the true radius 
 		fig = plt.figure()
-		plt.xlabel('true radius [mm]')
-		plt.ylabel('light collection efficiency')
-		plt.axis([-100, max_rad*1.1, 0, 1.0])
+		plt.xlabel('R [cm]')
+		#plt.ylabel('$\epsilon$')
+		plt.ylabel('Light collection efficiency')
+		plt.axis([-100, max_rad*1.1/10, 0, 1.0])
 		for zz, amount in enumerate(n_ph_sim):
 			for ii in range(n_pos+1):
 				for kk in range(len(recon[zz,:,ii,2])): 
@@ -163,9 +215,10 @@ if __name__ == '__main__':
 		plt.show()
 		
 		fig = plt.figure()
-		plt.xlabel('true radius [mm]')
-		plt.ylabel('position resolution [mm]')
-		plt.axis([-100, max_rad*1.1, 0, 800])
+		plt.xlabel('R [cm]')
+		#plt.ylabel('$\Delta x $ [mm]')
+		plt.ylabel('Position resolution [mm]')
+		plt.axis([-100, max_rad*1.1/10, 0, 400])
 		for zz, amount in enumerate(n_ph_sim):
 			for ii in range(n_pos+1):
 				distance = np.sqrt(recon[zz,:,ii,3]*recon[zz,:,ii,3] + recon[zz,:,ii,4]*recon[zz,:,ii,4] + recon[zz,:,ii,5]*recon[zz,:,ii,5])
@@ -188,31 +241,45 @@ if __name__ == '__main__':
         rcParams['font.size'] = 16.0
         rcParams['figure.figsize'] = (12, 9)
        
-       
+    def get_eff_from_root(filename, n_ph_sim, repetition, n_pos):
+		f = ROOT.TFile.Open(rootdir+filename+".root")
+		print rootdir+filename+".root"
+		t = f.Get("data") 
+		#recon = np.zeros((t.GetEntries(),12))
+		#recon2 = np.zeros((len(n_ph_sim), repetition, n_pos+1, 6)) 
+		recon = np.zeros((len(n_ph_sim), repetition, n_pos+1, 6)) 
+		counter_rep = 0
+		counter_pos = 0
+		counter_ph = 0
+		print "start parameter:	", repetition, n_pos, len(n_ph_sim)
+		for ii, entry in enumerate(t): 
+			print ii, entry.run, entry.pos 
+			recon[0, entry.run, entry.pos,:] = [np.sqrt(entry.xpos_true*entry.xpos_true + entry.ypos_true*entry.ypos_true + entry.zpos_true*entry.zpos_true)/10, np.sqrt(entry.xpos*entry.xpos + entry.ypos*entry.ypos + entry.zpos*entry.zpos)/10, entry.photon_true, np.abs(entry.xpos_true - entry.xpos), np.abs(entry.ypos_true - entry.ypos), np.abs(entry.zpos_true - entry.zpos)]
+		plot_double_yaxis(recon, n_ph_sim, n_pos, max_rad=6600)
+
+
+
+if __name__ == '__main__':
     print "Efficiency test started"
     
     design = ['cfJiani3_2', 'cfJiani3_test2', 'cfJiani3_4', 'cfSam1_1', 'cfJiani3_2']
-    
     suffix = '_1DVariance'
-    
-    select = 3
-    
+    select = 2
     detfile = design[select]
-    
     if(select > 1): 
 		detfile += suffix
     
     set_style()
     
     energy = [6600]
-    
-    #test = [4000, 5660, 34, 3434]
-    #print np.argmax(test) 
-    #quit() 
+    repetition = 100
+    n_pos = 30 
     
     print "Lens design used:	", design[select] 
     
-    eff_test(design[select], detres='detresang-'+detfile+'_noreflect_100million.root', detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=100, max_rad=6600, n_pos=30, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
+    eff_test(design[select], detres='detresang-'+detfile+'_noreflect_100million.root', detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
     
+    filename = "cfJiani3_4_rep-"+str(repetition)+"_npos-"+str(n_pos)
+    #get_eff_from_root(filename=filename , n_ph_sim=energy, repetition=repetition, n_pos=n_pos)
     
     print "Simulation done."
