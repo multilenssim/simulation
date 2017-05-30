@@ -179,9 +179,9 @@ if __name__ == '__main__':
 		
 		ax2 = ax1.twinx()
 		
-		ax1.set_xlabel('R [cm]')
-		ax1.set_ylabel('Position resolution [mm]', color='blue')
-		ax2.set_ylabel('Light collection efficiency', color='red')
+		ax1.set_xlabel('Radius [cm]')
+		ax1.set_ylabel('Position Resolution [mm]', color='blue')
+		ax2.set_ylabel('Light Collection Efficiency', color='red')
         
 		ax1.set_xlim(-100, max_rad*1.1/10)
 		ax1.set_ylim(0, 400)
@@ -204,9 +204,9 @@ if __name__ == '__main__':
 		
 		#Plot light collection efficiency and position resolution of all events as a scatter plot vs. the true radius 
 		fig = plt.figure()
-		plt.xlabel('R [cm]')
+		plt.xlabel('Radius [cm]')
 		#plt.ylabel('$\epsilon$')
-		plt.ylabel('Light collection efficiency')
+		plt.ylabel('Light Collection Efficiency')
 		plt.axis([-100, max_rad*1.1/10, 0, 1.0])
 		for zz, amount in enumerate(n_ph_sim):
 			for ii in range(n_pos+1):
@@ -215,9 +215,9 @@ if __name__ == '__main__':
 		plt.show()
 		
 		fig = plt.figure()
-		plt.xlabel('R [cm]')
+		plt.xlabel('Radius [cm]')
 		#plt.ylabel('$\Delta x $ [mm]')
-		plt.ylabel('Position resolution [mm]')
+		plt.ylabel('Position Resolution [mm]')
 		plt.axis([-100, max_rad*1.1/10, 0, 400])
 		for zz, amount in enumerate(n_ph_sim):
 			for ii in range(n_pos+1):
@@ -229,9 +229,7 @@ if __name__ == '__main__':
         
     def radius_equal_vol(steps = 11, max_rad = 6000):
 		max_vol = pow(max_rad, 3)*4/3*math.pi
-		#print "Volume: ", max_vol 
 		rads = [math.pow(3.0/4.0*max_vol/steps/math.pi*ii, 1/3.0) for ii in range(steps)]
-		print rads 
 		return rads 
 
     def set_style():
@@ -243,10 +241,7 @@ if __name__ == '__main__':
        
     def get_eff_from_root(filename, n_ph_sim, repetition, n_pos):
 		f = ROOT.TFile.Open(rootdir+filename+".root")
-		print rootdir+filename+".root"
-		t = f.Get("data") 
-		#recon = np.zeros((t.GetEntries(),12))
-		#recon2 = np.zeros((len(n_ph_sim), repetition, n_pos+1, 6)) 
+		t = f.Get("data")  
 		recon = np.zeros((len(n_ph_sim), repetition, n_pos+1, 6)) 
 		counter_rep = 0
 		counter_pos = 0
