@@ -12,6 +12,7 @@ from chroma.loader import load_bvh
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.patches import Rectangle
+from matplotlib.colors import LogNorm
 
 
 # To run this script: python first_test_jacopo.py 1 will plot the simulation of one track distance distribution from one source
@@ -93,63 +94,61 @@ def syst_solve(drct,r_drct,ofst_diff):
 	qt = np.vstack((q1,q2)).T
 	return np.linalg.solve(matr,qt)
 
-def track_dist(ofst,drct,sgm=None):
+def roll_funct(ofst,drct,sgm,i,half=False,outlier=False):
+	pt = []
+	if not any(sgm):
+		sgm = np.ones(len(drct))
+	r_ofst = np.roll(ofst,i,axis=0)
+	r_drct = np.roll(drct,i,axis=0)
+	r_sgm = np.roll(sgm,i,axis=0)
+	if half:
+		ofst = ofst[:i]
+		drct = drct[:i]
+		sgm = sgm[:i]
+		r_ofst = r_ofst[:i]
+		r_drct = r_drct[:i]
+		r_sgm = r_sgm[:i]		
+
+	ofst_diff = ofst - r_ofst
+	b_drct = np.cross(drct,r_drct)
+	norm_d = b_drct/np.linalg.norm(b_drct,axis=1).reshape(-1,1)
+	dist = np.absolute(np.einsum('ij,ij->i',ofst_diff,norm_d))
+	dist = remove_nan(dist,ofst_diff,drct)
+	sm = np.stack((sgm,r_sgm),axis=1)
+	multp = syst_solve(drct,r_drct,ofst_diff)
+	multp[np.where(multp==0)] = 1
+	sigmas = np.linalg.norm(np.einsum('ij,ij->ij',sm,multp),axis=1)
+	if outlier:
+		r = np.einsum('ij,i->ij',drct,multp[:,0]) + ofst
+		s = np.einsum('ij,i->ij',r_drct,multp[:,1]) + r_ofst
+		c_point = np.mean(np.asarray([r,s]),axis=0)
+		#pt.extend(np.linalg.norm(c_point,axis=1))
+		idx_arr = np.where(np.linalg.norm(c_point,axis=1)>20000000)[0]
+		dist = np.delete(dist,idx_arr)
+		sigmas = np.delete(sigmas,idx_arr)
+	return dist,sigmas#,pt
+
+def track_dist(ofst,drct,sgm=False,outlier=False):
 	half = ofst.shape[0]/2
-	arr_dist, arr_sgm = [], []
+	arr_dist, arr_sgm,plot_test = [], [], []
 	for i in range(1,(ofst.shape[0]-1)/2+1):
-		ofst_diff = ofst - np.roll(ofst,i,axis=0)
-		r_drct = np.roll(drct,i,axis=0)
-		b_drct = np.cross(drct,r_drct)
-		norm_d = b_drct/np.linalg.norm(b_drct,axis=1).reshape(-1,1)
-		dist = np.absolute(np.einsum('ij,ij->i',ofst_diff,norm_d))
-		remove_nan(dist,ofst_diff,drct)
+		dist,sigmas = roll_funct(ofst,drct,sgm,i,half=False,outlier=outlier)
 		arr_dist.extend(dist)
-		if sgm != None:
-			r_sgm = np.roll(sgm,i,axis=0)
-			sm = np.stack((sgm,r_sgm),axis=1)
-			multp = syst_solve(drct,r_drct,ofst_diff)
-			multp[np.where(multp==0)] = 1
-			arr_sgm.extend(np.linalg.norm(np.einsum('ij,ij->ij',sm,multp),axis=1))
+		arr_sgm.extend(sigmas)
+		#plot_test.extend(pt)
 	if ofst.shape[0] & 0x1: pass						#condition removed if degeneracy is kept
 	else:
-		ofst_diff = ofst[:half]-np.roll(ofst,half,axis=0)[:half]
-		r_drct = np.roll(drct,half,axis=0)[:half]
-		b_drct = np.cross(drct[:half],r_drct)
-		norm_d = b_drct/np.linalg.norm(b_drct,axis=1).reshape(-1,1)
-		dist = np.absolute(np.einsum('ij,ij->i',ofst_diff,norm_d))
-		remove_nan(dist,ofst_diff,drct[:half])
+		dist,sigmas = roll_funct(ofst,drct,sgm,half,half=False,outlier=outlier)
 		arr_dist.extend(dist)
-		if sgm != None:
-			r_sgm = np.roll(sgm,half,axis=0)[:half]
-			sm = np.stack((sgm[:half],r_sgm),axis=1)
-			multp = syst_solve(drct[:half],r_drct,ofst_diff)
-			multp[np.where(multp==0)] = 1
-			arr_sgm.extend(np.linalg.norm(np.einsum('ij,ij->ij',sm,multp),axis=1))
-	if sgm != None:
-		arr_sgm = np.asarray(arr_sgm)
-		return arr_dist,arr_sgm
+		arr_sgm.extend(sigmas)
+		#plot_test.extend(pt)
+	if any(sgm):
+		#plt.hist2d(plot_test, np.log10(1./np.asarray(arr_sgm)), bins=50, range=[[0,15000],[-5,1.3]], norm=LogNorm())
+		#plt.colorbar()
+		#plt.show()
+		return arr_dist,np.asarray(arr_sgm)
 	else:
-		return arr_dist
-
-def plot_hist(arr_dist,out_print,save=None,directory=None):
-	tot_tracks = len(arr_dist)
-	plt.hist(np.asarray(arr_dist),bins=1000,normed=True)
-	plt.xlim((0,7500))
-	plt.ylim((1e-7,1e-2))
-	plt.xlabel('reciprocal distance [mm]')
-	plt.title('Distance distribution for %s with a total of %i entries'%(out_print,tot_tracks))
-	plt.yscale('log')
-	plt.subplots_adjust(left=0.03, right=0.99, top=0.97, bottom=0.06)
-	if save == False:
-		plt.show()
-	else:
-		F = pylab.gcf()
-		ds = F.get_size_inches()
-		F.set_size_inches((ds[0]*2.45,ds[1]*1.83))
-		if directory == None:
-			F.savefig(out_print.replace(' ','')+'.png')
-		else:
-			F.savefig(directory+out_print.replace(' ','')+'.png')
+		return arr_dist	
 
 def make_hist(bn_arr,arr,c_wgt,norm=True):
 	wgt = []
@@ -162,6 +161,42 @@ def make_hist(bn_arr,arr,c_wgt,norm=True):
 	else:
 		return np.asarray(wgt)
 
+def sim_setup(config,in_file):
+	kabamland = Detector(lm.ls)
+	kbl.build_kabamland(kabamland, config)
+	kabamland.flatten()
+	kabamland.bvh = load_bvh(kabamland)
+	sim = Simulation(kabamland)
+	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)
+	analyzer = EventAnalyzer(det_res)
+	return sim, analyzer
+
+def band_shell_bkg(sample,bn_arr,amount,sim,analyzer,i_shell,o_shell,sgm=False,plot=False,sigma=0.01):
+	arr_dist = np.zeros(len(bn_arr))
+	arr_sgm, chi2 = [], []
+	location = sph_scatter(sample,in_shell=i_shell,out_shell=o_shell)
+	if plot:
+		plot_sphere(location)
+	i = 0
+	for lg in location:
+		sim_event = kbl.gaussian_sphere(lg, sigma, amount)
+		for ev in sim.simulate(sim_event, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
+			tracks = analyzer.generate_tracks(ev)
+		if sgm:
+			tr_dist,err_dist = track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=True)
+			arr_sgm = 1./np.asarray(err_dist)
+		else:
+			tr_dist = track_dist(tracks.hit_pos.T,tracks.means.T)
+			arr_sgm = np.ones(len(tr_dist))
+		one_ev_hist = make_hist(bn_arr,tr_dist,arr_sgm)
+		chi2.append(one_ev_hist)
+		arr_dist = np.stack((one_ev_hist,arr_dist))
+		arr_dist = np.sum(arr_dist,axis=0)
+	print 'ss events produced'
+	return arr_dist/sample, chi2
+
+'''
+LEGACY FUNCTIONS (DEPRECATED)
 
 def substract_hist(bn_arr,bkg,sgnl,sigma_sgnl,dists):
 	dist = len(dists)
@@ -205,39 +240,25 @@ def overlap_hist(arr_dist,double_arr_dist,bn_arr,radius):
 	plt.show()
 	plt.close()
 
-def sim_setup(config,in_file):
-	kabamland = Detector(lm.ls)
-	kbl.build_kabamland(kabamland, config)
-	kabamland.flatten()
-	kabamland.bvh = load_bvh(kabamland)
-	sim = Simulation(kabamland)
-	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)
-	analyzer = EventAnalyzer(det_res)
-	return sim, analyzer
-
-def band_shell_bkg(sample,bn_arr,amount,sim,analyzer,i_shell,o_shell,sgm=False,plot=False,sigma=0.01):
-	arr_dist = np.zeros(len(bn_arr))
-	arr_sgm, chi2 = [], []
-	location = sph_scatter(sample,in_shell=i_shell,out_shell=o_shell)
-	if plot:
-		plot_sphere(location)
-	i = 0
-	for lg in location:
-		sim_event = kbl.gaussian_sphere(lg, sigma, amount)
-		for ev in sim.simulate(sim_event, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
-			tracks = analyzer.generate_tracks(ev)
-		if sgm:
-			tr_dist,err_dist = track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas)
-			arr_sgm = 1./np.asarray(err_dist)
+def plot_hist(arr_dist,out_print,save=None,directory=None):
+	tot_tracks = len(arr_dist)
+	plt.hist(np.asarray(arr_dist),bins=1000,normed=True)
+	plt.xlim((0,7500))
+	plt.ylim((1e-7,1e-2))
+	plt.xlabel('reciprocal distance [mm]')
+	plt.title('Distance distribution for %s with a total of %i entries'%(out_print,tot_tracks))
+	plt.yscale('log')
+	plt.subplots_adjust(left=0.03, right=0.99, top=0.97, bottom=0.06)
+	if save == False:
+		plt.show()
+	else:
+		F = pylab.gcf()
+		ds = F.get_size_inches()
+		F.set_size_inches((ds[0]*2.45,ds[1]*1.83))
+		if directory == None:
+			F.savefig(out_print.replace(' ','')+'.png')
 		else:
-			tr_dist = track_dist(tracks.hit_pos.T,tracks.means.T)
-			arr_sgm = np.ones(len(tr_dist))
-		one_ev_hist = make_hist(bn_arr,tr_dist,arr_sgm)
-		chi2.append(one_ev_hist)
-		arr_dist = np.stack((one_ev_hist,arr_dist))
-		arr_dist = np.sum(arr_dist,axis=0)
-	print 'ss events produced'
-	return arr_dist/sample, chi2
+			F.savefig(directory+out_print.replace(' ','')+'.png')
 
 def band_shell_sgn(r_dist,sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,sigma=0.01):
 	av_hist, sigma_hist = [], []
@@ -263,3 +284,21 @@ def band_shell_sgn(r_dist,sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False
  		sigma_hist.append(h_sigma)
 		print 'dist %dmm done'%rads
 	return np.asarray(av_hist), np.asarray(sigma_hist), dists
+
+def find_cl(arr,c_arr,val):
+	idx = np.abs(c_arr - val).argmin()
+	return arr[idx]
+
+def plot_histo():
+	plt.plot(ks_bin,ks_hist_bkg,label='null hypothesis',ls='steps')
+	plt.plot(ks_bin,ks_hist,label='%i mm distance'%dist,ls='steps')
+	plt.axvline(find_cl(ks_bin,c_bkg,0.68), color='b', linestyle='dashed', linewidth=2)
+	plt.text(find_cl(ks_bin,c_bkg,0.68)+0.0001,0.05,'68%CL',rotation=90)
+	plt.axvline(find_cl(ks_bin,c_bkg,0.9), color='b', linestyle='dashed', linewidth=2)
+	plt.text(find_cl(ks_bin,c_bkg,0.9)+0.0001,0.05,'90%CL',rotation=90)
+	plt.axvline(find_cl(ks_bin,c_bkg,0.95), color='b', linestyle='dashed', linewidth=2)
+	plt.text(find_cl(ks_bin,c_bkg,0.95)+0.0001,0.05,'95%CL',rotation=90)
+	plt.legend()
+	plt.show()
+	plt.close()
+'''
