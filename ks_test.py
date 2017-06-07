@@ -1,4 +1,4 @@
-from scipy.stats import chisquare
+from matplotlib.colors import LogNorm
 import first_test_jacopo as jacopo
 import matplotlib.pyplot as plt
 import kabamland2 as kbl
@@ -7,24 +7,25 @@ import time
 
 def fixed_dist_hist(dist,sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,sigma=0.01,reth=False):
 	ks_par = []
+	i = 0
 	locs1, locs2, rad = jacopo.fixed_dist(sample,5000,rads=dist)
 	if plot:
 		jacopo.plot_sphere(locs1,loc2=locs2,rads=rad)
 	for lc1,lc2 in zip(locs1,locs2):
+		i += 1
 		sim_events = jacopo.create_double_source_events(lc1, lc2, sigma, amount/2, amount/2)
 		for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 			tracks = analyzer.generate_tracks(ev)
 		if sgm:
-			tr_dist,er_dist = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas)
+			tr_dist,er_dist = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=outlier)
 			err_dist = 1./np.asarray(er_dist)
 		else:
-			tr_dist = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T)
+			tr_dist = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=sgm,outlier=outlier)
 			err_dist = np.ones(len(tr_dist))
-		#c_hist = np.cumsum(bkg_hist - jacopo.make_hist(bn_arr,tr_dist,err_dist))
-		#ks_par.append(c_hist[np.argmax(np.abs(c_hist))])
-		#ks_par.append(np.dot(jacopo.make_hist(bn_arr,tr_dist,err_dist),bn_arr))
 		if reth: ks_par.append(jacopo.make_hist(bn_arr,tr_dist,err_dist))
 		else: ks_par.append(np.average(tr_dist,weights=err_dist))
+		if i%50 == 0:
+			print i
 	return ks_par
 
 def bkg_dist_hist(sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,sigma=0.01):
@@ -39,33 +40,29 @@ def bkg_dist_hist(sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,sigma=0
 		for ev in sim.simulate(sim_event, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 			tracks = analyzer.generate_tracks(ev)
 		if sgm:
-			tr_dist,er_dist = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas)
+			tr_dist,er_dist = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=outlier)
 			err_dist = 1./np.asarray(er_dist)
 		else:
-			tr_dist = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T)
+			tr_dist = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=sgm,outlier=outlier)
 			err_dist = np.ones(len(tr_dist))
-		#c_hist = np.cumsum(bkg_hist - jacopo.make_hist(bn_arr,tr_dist,err_dist))
-		#ks_par.append(c_hist[np.argmax(np.abs(c_hist))])
-		#ks_par.append(np.dot(jacopo.make_hist(bn_arr,tr_dist,err_dist),bn_arr))
 		ks_par.append(np.average(tr_dist,weights=err_dist))
-		if i%200 == 0:
+		if i%50 == 0:
 			print i
 	return ks_par
 	
 def chi2(bkg_hist,chi2h):
-	c2hist = []
-	for c2 in chi2h:
-		c2hist.append(chisquare(c2,f_exp=bkg_hist)[0])
-	return c2hist
+	chi2h = np.asarray(chi2h)
+	c2 = np.sum(np.square((chi2h - bkg_hist)/bkg_hist),axis=1)/(len(bkg_hist)-1)
+	return c2
 
-def plot_cl(ks_bin,c_bkg,c_sgn):
+def plot_cl(ks_bin,c_bkg,c_sgn,x_str):
 	fig, ax1 = plt.subplots()
 	ax2 = ax1.twinx()
 	ax1.plot(ks_bin, c_bkg, 'r-')
 	ax2.plot(ks_bin, 1-c_sgn, 'b-')
 	ax1.set_ylim([0, 1.05])
 	ax2.set_ylim([0, 1.05])
-	ax1.set_xlabel('cut value')
+	ax1.set_xlabel(x_str)
 	ax1.set_ylabel('signal efficiency', color='r')
 	ax2.set_ylabel('background discrimination', color='b')
 	plt.axhline(0.95, xmin=0.05,xmax=0.95, color='b', linestyle='dashed', linewidth=2)
@@ -79,49 +76,58 @@ def use_avg():
 	ks_bin = np.linspace(min(ks_par_bkg),max(ks_par),50)
 	ks_hist_bkg = jacopo.make_hist(ks_bin,ks_par_bkg,np.ones(sample))
 	ks_hist = jacopo.make_hist(ks_bin,ks_par,np.ones(sample))
-	plot_cl(ks_bin,np.cumsum(ks_hist_bkg),np.cumsum(ks_hist))
+	plot_cl(ks_bin,np.cumsum(ks_hist_bkg),np.cumsum(ks_hist),'average value of the distribution')
 
 def use_chi2():
 	bkg_hist,chi2h = jacopo.band_shell_bkg(sample,bn_arr,6600,sim,analyzer,0,5000,sgm=sgm)
 	ks_par = fixed_dist_hist(dist,sample,bn_arr,6600,sim,analyzer,sgm=sgm,reth=True)
-	ks_bin = np.linspace(0,np.max(ks_par),200)
-	sng_h = jacopo.make_hist(ks_bin,chi2(bkg_hist,chi2h),np.ones(sample))
-	bkg_h = jacopo.make_hist(ks_bin,chi2(bkg_hist,ks_par),np.ones(sample))
+	c2_s = chi2(bkg_hist,chi2h)
+	c2_b = chi2(bkg_hist,ks_par)
+	ks_bin = np.linspace(0,max(c2_b),50)
+	sng_h = jacopo.make_hist(ks_bin,c2_s,np.ones(sample))
+	bkg_h = jacopo.make_hist(ks_bin,c2_b,np.ones(sample))
 	plt.plot(ks_bin,sng_h)
 	plt.plot(ks_bin,bkg_h)
 	plt.show()
 	plt.close()
-	plot_cl(ks_bin,np.cumsum(sng_h),np.cumsum(bkg_h))
+	plot_cl(ks_bin,np.cumsum(sng_h),np.cumsum(bkg_h),'reduced $\chi^2$')
 
-max_val = 2000
-bin_width = 10
-n_bin = max_val/bin_width
-sample = 100
-dist = 200
-sgm = True
-bn_arr = np.linspace(0,max_val,n_bin)
-sim,analyzer = jacopo.sim_setup('cfJiani3_4','/home/miladmalek/TestData/detresang-cfJiani3_4_1DVariance_noreflect_100million.root')
-#use_avg()
-use_chi2()
+def outside_tracks():
+	location = jacopo.sph_scatter(1,in_shell=0,out_shell=5000)
+	for lg in location:
+		sim_events = jacopo.create_double_source_events(np.asarray([0,0,4500]), np.asarray([0,0,4500]), 0.01, 3300, 3300)
+		for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
+				tracks = analyzer.generate_tracks(ev)
+		a,b = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=False)
+		c,d = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=True)
+		if sgm:
+			b = 1./np.asarray(b)
+			d = 1./np.asarray(d)
+		else:
+			b = np.ones(len(a))
+			d = np.ones(len(c))
+		plt.plot(bn_arr,jacopo.make_hist(bn_arr,a,b))
+		plt.plot(bn_arr,jacopo.make_hist(bn_arr,c,d))
+		plt.show()
+		'''
+	plt.hist2d(A, C, bins=50, range=[[0,2000],[0,12000]], norm=LogNorm())
+	plt.colorbar()
+	plt.show()'''
+
+if __name__ == '__main__':
+	max_val = 2000
+	bin_width = 10
+	n_bin = max_val/bin_width
+	sample = 50
+	dist = 100
+	sgm = True
+	outlier = False
+	bn_arr = np.linspace(0,max_val,n_bin)
+	sim,analyzer = jacopo.sim_setup('cfJiani3_4','/home/miladmalek/TestData/detresang-cfJiani3_4_1DVariance_100million.root')
+	use_avg()
+	#use_chi2()
+	#outside_tracks()
 
 
 
 #('cfSam1_1','/home/miladmalek/TestData/detresang-cfSam1_1_1DVariance_noreflect_100million.root')
-'''
-def find_cl(arr,c_arr,val):
-	idx = np.abs(c_arr - val).argmin()
-	return arr[idx]
-
-def plot_histo():
-	plt.plot(ks_bin,ks_hist_bkg,label='null hypothesis',ls='steps')
-	plt.plot(ks_bin,ks_hist,label='%i mm distance'%dist,ls='steps')
-	plt.axvline(find_cl(ks_bin,c_bkg,0.68), color='b', linestyle='dashed', linewidth=2)
-	plt.text(find_cl(ks_bin,c_bkg,0.68)+0.0001,0.05,'68%CL',rotation=90)
-	plt.axvline(find_cl(ks_bin,c_bkg,0.9), color='b', linestyle='dashed', linewidth=2)
-	plt.text(find_cl(ks_bin,c_bkg,0.9)+0.0001,0.05,'90%CL',rotation=90)
-	plt.axvline(find_cl(ks_bin,c_bkg,0.95), color='b', linestyle='dashed', linewidth=2)
-	plt.text(find_cl(ks_bin,c_bkg,0.95)+0.0001,0.05,'95%CL',rotation=90)
-	plt.legend()
-	plt.show()
-	plt.close()
-'''
