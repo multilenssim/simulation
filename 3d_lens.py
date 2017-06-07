@@ -102,7 +102,7 @@ def event_display(numPhotons, photon_track, vertex, surf2, lens2, pos):
 	# Get total number of triangles for the curved surface
 	nr_triangles2 = len(surf2.get_triangle_centers()[:,1])
 	
-	# Get a complete list of the 3 coordiantes seperately 
+	# Get a complete list of the 3 coordinates seperately 
 	X2 = lens_vertices[:,:,0].flatten()
 	Y2 = lens_vertices[:,:,1].flatten()
 	Z2 = lens_vertices[:,:,2].flatten()
@@ -111,7 +111,7 @@ def event_display(numPhotons, photon_track, vertex, surf2, lens2, pos):
 	triang_blocker, Z_blocker = PlotBlocker(np.max(X2), Z2[np.argmax(X2)])
 	
 	# Plot blocker. 
-	ax.plot_trisurf(triang_blocker, Z_blocker, color="white", shade = True, alpha = 0.8)
+	ax.plot_trisurf(triang_blocker, Z_blocker, color="black", alpha = 0.4)
 
 	# Define triangulation, e.g. define which coordinates belong to one triangle, so that the mesh can be build properly. Typically, each pair of three subsequent coordinates in 3D belong to one triangle. 
 	triangles = [[3*ii,3*ii+1,3*ii+2] for ii in range(len(X2)/3)]
@@ -172,12 +172,12 @@ def propagate_photon(photon_type, numPhotons, nr_steps, geometry, nthreads_per_b
 		photon_track[i,:,2] = photons.pos[:,2]
 	return photons, photon_track
 
-
 if __name__ == '__main__':
 
+    config = "cfJiani3_2"
+    #config = "cfSam1_1"
+    
     kabamland = Detector(lm.ls)
-    #config = "cfJiani3_2"
-    config = "cfSam1_1"
     lens, surf = build_kabamland(kabamland, config)
     kabamland.flatten()
     kabamland.bvh = load_bvh(kabamland)
