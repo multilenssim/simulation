@@ -123,12 +123,12 @@ def roll_funct(ofst,drct,sgm,i,half=False,outlier=False):
 		s = np.einsum('ij,i->ij',r_drct,multp[:,1]) + r_ofst
 		c_point = np.mean(np.asarray([r,s]),axis=0)
 		#pt.extend(np.linalg.norm(c_point,axis=1))
-		idx_arr = np.where(np.linalg.norm(c_point,axis=1)>20000000)[0]
+		idx_arr = np.where(np.linalg.norm(c_point,axis=1)>7000)[0]
 		dist = np.delete(dist,idx_arr)
 		sigmas = np.delete(sigmas,idx_arr)
 	return dist,sigmas#,pt
 
-def track_dist(ofst,drct,sgm=False,outlier=False):
+def track_dist(ofst,drct,sgm=False,outlier=False,dim_len=0):
 	half = ofst.shape[0]/2
 	arr_dist, arr_sgm,plot_test = [], [], []
 	for i in range(1,(ofst.shape[0]-1)/2+1):
@@ -146,9 +146,9 @@ def track_dist(ofst,drct,sgm=False,outlier=False):
 		#plt.hist2d(plot_test, np.log10(1./np.asarray(arr_sgm)), bins=50, range=[[0,15000],[-5,1.3]], norm=LogNorm())
 		#plt.colorbar()
 		#plt.show()
-		return arr_dist,np.asarray(arr_sgm)
+		return arr_dist,(np.asarray(arr_sgm)+dim_len)
 	else:
-		return arr_dist	
+		return arr_dist
 
 def make_hist(bn_arr,arr,c_wgt,norm=True):
 	wgt = []
@@ -171,10 +171,10 @@ def sim_setup(config,in_file):
 	analyzer = EventAnalyzer(det_res)
 	return sim, analyzer
 
-def band_shell_bkg(sample,bn_arr,amount,sim,analyzer,i_shell,o_shell,sgm=False,plot=False,sigma=0.01):
+def band_shell_bkg(sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,sigma=0.01):
 	arr_dist = np.zeros(len(bn_arr))
 	arr_sgm, chi2 = [], []
-	location = sph_scatter(sample,in_shell=i_shell,out_shell=o_shell)
+	location = sph_scatter(sample)
 	if plot:
 		plot_sphere(location)
 	i = 0

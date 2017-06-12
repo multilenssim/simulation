@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import kabamland2 as kbl
 import numpy as np
 import time
+import detectorconfig
 
 def fixed_dist_hist(dist,sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,sigma=0.01,reth=False):
 	ks_par = []
@@ -17,7 +18,7 @@ def fixed_dist_hist(dist,sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,
 		for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 			tracks = analyzer.generate_tracks(ev)
 		if sgm:
-			tr_dist,er_dist = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=outlier)
+			tr_dist,er_dist = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=outlier,dim_len=conf.half_EPD)
 			err_dist = 1./np.asarray(er_dist)
 		else:
 			tr_dist = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=sgm,outlier=outlier)
@@ -31,7 +32,7 @@ def fixed_dist_hist(dist,sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,
 def bkg_dist_hist(sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,sigma=0.01):
 	ks_par,loc_p,loc_m = [],[],[]
 	i = 0
-	location = jacopo.sph_scatter(sample,in_shell=0,out_shell=5000)
+	location = jacopo.sph_scatter(sample)
 	if plot:
 		jacopo.plot_sphere(location)
 	for lg in location:
@@ -40,7 +41,7 @@ def bkg_dist_hist(sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,sigma=0
 		for ev in sim.simulate(sim_event, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 			tracks = analyzer.generate_tracks(ev)
 		if sgm:
-			tr_dist,er_dist = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=outlier)
+			tr_dist,er_dist = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=outlier,dim_len=conf.half_EPD)
 			err_dist = 1./np.asarray(er_dist)
 		else:
 			tr_dist = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=sgm,outlier=outlier)
@@ -79,7 +80,7 @@ def use_avg():
 	plot_cl(ks_bin,np.cumsum(ks_hist_bkg),np.cumsum(ks_hist),'average value of the distribution')
 
 def use_chi2():
-	bkg_hist,chi2h = jacopo.band_shell_bkg(sample,bn_arr,6600,sim,analyzer,0,5000,sgm=sgm)
+	bkg_hist,chi2h = jacopo.band_shell_bkg(sample,bn_arr,6600,sim,analyzer,sgm=sgm)
 	ks_par = fixed_dist_hist(dist,sample,bn_arr,6600,sim,analyzer,sgm=sgm,reth=True)
 	c2_s = chi2(bkg_hist,chi2h)
 	c2_b = chi2(bkg_hist,ks_par)
@@ -98,8 +99,8 @@ def outside_tracks():
 		sim_events = jacopo.create_double_source_events(np.asarray([0,0,4500]), np.asarray([0,0,4500]), 0.01, 3300, 3300)
 		for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 				tracks = analyzer.generate_tracks(ev)
-		a,b = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=False)
-		c,d = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=True)
+		a,b = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=False,dim_len=conf.half_EPD)
+		c,d = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=True,dim_len=conf.half_EPD)
 		if sgm:
 			b = 1./np.asarray(b)
 			d = 1./np.asarray(d)
@@ -118,12 +119,13 @@ if __name__ == '__main__':
 	max_val = 2000
 	bin_width = 10
 	n_bin = max_val/bin_width
-	sample = 50
+	sample = 10
 	dist = 100
 	sgm = True
 	outlier = False
 	bn_arr = np.linspace(0,max_val,n_bin)
 	sim,analyzer = jacopo.sim_setup('cfJiani3_4','/home/miladmalek/TestData/detresang-cfJiani3_4_1DVariance_100million.root')
+	conf = detectorconfig.configdict['cfJiani3_4']
 	use_avg()
 	#use_chi2()
 	#outside_tracks()
