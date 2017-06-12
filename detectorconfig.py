@@ -72,7 +72,9 @@ configdict['cfJiani3_test'] = DetectorConfig(10.0, 6, 0, 0, 1.0, lens_system_nam
 configdict['cfJiani3_3'] = DetectorConfig(10000.0, 9, 0, 0, 1.0, lens_system_name='Jiani3', light_confinement=True, nsteps=12) # Should have ~100k pixels, 45 lens systems/face, 20 faces
 configdict['cfJiani3_test2'] = DetectorConfig(10000.0, 4, 0, 0, 1.0, lens_system_name='Jiani3', light_confinement=True, nsteps=12) # Test 2
 configdict['cfJiani3_4'] = DetectorConfig(10000.0, 4, 0, 0, 1.0, lens_system_name='Jiani3', light_confinement=True, nsteps=32) # Should have ~100k pixels, 10 lens systems/face, 20 faces
+configdict['cfJiani3_5'] = DetectorConfig(10000.0, 10, 0, 0, 1.0, lens_system_name='Jiani3', light_confinement=True, nsteps=12) # Should have ~100k pixels, 55lens systems/face, 20 faces
 configdict['cfSam1_1'] = DetectorConfig(10000.0, 6, 0, 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=23) # Should have ~100k pixels, 21 lens systems/face, 20 faces
 configdict['cfSam1_1_test'] = DetectorConfig(10000.0, 3, 0, 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=23) # Should have ~100k pixels, 21 lens systems/face, 20 faces
 configdict['cfSam1_2'] = DetectorConfig(10000.0, 4, 0, 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=23) # Should have ~100k pixels, 10 lens systems/face, 20 faces
-configdict['cfSam1_3'] = DetectorConfig(10000.0, 9, 0, 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=23) # Should have ~100k pixels, 45 lens systems/face, 20 faces
+configdict['cfSam1_3'] = DetectorConfig(10000.0, 9, 0, 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=12) # Should have ~100k pixels, 45 lens systems/face, 20 faces
+configdict['cfSam1_4'] = DetectorConfig(10000.0, 10, 0, 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=12) # Should have ~100k pixels, 55 lens systems/face, 20 faces
