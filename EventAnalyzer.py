@@ -221,7 +221,7 @@ class EventAnalyzer(object):
         # the true directions the photons came from
         
         # Create a list of tracks (from hits and detector response, if calibrated, else w/ perfect resolution)
-        tracks = self.generate_tracks(event, sig_cone, n_ph, lens_dia, debug)
+        tracks = self.generate_tracks(event, sig_cone, n_ph, debug)
         
         # Find/fit vertices using adaptive vertex fitter method
         return self.AVF(tracks, min_tracks, chiC, temps, tol, debug) # list of Vertex objects
@@ -631,6 +631,9 @@ class EventAnalyzer(object):
         event_pmt_bin_array = np.array(self.det_res.find_pmt_bin_array(ending_photons)) # Get PMT hit location
         event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T
         
+        event_lens_bin_array = np.array(event_pmt_bin_array/self.det_res.n_pmts_per_surf)
+        event_lens_pos_array = np.array([self.det_res.lens_centers[x] for x in event_lens_bin_array]).T
+        
         # If detector is not calibrated or not of the GaussAngle subclass, use actual photon angles
         # plus Gaussian noise (two different models, depending on if lens_dia is given)
         if not (self.det_res.is_calibrated and isinstance(self.det_res,DetectorResponseGaussAngle)): 
@@ -640,6 +643,8 @@ class EventAnalyzer(object):
                 sigmas.fill(sig_cone)
                 sig_th = sig_cone
                 hit_pos = event_pmt_pos_array
+             
+                
             # If lens_dia is given, include noise on the hit position; angular noise is set by lens_dia and
             # the detector's number of pmtxbins, rather than sig_cone
             else:
@@ -658,6 +663,8 @@ class EventAnalyzer(object):
                 # Then break up into two perpendicular components: sig_u^2+sig_v^2=sig_r^2, sig_u=sig_v
                 sig_u = lens_dia/4#lens_dia/(np.sqrt(np.pi)*lens_dia/pmt_width)
                 hit_face_array, _, _ = self.det_res.pmt_bin_to_tuple(event_pmt_bin_array, self.det_res.pmtxbins, self.det_res.pmtybins)
+                print hit_face_array
+                quit() 
                 face_dir_array = self.det_res.direction[hit_face_array] # (n, 3)
                 u_dir_array = normalize(np.cross(face_dir_array,np.array([0,0,1]))) # Check dimensions!
                 v_dir_array = normalize(np.cross(face_dir_array,u_dir_array))
@@ -676,7 +683,9 @@ class EventAnalyzer(object):
             means = normalize((-end_direction_array+ang_noise).T).T
             return Tracks(hit_pos, means, sigmas)
         else: # Detector is calibrated, use response to generate tracks
-            tracks = Tracks(event_pmt_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array])   
+            
+            tracks = Tracks(event_lens_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = self.det_res.lens_rad)  
+            #tracks = Tracks(event_pmt_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = 0.0000001)   
             tracks.cull(np.where(tracks.sigmas>0.001)) # Remove tracks with zero uncertainty (not calibrated)
             if np.any(np.isnan(tracks.sigmas)):
                 print "Nan tracks!! Removing."
@@ -720,7 +729,7 @@ class EventAnalyzer(object):
         # sig = np.ones(sig.shape) # Temporary, for debugging
         # chi = d
         # wt = np.ones(wt.shape) 
-
+	
         obj = np.sum(wt*chi**2)/np.sum(wt) # Get current value of objective function
         return r, sig, d, chi, wt, obj
  

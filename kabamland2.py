@@ -9,7 +9,7 @@ from chroma.sample import uniform_sphere
 from chroma.transform import make_rotation_matrix, normalize
 from chroma.event import Photons
 from chroma.loader import load_bvh
-from chroma.generator import vertex
+from chroma.generator import vertex 
 from ShortIO.root_short import ShortRootWriter
 import detectorconfig
 import lenssystem
@@ -19,6 +19,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.tri import Triangulation
 
 inputn = 16.0
 def lens(diameter, thickness, nsteps=inputn):
@@ -218,6 +219,125 @@ def return_values(edge_length, base):
         spin_angle[k] = spin_sign[k]*np.arccos(3*np.dot(A[k], B[k])/edge_length**2)
         
     return edge_length, facecoords, direction, axis, angle, spin_angle
+
+
+def plot_mesh_object(mesh, centers=[[0,0,0]]): 
+    fig = plt.figure(figsize=(20, 10))
+    ax = fig.gca(projection='3d')
+	
+    centers = np.array(centers) 
+	
+    ax.set_xlabel('X Label')
+    ax.set_ylabel('Y Label')
+    ax.set_zlabel('Z Label')
+	
+    vertices = mesh.assemble() 
+    X = vertices[:,:,0].flatten()
+    Y = vertices[:,:,1].flatten()
+    Z = vertices[:,:,2].flatten()
+	
+    triangles = [[3*ii,3*ii+1,3*ii+2] for ii in range(len(X)/3)]
+    triang = Triangulation(X, Y, triangles)
+	
+    ax.plot_trisurf(triang, Z, color="white", shade = True, alpha = 1.0)
+    #for ii in range(len(centers)):
+	#ax.scatter(centers[ii,0], centers[ii,1], centers[ii,2], color="red", s = 5)
+	
+    plt.show()
+	
+def get_assembly_xyz(mesh): 
+    vertices = mesh.assemble() 
+    X = vertices[:,:,0].flatten()
+    Y = vertices[:,:,1].flatten()
+    Z = vertices[:,:,2].flatten()
+    return X, Y, Z 
+	
+def rotate_3D(points, rotation_matrix):
+    n = len(points)
+    newvertices = np.empty((n, 3))
+    for i in range(n):
+		#print points[i]
+		newvertices[i] = np.dot(rotation_matrix, points[i])
+    return newvertices
+
+
+def shift_3D(points, shift):
+    #input shift as a vector
+    n = len(points)
+    newvertices = points + np.tile(shift, (n, 1))
+    return newvertices
+	
+def get_lens_triangle_centers(edge_length, base, diameter_ratio, thickness_ratio, half_EPD, blockers=True, blocker_thickness_ratio=1.0/1000, light_confinement=False, focal_length=1.0, lens_system_name=None):
+	"""input edge length of icosahedron 'edge_length', the number of small triangles in the base of each face 'base', the ratio of the diameter of each lens to the maximum diameter possible 'diameter_ratio' (or the fraction of the default such ratio, if a curved detector lens system), the ratio of the thickness of the lens to the chosen (not maximum) diameter 'thickness_ratio', the radius of the blocking entrance pupil 'half_EPD', and the ratio of the thickness of the blockers to that of the lenses 'blocker_thickness_ratio' to return the icosahedron of lenses in kabamland. Light_confinment=True adds cylindrical shells behind each lens that absorb all the light that touches them, so that light doesn't overlap between lenses. If lens_system_name is a string that matches one of the lens systems in lenssystem.py, the corresponding lenses and detectors will be built. Otherwise, a default simple lens will be built, with parameters hard-coded below."""
+    
+	edge_length, facecoords, direction, axis, angle, spin_angle = return_values(edge_length, base)
+	max_radius = find_max_radius(edge_length, base)	
+	xshift = edge_length/2.0
+	yshift = edge_length/(2.0*np.sqrt(3))
+	
+	#iterating the lenses into a hexagonal pattern within a single side using triangular numbers. First, coordinate indices are created, and then these are transformed into the actual coordinate positions based on the parameters given.
+	lens_xindices, lens_yindices = triangular_indices(base)
+	first_lens_xcoord = np.sqrt(3)*max_radius
+	first_lens_ycoord = max_radius
+	lens_xcoords = max_radius*lens_xindices + first_lens_xcoord - xshift
+	lens_ycoords = np.sqrt(3)*max_radius*lens_yindices + first_lens_ycoord - yshift
+
+	#creating the lenses for a single face
+	if not lens_system_name in lenssystem.lensdict: # Lens system isn't recognized
+		print 'Warning: lens system name '+str(lens_system_name)+' not recognized; using default lens.'    ##changed
+		#I changed the rotation matrix to try and keep the curved surface towards the interior
+		lensdiameter = 2*diameter_ratio*max_radius
+		pcrad = 0.9*lensdiameter 
+		R1 = 0.584*lensdiameter # meniscus 6 values
+		R2 = -9.151*lensdiameter
+   
+		initial_lens = as_mesh
+
+		initial_lens = mh.rotate(spherical_lens(R1, R2, lensdiameter), make_rotation_matrix(-np.pi/2, (1,0,0))) # meniscus 6 lens
+        #initial_lens = mh.rotate(pclens2(pcrad, lensdiameter), make_rotation_matrix(-np.pi/2, (1,0,0)))
+        #initial_lens = mh.rotate(disk(lensdiameter/2.0), make_rotation_matrix(-np.pi/2, (1,0,0)))
+        ##end changed
+		lenses = [initial_lens]
+		lensmat = lm.lensmat # default lens material
+	else: # Get the list of lens meshes from the appropriate lens system as well as the lens material
+		scale_rad = max_radius*diameter_ratio
+		lenses = lenssystem.get_lens_mesh_list(lens_system_name, scale_rad)
+		lensmat = lenssystem.get_lens_material(lens_system_name)
+    
+	lens_mesh = None
+	initial_lens = None
+	lens_centers = [] 	
+	
+	for lens_i in lenses: # Add all the lenses for the first lens system to solid 'face'
+		lens_mesh_i = mh.shift(lens_i, (lens_xcoords[0], lens_ycoords[0], 0.))
+		if not lens_mesh:
+			lens_mesh = lens_mesh_i
+			initial_lens = lens_i
+		else:
+			lens_mesh += lens_mesh_i
+			initial_lens += lens_i
+	#plot_mesh_object(lens_mesh) 
+	X, Y, Z = get_assembly_xyz(lens_mesh) 		
+	lens_centers.append([np.mean(X[:]), np.mean(Y[:]), np.mean(Z[:])]) 
+	
+	# Repeat for all lens systems on this face
+	for i in np.linspace(1, triangular_number(base)-1, triangular_number(base)-1):
+		new_mesh = mh.shift(initial_lens, (lens_xcoords[np.int(i)], lens_ycoords[np.int(i)], 0.))
+		X, Y, Z = get_assembly_xyz(new_mesh) 
+		lens_centers.append([np.mean(X[:]), np.mean(Y[:]), np.mean(Z[:])]) 
+		lens_mesh = lens_mesh + mh.shift(initial_lens, (lens_xcoords[np.int(i)], lens_ycoords[np.int(i)], 0.))
+
+	initial_centers = lens_centers
+	lens_centers = rotate_3D(lens_centers, np.dot(make_rotation_matrix(spin_angle[0], direction[0]), make_rotation_matrix(angle[0], axis[0])))
+	lens_centers = shift_3D(lens_centers, facecoords[0])
+	
+	for k in range(1,20): 
+		new_centers = rotate_3D(initial_centers, np.dot(make_rotation_matrix(spin_angle[k], direction[k]), make_rotation_matrix(angle[k], axis[k])))
+		new_centers = shift_3D(new_centers, facecoords[k])
+		lens_centers = np.concatenate((lens_centers, new_centers), 0) 
+	lens_centers = np.array(lens_centers)
+	
+	return lens_centers, initial_lens
   
 def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickness_ratio, half_EPD, blockers=True, blocker_thickness_ratio=1.0/1000, light_confinement=False, focal_length=1.0, lens_system_name=None):
     """input edge length of icosahedron 'edge_length', the number of small triangles in the base of each face 'base', the ratio of the diameter of each lens to the maximum diameter possible 'diameter_ratio' (or the fraction of the default such ratio, if a curved detector lens system), the ratio of the thickness of the lens to the chosen (not maximum) diameter 'thickness_ratio', the radius of the blocking entrance pupil 'half_EPD', and the ratio of the thickness of the blockers to that of the lenses 'blocker_thickness_ratio' to return the icosahedron of lenses in kabamland. Light_confinment=True adds cylindrical shells behind each lens that absorb all the light that touches them, so that light doesn't overlap between lenses. If lens_system_name is a string that matches one of the lens systems in lenssystem.py, the corresponding lenses and detectors will be built. Otherwise, a default simple lens will be built, with parameters hard-coded below.
@@ -370,7 +490,7 @@ def get_curved_surf_triangle_centers(edge_length, base, detector_r = 1.0, focal_
     new_curved_surf2 = mh.shift(initial_curved_surf, (lens_xcoords[0], lens_ycoords[0], 0))
 
     nr_triangles = len(new_curved_surf2.get_triangle_centers()[:,1])
-    print "Number of triangles per curved surface:	", nr_triangles 
+    #print "Number of triangles per curved surface:	", nr_triangles 
     
     
     #plot_mesh_animate(initial_curved_surf.get_triangle_centers()[:nr_triangles ,:], initial_curved_surf.assemble()[:nr_triangles ,:,:])
@@ -381,7 +501,7 @@ def get_curved_surf_triangle_centers(edge_length, base, detector_r = 1.0, focal_
         if(i>0):
             new_curved_surf2 += mh.shift(initial_curved_surf, (lens_xcoords[int(i)], lens_ycoords[int(i)], 0))
         #curved_surf_triangle_centers = np.concatenate((curved_surf_triangle_centers, new_curved_surf.get_triangle_centers()),0)
-    print "Number of triangles per face:	",len(new_curved_surf2.get_triangle_centers()[:,0])
+    #print "Number of triangles per face:	",len(new_curved_surf2.get_triangle_centers()[:,0])
     for k in range(20):   
         new_curved_surf3 = mh.rotate(new_curved_surf2, np.dot(make_rotation_matrix(spin_angle[k], direction[k]), make_rotation_matrix(angle[k], axis[k])))
         new_curved_surf3 = mh.shift(new_curved_surf3, facecoords[k] + focal_length*normalize(facecoords[k]))
@@ -453,8 +573,6 @@ def plot_mesh_animate(curved_surf_triangle_centers, curved_surf_triangle_vertice
     color_arr1 = ["red" for x in range(int(nr_triangles/2.0)+1)]
     color_arr2 = ["green" for x in range(int(nr_triangles/2.0)+1)]
     color_arr = color_arr1 + color_arr2
-    #print color_arr 
-    #quit()
     
     ax.scatter(curved_surf_triangle_vertices[:nr_triangles,:,0].tolist(), curved_surf_triangle_vertices[:nr_triangles,:,1].tolist(), curved_surf_triangle_vertices[:nr_triangles,:,2].tolist(), c='r')
     for ii in range(nr_triangles):
@@ -513,6 +631,8 @@ def build_kabamland(kabamland, configname):
     config = detectorconfig.configdict[configname]
 
     build_lens_icosahedron(kabamland, config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
+    
+    #get_lens_triangle_centers(config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
    
     build_pmt_icosahedron(kabamland, config.edge_length, config.base, focal_length=config.focal_length*1.5) # Built further out, just as a way of stopping photons
     
@@ -585,12 +705,14 @@ def create_double_source_event(loc1, loc2, sigma, amount, config, eventname, dat
 
 def full_detector_simulation(amount, configname, simname, datadir=""):
 	#simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron. Note that viewing may crash if there are too many lenses. (try using configview)
-	config = detectorconfig.configdict[configname]
+	
+	config = detectorconfig.configdict[configname] 
 	kabamland = Detector(lm.ls)
 	build_kabamland(kabamland, configname)
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
-	#view(kabamland)
+	view(kabamland)
+	
 	#quit()
 	f = ShortRootWriter(datadir + simname)
 	sim = Simulation(kabamland)
