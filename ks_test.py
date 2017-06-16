@@ -1,4 +1,5 @@
 from matplotlib.colors import LogNorm
+#from scipy.stats import chisquare
 import first_test_jacopo as jacopo
 import matplotlib.pyplot as plt
 import kabamland2 as kbl
@@ -53,10 +54,10 @@ def bkg_dist_hist(sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,sigma=0
 	
 def chi2(bkg_hist,chi2h):
 	chi2h = np.asarray(chi2h)
-	c2 = np.sum(np.square((chi2h - bkg_hist)/bkg_hist),axis=1)/(len(bkg_hist)-1)
+	c2 = np.sum(np.square(chi2h - bkg_hist)/bkg_hist,axis=1)/(len(bkg_hist)-1)
 	return c2
 
-def plot_cl(ks_bin,c_bkg,c_sgn,x_str):
+def plot_cl(ks_bin,c_bkg,c_sgn,x_str,dst):
 	fig, ax1 = plt.subplots()
 	ax2 = ax1.twinx()
 	ax1.plot(ks_bin, c_bkg, 'r-')
@@ -65,71 +66,78 @@ def plot_cl(ks_bin,c_bkg,c_sgn,x_str):
 	ax2.set_ylim([0, 1.05])
 	ax1.set_xlabel(x_str)
 	ax1.set_ylabel('signal efficiency', color='r')
-	ax2.set_ylabel('background discrimination', color='b')
+	ax2.set_ylabel('background rejection', color='b')
 	plt.axhline(0.95, xmin=0.05,xmax=0.95, color='b', linestyle='dashed', linewidth=2)
 	plt.text(ks_bin[3],0.92,'95%')
-	plt.title('%i mm distance for the double site' %dist)
+	plt.title('%i mm distance for the double site' %dst)
 	plt.show()
 
 def use_avg():
+	arr_cl = []
 	ks_par_bkg = bkg_dist_hist(sample,bn_arr,6600,sim,analyzer,sgm=sgm)
-	ks_par = fixed_dist_hist(dist,sample,bn_arr,6600,sim,analyzer,sgm=sgm)
-	ks_bin = np.linspace(min(ks_par_bkg),max(ks_par),50)
-	ks_hist_bkg = jacopo.make_hist(ks_bin,ks_par_bkg,np.ones(sample))
-	ks_hist = jacopo.make_hist(ks_bin,ks_par,np.ones(sample))
-	plot_cl(ks_bin,np.cumsum(ks_hist_bkg),np.cumsum(ks_hist),'average value of the distribution')
+	for dst in distance:
+		ks_par = fixed_dist_hist(dst,sample,bn_arr,6600,sim,analyzer,sgm=sgm)
+		ks_bin = np.linspace(min(ks_par_bkg),max(ks_par),50)
+		ks_hist_bkg = jacopo.make_hist(ks_bin,ks_par_bkg,np.ones(sample))
+		sig_c = np.cumsum(ks_hist_bkg)
+		ks_hist = jacopo.make_hist(ks_bin,ks_par,np.ones(sample))
+		bkg_c = np.cumsum(ks_hist)
+		#plot_cl(ks_bin,sig_c,bkg_c,'average value of the distribution')
+		arr_cl.append(find_cl(sig_c,bkg_c,0.95))
+	return arr_cl
 
 def use_chi2():
-	bkg_hist,chi2h = jacopo.band_shell_bkg(sample,bn_arr,6600,sim,analyzer,sgm=sgm)
-	ks_par = fixed_dist_hist(dist,sample,bn_arr,6600,sim,analyzer,sgm=sgm,reth=True)
+	arr_cl = []
+	bkg_hist,chi2h = jacopo.band_shell_bkg(sample,bn_arr,6600,sim,analyzer,sgm=sgm,conf=conf)
 	c2_s = chi2(bkg_hist,chi2h)
-	c2_b = chi2(bkg_hist,ks_par)
-	ks_bin = np.linspace(0,max(c2_b),50)
-	sng_h = jacopo.make_hist(ks_bin,c2_s,np.ones(sample))
-	bkg_h = jacopo.make_hist(ks_bin,c2_b,np.ones(sample))
-	plt.plot(ks_bin,sng_h)
-	plt.plot(ks_bin,bkg_h)
-	plt.show()
-	plt.close()
-	plot_cl(ks_bin,np.cumsum(sng_h),np.cumsum(bkg_h),'reduced $\chi^2$')
+	for dst in distance:
+		ks_par = fixed_dist_hist(dst,sample,bn_arr,6600,sim,analyzer,sgm=sgm,reth=True)
+		c2_b = chi2(bkg_hist,ks_par)
+		ks_bin = np.linspace(0,max(c2_b),50)
+		sng_h = jacopo.make_hist(ks_bin,c2_s,np.ones(sample))
+		bkg_h = jacopo.make_hist(ks_bin,c2_b,np.ones(sample))
+		sig_c = np.cumsum(sng_h)
+		bkg_c = np.cumsum(bkg_h)
+		#plot_cl(ks_bin,np.cumsum(sng_h),np.cumsum(bkg_h),'reduced $\chi^2$',dst)
+		arr_cl.append(find_cl(sig_c,bkg_c,0.95))
+	return arr_cl
 
-def outside_tracks():
-	location = jacopo.sph_scatter(1,in_shell=0,out_shell=5000)
-	for lg in location:
-		sim_events = jacopo.create_double_source_events(np.asarray([0,0,4500]), np.asarray([0,0,4500]), 0.01, 3300, 3300)
-		for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
-				tracks = analyzer.generate_tracks(ev)
-		a,b = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=False,dim_len=conf.half_EPD)
-		c,d = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=True,dim_len=conf.half_EPD)
-		if sgm:
-			b = 1./np.asarray(b)
-			d = 1./np.asarray(d)
-		else:
-			b = np.ones(len(a))
-			d = np.ones(len(c))
-		plt.plot(bn_arr,jacopo.make_hist(bn_arr,a,b))
-		plt.plot(bn_arr,jacopo.make_hist(bn_arr,c,d))
-		plt.show()
-		'''
-	plt.hist2d(A, C, bins=50, range=[[0,2000],[0,12000]], norm=LogNorm())
-	plt.colorbar()
-	plt.show()'''
+def find_cl(ss_site,ms_site,cl):
+	val = 1-cl
+	idx = np.abs(ms_site - val).argmin()
+	return ss_site[idx]
 
 if __name__ == '__main__':
 	max_val = 2000
 	bin_width = 10
 	n_bin = max_val/bin_width
-	sample = 10
+	sample = 60
 	dist = 100
+	distance = np.linspace(100,700,6)
 	sgm = True
 	outlier = False
 	bn_arr = np.linspace(0,max_val,n_bin)
-	sim,analyzer = jacopo.sim_setup('cfJiani3_4','/home/miladmalek/TestData/detresang-cfJiani3_4_1DVariance_100million.root')
-	conf = detectorconfig.configdict['cfJiani3_4']
-	use_avg()
-	#use_chi2()
-	#outside_tracks()
+	cfg = 'cfSam1_1'
+	sim,analyzer = jacopo.sim_setup(cfg,'/home/miladmalek/TestData/detresang-cfSam1_1_1DVariance_100million.root')
+	conf = detectorconfig.configdict[cfg]
+	avg, chisq = [], []
+	for i in range(5):
+		avg.append(use_avg())
+		chisq.append(use_chi2())
+		print i
+	plt.errorbar(distance,np.mean(avg,axis=0),yerr=np.std(avg,axis=0),fmt='o',label='weighted average')
+	plt.errorbar(distance,np.mean(chisq,axis=0),yerr=np.std(chisq,axis=0),fmt='o',label='$\chi^2$')
+	plt.xlabel('respective distance [mm]')
+	plt.ylabel('signal efficiency at 95% background rejection')
+	plt.title(cfg+' events seeded in 1m radius sph.')
+	plt.legend(loc='upper left')
+	plt.xlim(80,720)
+	plt.ylim(-0.1,1.1)
+	plt.show()
 
 
 
-#('cfSam1_1','/home/miladmalek/TestData/detresang-cfSam1_1_1DVariance_noreflect_100million.root')
+#'cfSam1_1'
+#'/home/miladmalek/TestData/detresang-cfSam1_1_1DVariance_noreflect_100million.root'
+#'cfJiani3_4'
+#/home/miladmalek/TestData/detresang-cfJiani3_4_1DVariance_100million.root

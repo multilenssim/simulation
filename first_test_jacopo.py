@@ -122,11 +122,10 @@ def roll_funct(ofst,drct,sgm,i,half=False,outlier=False):
 		r = np.einsum('ij,i->ij',drct,multp[:,0]) + ofst
 		s = np.einsum('ij,i->ij',r_drct,multp[:,1]) + r_ofst
 		c_point = np.mean(np.asarray([r,s]),axis=0)
-		#pt.extend(np.linalg.norm(c_point,axis=1))
 		idx_arr = np.where(np.linalg.norm(c_point,axis=1)>7000)[0]
 		dist = np.delete(dist,idx_arr)
 		sigmas = np.delete(sigmas,idx_arr)
-	return dist,sigmas#,pt
+	return dist,sigmas
 
 def track_dist(ofst,drct,sgm=False,outlier=False,dim_len=0):
 	half = ofst.shape[0]/2
@@ -135,17 +134,12 @@ def track_dist(ofst,drct,sgm=False,outlier=False,dim_len=0):
 		dist,sigmas = roll_funct(ofst,drct,sgm,i,half=False,outlier=outlier)
 		arr_dist.extend(dist)
 		arr_sgm.extend(sigmas)
-		#plot_test.extend(pt)
 	if ofst.shape[0] & 0x1: pass						#condition removed if degeneracy is kept
 	else:
 		dist,sigmas = roll_funct(ofst,drct,sgm,half,half=False,outlier=outlier)
 		arr_dist.extend(dist)
 		arr_sgm.extend(sigmas)
-		#plot_test.extend(pt)
 	if any(sgm):
-		#plt.hist2d(plot_test, np.log10(1./np.asarray(arr_sgm)), bins=50, range=[[0,15000],[-5,1.3]], norm=LogNorm())
-		#plt.colorbar()
-		#plt.show()
 		return arr_dist,(np.asarray(arr_sgm)+dim_len)
 	else:
 		return arr_dist
@@ -171,7 +165,7 @@ def sim_setup(config,in_file):
 	analyzer = EventAnalyzer(det_res)
 	return sim, analyzer
 
-def band_shell_bkg(sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,sigma=0.01):
+def band_shell_bkg(sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,sigma=0.01,conf=None):
 	arr_dist = np.zeros(len(bn_arr))
 	arr_sgm, chi2 = [], []
 	location = sph_scatter(sample)
@@ -183,7 +177,7 @@ def band_shell_bkg(sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,sigma=
 		for ev in sim.simulate(sim_event, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 			tracks = analyzer.generate_tracks(ev)
 		if sgm:
-			tr_dist,err_dist = track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=True)
+			tr_dist,err_dist = track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=False,dim_len=conf.half_EPD)
 			arr_sgm = 1./np.asarray(err_dist)
 		else:
 			tr_dist = track_dist(tracks.hit_pos.T,tracks.means.T)
@@ -285,10 +279,6 @@ def band_shell_sgn(r_dist,sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False
 		print 'dist %dmm done'%rads
 	return np.asarray(av_hist), np.asarray(sigma_hist), dists
 
-def find_cl(arr,c_arr,val):
-	idx = np.abs(c_arr - val).argmin()
-	return arr[idx]
-
 def plot_histo():
 	plt.plot(ks_bin,ks_hist_bkg,label='null hypothesis',ls='steps')
 	plt.plot(ks_bin,ks_hist,label='%i mm distance'%dist,ls='steps')
@@ -301,4 +291,22 @@ def plot_histo():
 	plt.legend()
 	plt.show()
 	plt.close()
+
+def outside_tracks():
+	location = jacopo.sph_scatter(1,in_shell=0,out_shell=5000)
+	for lg in location:
+		sim_events = jacopo.create_double_source_events(np.asarray([0,0,4500]), np.asarray([0,0,4500]), 0.01, 3300, 3300)
+		for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
+				tracks = analyzer.generate_tracks(ev)
+		a,b = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=False,dim_len=conf.half_EPD)
+		c,d = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=tracks.sigmas,outlier=True,dim_len=conf.half_EPD)
+		if sgm:
+			b = 1./np.asarray(b)
+			d = 1./np.asarray(d)
+		else:
+			b = np.ones(len(a))
+			d = np.ones(len(c))
+		plt.plot(bn_arr,jacopo.make_hist(bn_arr,a,b))
+		plt.plot(bn_arr,jacopo.make_hist(bn_arr,c,d))
+		plt.show()
 '''
