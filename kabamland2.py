@@ -222,7 +222,7 @@ def return_values(edge_length, base):
 
 
 def plot_mesh_object(mesh, centers=[[0,0,0]]): 
-    fig = plt.figure(figsize=(20, 10))
+    fig = plt.figure(figsize=(10, 8))
     ax = fig.gca(projection='3d')
 	
     centers = np.array(centers) 
@@ -230,6 +230,10 @@ def plot_mesh_object(mesh, centers=[[0,0,0]]):
     ax.set_xlabel('X Label')
     ax.set_ylabel('Y Label')
     ax.set_zlabel('Z Label')
+    
+    ax.set_xlim([-1000, 1000])
+    ax.set_ylim([-1000, 1000])
+    ax.set_zlim([-1000, 1000])
 	
     vertices = mesh.assemble() 
     X = vertices[:,:,0].flatten()
@@ -239,7 +243,7 @@ def plot_mesh_object(mesh, centers=[[0,0,0]]):
     triangles = [[3*ii,3*ii+1,3*ii+2] for ii in range(len(X)/3)]
     triang = Triangulation(X, Y, triangles)
 	
-    ax.plot_trisurf(triang, Z, color="white", shade = True, alpha = 1.0)
+    ax.plot_trisurf(triang, Z, color="white", edgecolor="black", shade = True, alpha = 1.0)
     #for ii in range(len(centers)):
 	#ax.scatter(centers[ii,0], centers[ii,1], centers[ii,2], color="red", s = 5)
 	
@@ -466,6 +470,40 @@ def curved_surface(detector_r=1.0, diameter = 2.5, nsteps=10):
     y_value = detector_r*np.sin(angles1) - detector_r
 
     return  make.rotate_extrude(x_value, y_value, nsteps)
+    
+def curved_surface2(detector_r=1.0, diameter = 2.5, nsteps=10):
+    '''Builds a curved surface based on the specified radius. Origin is center of surface.'''
+    if (detector_r < diameter/2.0):
+        raise Exception('The Radius of the curved surface must be larger than diameter/2.0')
+    #fig = plt.figure(figsize=(10, 8))
+    shift1 = -np.sqrt(detector_r**2 - (diameter/2.0)**2)
+    theta1 = np.arctan(-shift1/(diameter/2.0))
+    angles1 = np.linspace(theta1, np.pi/2, nsteps/1.0)
+
+    x_value = abs(detector_r*np.cos(angles1[::2]))
+    y_value = detector_r*np.sin(angles1[::2]) - detector_r
+
+    surf = None 
+    for ii in range(len(x_value)-1): 
+    if(ii < (len(x_value)-1)/3.0):
+	    nsteps = 80
+	elif(ii < (len(x_value)-1)*2/3 and ii > (len(x_value)-1)/3):
+	    nsteps = 30
+	elif(ii > (len(x_value)-1)-3):
+	    nsteps = 4
+	else: 
+	    nsteps = 10
+	if not surf:
+	    surf = make.rotate_extrude(x_value[ii:ii+2], y_value[ii:ii+2], nsteps)
+	else:
+	    surf += make.rotate_extrude(x_value[ii:ii+2], y_value[ii:ii+2], nsteps+2*ii)
+	#plt.plot(x_value[ii:ii+2], y_value[ii:ii+2])
+	#print x_value[ii:ii+2], y_value[ii:ii+2], nsteps 
+    #plt.show() 
+    
+    #plot_mesh_object(surf)
+    #quit() 
+    return  surf
 
 def get_curved_surf_triangle_centers(edge_length, base, detector_r = 1.0, focal_length=1.0, nsteps = 10):
     edge_length, facecoords, direction, axis, angle, spin_angle = return_values(edge_length, base)
@@ -558,6 +596,7 @@ def plot_mesh_curved_surface(curved_surf_triangle_centers, curved_surf_triangle_
 def plot_mesh_animate(curved_surf_triangle_centers, curved_surf_triangle_vertices):
     fig = plt.figure(figsize=(15, 10))
     ax = fig.add_subplot(111, projection='3d')
+    ax._axis3don = False
     ax.view_init(elev=90, azim=90)
     ax.set_xlabel('X Label')
     ax.set_ylabel('Y Label')
@@ -711,8 +750,8 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 	build_kabamland(kabamland, configname)
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
-	view(kabamland)
-	
+	print "Detector was built"
+	#view(kabamland)
 	#quit()
 	f = ShortRootWriter(datadir + simname)
 	sim = Simulation(kabamland)
