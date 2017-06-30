@@ -144,7 +144,9 @@ def track_dist(ofst,drct,sgm=False,outlier=False,dim_len=0):
 	else:
 		return arr_dist
 
-def make_hist(bn_arr,arr,c_wgt,norm=True):
+def make_hist(bn_arr,arr,c_wgt=None,norm=True):
+	if c_wgt == None:
+		c_wgt = np.ones(len(arr))
 	wgt = []
 	np_double = np.asarray(arr)
 	bn_wdt = bn_arr[1] - bn_arr[0]
@@ -167,7 +169,7 @@ def sim_setup(config,in_file):
 
 def band_shell_bkg(sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,sigma=0.01,conf=None):
 	arr_dist = np.zeros(len(bn_arr))
-	arr_sgm, chi2 = [], []
+	chi2 = []
 	location = sph_scatter(sample)
 	if plot:
 		plot_sphere(location)
@@ -184,10 +186,8 @@ def band_shell_bkg(sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,sigma=
 			arr_sgm = np.ones(len(tr_dist))
 		one_ev_hist = make_hist(bn_arr,tr_dist,arr_sgm)
 		chi2.append(one_ev_hist)
-		arr_dist = np.stack((one_ev_hist,arr_dist))
-		arr_dist = np.sum(arr_dist,axis=0)
 	print 'ss events produced'
-	return arr_dist/sample, chi2
+	return np.mean(chi2,axis=0), chi2
 
 '''
 LEGACY FUNCTIONS (DEPRECATED)

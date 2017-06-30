@@ -636,7 +636,7 @@ class EventAnalyzer(object):
         
         # If detector is not calibrated or not of the GaussAngle subclass, use actual photon angles
         # plus Gaussian noise (two different models, depending on if lens_dia is given)
-        if not (self.det_res.is_calibrated and isinstance(self.det_res,DetectorResponseGaussAngle)): 
+        if not (self.det_res.is_calibrated and isinstance(self.det_res,DetectorResponseGaussAngle)):
             # If lens_dia is not given, only include angular noise of sig_cone
             sigmas = np.zeros(length)
             if lens_dia is None:

@@ -718,8 +718,8 @@ def create_electron_event(location, energy, amount, config, eventname, datadir="
 	#kabamland.add_solid(Solid(make.box(0.1,0.1,0.1,center=location), glass, lm.ls, color=0x0000ff)) # Adds a small blue cube at the event location, for viewing
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
-	view(kabamland)
-	quit()
+	#view(kabamland)
+	#quit()
 	f = ShortRootWriter(datadir + eventname)
 	sim = Simulation(kabamland)
 	gun = vertex.particle_gun(['e-']*amount, vertex.constant(location), vertex.isotropic(),vertex.flat(float(energy)*0.99,float(energy)*1.01))

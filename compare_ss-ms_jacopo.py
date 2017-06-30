@@ -11,9 +11,9 @@ def main(sgm):
 	sample = 50
 	r_dist = 4
 	bn_arr = np.linspace(bin_width,max_val,n_bin)
-	sim,analyzer = jacopo.sim_setup('cfJiani3_2','/home/miladmalek/TestData/detresang-cfJiani3_2_1DVariance_noreflect_100million.root')
-	bkg = jacopo.band_shell_bkg(sample,bn_arr,4000,sim,analyzer,4000,5000,sgm=sgm)
-	sgnl,sigma_sgnl,dists = jacopo.band_shell_sgn(r_dist,sample,bn_arr,4000,sim,analyzer,sgm=sgm)
+	sim,analyzer = jacopo.sim_setup('cfJiani3_4','/home/miladmalek/TestData/detresang-cfJiani3_4_1DVariance_noreflect_100million.root')
+	bkg = jacopo.band_shell_bkg(sample,bn_arr,4800,sim,analyzer,0,1000,sgm=sgm)
+	sgnl,sigma_sgnl,dists = jacopo.band_shell_sgn(r_dist,sample,bn_arr,4800,sim,analyzer,sgm=sgm)
 	jacopo.substract_hist(bn_arr,bkg,sgnl,sigma_sgnl,dists)
 
 

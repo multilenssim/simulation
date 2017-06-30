@@ -24,7 +24,7 @@ def fixed_dist_hist(dist,sample,bn_arr,amount,sim,analyzer,sgm=False,plot=False,
 		else:
 			tr_dist = jacopo.track_dist(tracks.hit_pos.T,tracks.means.T,sgm=sgm,outlier=outlier)
 			err_dist = np.ones(len(tr_dist))
-		if reth: ks_par.append(jacopo.make_hist(bn_arr,tr_dist,err_dist))
+		if reth: ks_par.append(jacopo.make_hist(bn_arr,tr_dist,c_wgt=err_dist))
 		else: ks_par.append(np.average(tr_dist,weights=err_dist))
 		if i%50 == 0:
 			print i
@@ -78,9 +78,9 @@ def use_avg():
 	for dst in distance:
 		ks_par = fixed_dist_hist(dst,sample,bn_arr,6600,sim,analyzer,sgm=sgm)
 		ks_bin = np.linspace(min(ks_par_bkg),max(ks_par),50)
-		ks_hist_bkg = jacopo.make_hist(ks_bin,ks_par_bkg,np.ones(sample))
+		ks_hist_bkg = jacopo.make_hist(ks_bin,ks_par_bkg)
 		sig_c = np.cumsum(ks_hist_bkg)
-		ks_hist = jacopo.make_hist(ks_bin,ks_par,np.ones(sample))
+		ks_hist = jacopo.make_hist(ks_bin,ks_par)
 		bkg_c = np.cumsum(ks_hist)
 		#plot_cl(ks_bin,sig_c,bkg_c,'average value of the distribution')
 		arr_cl.append(find_cl(sig_c,bkg_c,0.95))
@@ -94,8 +94,8 @@ def use_chi2():
 		ks_par = fixed_dist_hist(dst,sample,bn_arr,6600,sim,analyzer,sgm=sgm,reth=True)
 		c2_b = chi2(bkg_hist,ks_par)
 		ks_bin = np.linspace(0,max(c2_b),50)
-		sng_h = jacopo.make_hist(ks_bin,c2_s,np.ones(sample))
-		bkg_h = jacopo.make_hist(ks_bin,c2_b,np.ones(sample))
+		sng_h = jacopo.make_hist(ks_bin,c2_s)
+		bkg_h = jacopo.make_hist(ks_bin,c2_b)
 		sig_c = np.cumsum(sng_h)
 		bkg_c = np.cumsum(bkg_h)
 		#plot_cl(ks_bin,np.cumsum(sng_h),np.cumsum(bkg_h),'reduced $\chi^2$',dst)
