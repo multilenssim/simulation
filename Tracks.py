@@ -6,10 +6,11 @@ class Tracks(object):
     a hit position, a direction (in 3D), and an uncertainty on the transverse position,
     normalized to unit length (so the track profile is a cone).
     '''
-    def __init__(self, hit_pos, means, sigmas):
+    def __init__(self, hit_pos, means, sigmas, lens_rad = 0):
         self.hit_pos = hit_pos # (3, n) numpy array
         self.means = means # (3, n) numpy array
         self.sigmas = sigmas # (n,) numpy array
+        self.lens_rad = lens_rad
         
     def __len__(self):
         #Returns the number of tracks in self.
@@ -29,13 +30,17 @@ class Tracks(object):
         self.sigmas = self.sigmas[ind_remain]
         
     def closest_pts_sigmas(self, v):
+        if self.lens_rad == 0: 
+			print "lens_rad is still 0!!!" 
+        #else: 
+			#print "right lens_rad used:	", self.lens_rad 
         # Returns an array of positions along the tracks closest to Vertex v, along with
         # an array of the sigmas scaled by the distance along the track to that point
         r_vec = (v.pos - self.hit_pos.T).T
         r_proj = np.einsum('ij,ij->j',r_vec,self.means) # Get projections onto direction vectors
         #print "r_proj: " + str(r_proj)
         r_fin = self.hit_pos+self.means*r_proj
-        sig_scaled = self.sigmas*r_proj
+        sig_scaled = self.sigmas*r_proj + self.lens_rad
         return r_fin, sig_scaled
         
         

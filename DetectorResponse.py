@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import time
 
-from kabamland2 import get_curved_surf_triangle_centers, find_max_radius
+from kabamland2 import get_curved_surf_triangle_centers, find_max_radius, get_lens_triangle_centers
 
 from scipy import spatial 
 
@@ -59,6 +59,10 @@ class DetectorResponse(object):
         #new properties for curved surface detectors 
         self.triangle_centers = get_curved_surf_triangle_centers(self.edge_length, config.base, self.detector_r, self.focal_length, self.nsteps)
         self.triangle_centers_tree = spatial.cKDTree(self.triangle_centers)
+        
+        self.lens_centers, _ = get_lens_triangle_centers(config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
+        
+        self.lens_rad = config.half_EPD 
         
         self.calc1 = self.pmtxbins/self.pmt_side_length
         self.calc2 = self.pmtxbins/2.0
