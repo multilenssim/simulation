@@ -760,7 +760,7 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 if __name__ == '__main__':
 
 	datadir = "/home/miladmalek/TestData/"
-	plot_mesh_object(mh.rotate(curved_surface2(2, diameter=2.5, nsteps=10), make_rotation_matrix(+np.pi/2, (1,0,0))))
+	#plot_mesh_object(mh.rotate(curved_surface2(2, diameter=2.5, nsteps=10), make_rotation_matrix(+np.pi/2, (1,0,0))))
     # Good sample full simulation
     #full_detector_simulation(100, 'cfJiani3_3', 'sim-cfJiani3_3_100million.root')
 
