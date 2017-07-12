@@ -9,7 +9,6 @@ from chroma.sample import uniform_sphere
 from chroma.transform import make_rotation_matrix, normalize
 from chroma.event import Photons
 from chroma.loader import load_bvh
-from chroma.generator import vertex 
 from ShortIO.root_short import ShortRootWriter
 import detectorconfig
 import lenssystem
@@ -469,7 +468,6 @@ def curved_surface(detector_r=1.0, diameter = 2.5, nsteps=10):
     x_value = abs(detector_r*np.cos(angles1))
     y_value = detector_r*np.sin(angles1) - detector_r
     surf = make.rotate_extrude(x_value, y_value, nsteps)
-    plot_mesh_object(surf)
     return  surf
 
 def calc_steps(x_value,y_value,detector_r,base_pixel):

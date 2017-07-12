@@ -1,6 +1,7 @@
 from chroma.detector import Detector
 from chroma.generator import vertex
 from chroma.sim import Simulation
+import lensmaterials as lm
 import kabamland2 as k2
 
 def create_gamma_event(location, energy, amount, config, eventname, datadir=""):
@@ -43,4 +44,4 @@ def create_gamma_event(location, energy, amount, config, eventname, datadir=""):
 # f.close()
 
 if __name__ == '__main__':
-	create_gamma_event((0,0,0), 1.0, 1, 'cfJiani3_4', 'event-gamma-test-'+fileinfo+'-(0-0-0)-1.root', datadir=datadir)
+	create_gamma_event((0,0,0), 1.0, 1, 'cfJiani3_4', 'event-gamma-test-(0-0-0)-1.root', datadir='')
