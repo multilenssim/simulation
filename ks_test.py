@@ -1,3 +1,12 @@
+
+
+
+########################################################################
+########################## DEPRECATED ##################################
+########################################################################
+
+
+
 from matplotlib.colors import LogNorm
 #from scipy.stats import chisquare
 import first_test_jacopo as jacopo

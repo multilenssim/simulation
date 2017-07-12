@@ -231,9 +231,9 @@ def plot_mesh_object(mesh, centers=[[0,0,0]]):
     ax.set_ylabel('Y Label')
     ax.set_zlabel('Z Label')
     
-    ax.set_xlim([-1000, 1000])
-    ax.set_ylim([-1000, 1000])
-    ax.set_zlim([-1000, 1000])
+    ax.set_xlim([-2, 2])
+    ax.set_ylim([-2, 2])
+    ax.set_zlim([-2, 2])
 	
     vertices = mesh.assemble() 
     X = vertices[:,:,0].flatten()
@@ -468,41 +468,36 @@ def curved_surface(detector_r=1.0, diameter = 2.5, nsteps=10):
     angles1 = np.linspace(theta1, np.pi/2, nsteps/2.0)
     x_value = abs(detector_r*np.cos(angles1))
     y_value = detector_r*np.sin(angles1) - detector_r
+    surf = make.rotate_extrude(x_value, y_value, nsteps)
+    plot_mesh_object(surf)
+    return  surf
 
-    return  make.rotate_extrude(x_value, y_value, nsteps)
+def calc_steps(x_value,y_value,detector_r,base_pixel):
+	x_coord = np.asarray([x_value,np.roll(x_value,-1)]).T[:-1]
+	y_coord = np.asarray([y_value,np.roll(y_value,-1)]).T[:-1]
+	lat_area = 2*np.pi*detector_r*(y_coord[:,0]-y_coord[:,1])
+	n_step = (lat_area/lat_area[-1]*base_pixel).astype(int)
+	return x_coord, y_coord, n_step
     
-def curved_surface2(detector_r=1.0, diameter = 2.5, nsteps=10):
+def curved_surface2(detector_r=1.0, diameter = 2.5, nsteps=10,base_pxl=4):
     '''Builds a curved surface based on the specified radius. Origin is center of surface.'''
     if (detector_r < diameter/2.0):
         raise Exception('The Radius of the curved surface must be larger than diameter/2.0')
-    #fig = plt.figure(figsize=(10, 8))
-    shift1 = -np.sqrt(detector_r**2 - (diameter/2.0)**2)
-    theta1 = np.arctan(-shift1/(diameter/2.0))
-    angles1 = np.linspace(theta1, np.pi/2, nsteps/1.0)
+    fig = plt.figure(figsize=(10, 8))
+    shift1 = np.sqrt(detector_r**2 - (diameter/2.0)**2)
+    theta1 = np.arctan(shift1/(diameter/2.0))
+    angles1 = np.linspace(theta1, np.pi/2, nsteps)
 
-    x_value = abs(detector_r*np.cos(angles1[::2]))
-    y_value = detector_r*np.sin(angles1[::2]) - detector_r
-
+    x_value = abs(detector_r*np.cos(angles1))
+    y_value = detector_r-detector_r*np.sin(angles1)
     surf = None 
-    for ii in range(len(x_value)-1): 
-    if(ii < (len(x_value)-1)/3.0):
-	    nsteps = 80
-	elif(ii < (len(x_value)-1)*2/3 and ii > (len(x_value)-1)/3):
-	    nsteps = 30
-	elif(ii > (len(x_value)-1)-3):
-	    nsteps = 4
-	else: 
-	    nsteps = 10
-	if not surf:
-	    surf = make.rotate_extrude(x_value[ii:ii+2], y_value[ii:ii+2], nsteps)
+    x_coord,y_coord,n_step = calc_steps(x_value,y_value,detector_r,base_pixel=base_pxl)
+    for i,(x,y,n_stp) in enumerate(zip(x_coord,y_coord,n_step)):
+	if i == 0:
+		surf = make.rotate_extrude(x,y,n_stp)
 	else:
-	    surf += make.rotate_extrude(x_value[ii:ii+2], y_value[ii:ii+2], nsteps+2*ii)
-	#plt.plot(x_value[ii:ii+2], y_value[ii:ii+2])
-	#print x_value[ii:ii+2], y_value[ii:ii+2], nsteps 
-    #plt.show() 
-    
-    #plot_mesh_object(surf)
-    #quit() 
+		surf += make.rotate_extrude(x,y,n_stp)
+    plot_mesh_object(surf)
     return  surf
 
 def get_curved_surf_triangle_centers(edge_length, base, detector_r = 1.0, focal_length=1.0, nsteps = 10):
@@ -764,8 +759,8 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 
 if __name__ == '__main__':
 
-    datadir = "/home/miladmalek/TestData/"
-
+	datadir = "/home/miladmalek/TestData/"
+	plot_mesh_object(mh.rotate(curved_surface2(2, diameter=2.5, nsteps=10), make_rotation_matrix(+np.pi/2, (1,0,0))))
     # Good sample full simulation
     #full_detector_simulation(100, 'cfJiani3_3', 'sim-cfJiani3_3_100million.root')
 
