@@ -3,6 +3,16 @@ from chroma.generator import vertex
 from chroma.sim import Simulation
 import lensmaterials as lm
 import kabamland2 as k2
+import numpy as np
+
+from Geant4.hepunit import *
+
+##### Scintillation parameters #####
+Scnt_PP = np.array([ 6.6*eV, 6.7*eV, 6.8*eV, 6.9*eV, 7.0*eV, 7.1*eV, 7.2*eV, 7.3*eV, 7.4*eV ])
+
+Scnt_FAST = np.array([ 0.000134, 0.004432, 0.053991, 0.241971, 0.398942, 0.000134, 0.004432, 0.053991, 0.241971 ])
+Scnt_SLOW = np.array([ 0.000010, 0.000020, 0.000030, 0.004000, 0.008000, 0.005000, 0.020000, 0.001000, 0.000010 ])
+
 
 def create_gamma_event(location, energy, amount, config, eventname, datadir=""):
     # simulates a number of single gamma photon events equal to amount
