@@ -11,6 +11,7 @@ import lensmaterials as lm
 import kabamland2 as k2
 import numpy as np
 
+import Geant4
 from Geant4.hepunit import *
 
 ##### Scintillation parameters #####
@@ -30,10 +31,34 @@ def sim_test():
 	scint = Material('scint_mat')
 	scint.set('refractive_index',np.linspace(1.5,1.33,38))
 	scint.density = 1
-	scint.composition = { 'H': 1.0/9.0, 'O': 8.0/9.0}	
+	scint.composition = { 'H': 1.0/9.0, 'O': 8.0/9.0}
+
+	energy_ceren = list((2*pi*hbarc/(scint.refractive_index[::-1, 0].astype(float)*nanometer)))
+	energy_scint = list((2*pi*hbarc/(np.linspace(320,300,11).astype(float)*nanometer)))
+	spect_scint = list([0.04, 0.07, 0.20, 0.49, 0.84, 1.00, 0.83, 0.55, 0.40, 0.17, 0.03])
+	values = list(scint.refractive_index[::-1, 1].astype(float))
+	#prop_table.AddProperty('RINDEX', energy_ceren, values)
+	#prop_table.AddProperty('FASTCOMPONENT',energy_scint,spect_scint)
+	scint.set_scintillation_property('FASTCOMPONENT', energy_scint, spect_scint);
+
+
+	# Scintillation properties
+	# TODO: These keys much match the Geant4 pmaterial property names.  Get rid of these magic strings.
+	scint.set_scintillation_property('SCINTILLATIONYIELD', 20000. / MeV)    # Was 10000 originally
+	scint.set_scintillation_property('RESOLUTIONSCALE', 1.0)      # Was 1.0 originally
+	scint.set_scintillation_property('FASTTIMECONSTANT', 1. * ns)
+	scint.set_scintillation_property('SLOWTIMECONSTANT', 10. * ns)
+	scint.set_scintillation_property('YIELDRATIO', 1.0)  # Was 0.8 - I think this is all fast
+
+	print("Starting photon generation")
 	gen = g4gen.G4Generator(scint)	
-	out_ph1 = gen.generate_photons([Vertex('e-', (0,0,0), (1,0,0), 2)],mute=True)
-	out_ph2 = gen.generate_photons([Vertex('gamma', (0,0,0), (1,0,0), 2)],mute=True)
+	out_ph1 = gen.generate_photons([Vertex('e-', (0,0,0), (1,0,0), 2)],mute=False)
+	out_ph2 = gen.generate_photons([Vertex('gamma', (0,0,0), (1,0,0), 2)],mute=False)
+
+	print("e- photons: " + str(len(out_ph1.pos)));
+	print("gamma photons: " + str(len(out_ph2.pos)));
+
+
 	plt.hist(out_ph1.wavelengths,bins=400,histtype='step',linewidth=2,label='e$^-$')
 	plt.hist(out_ph2.wavelengths,bins=400,histtype='step',linewidth=2,label='$\gamma$')
 	plt.xlabel('scintillation photons wavelength [nm]')
@@ -48,11 +73,12 @@ def sim_test():
 	plt.show()
 	exit()
 
+#Geant4.gApplyUICommand("/run/verbose 2")
+#Geant4.gApplyUICommand("/event/verbose 2")
+#Geant4.gApplyUICommand("/tracking/verbose 2")
+
 if __name__ == '__main__':
 	sim_test()
-
-
-
 
 def create_gamma_event(location, energy, amount, config, eventname, datadir=""):
 	# simulates a number of single gamma photon events equal to amount
@@ -91,5 +117,5 @@ def create_gamma_event(location, energy, amount, config, eventname, datadir=""):
 		print 'Photon count: ' + str(ev.nphotons);
 		print 'End photons: ' + str(ev.photons_end);
 		# f.write_event(ev)
-    # f.close()
+        # f.close()
 
