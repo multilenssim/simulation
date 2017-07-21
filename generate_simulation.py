@@ -3,11 +3,14 @@ from EventAnalyzer import EventAnalyzer
 from chroma.detector import Detector
 from chroma.sim import Simulation
 from chroma.loader import load_bvh
+
+from Geant4.hepunit import *
+
 import lensmaterials as lm
 import kabamland2 as kbl
-import detectorconfig
 import numpy as np
 import time, h5py
+import os
 
 def fixed_dist(sample,radius,rads=None):
 	loc1 = sph_scatter(sample)
@@ -46,6 +49,18 @@ def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 	return events
 
 def sim_setup(config,in_file):
+	# Set scintillation properties on ls
+	energy_scint = list((2*pi*hbarc/(np.linspace(360,350,11).astype(float)*nanometer)))
+	spect_scint = list([0.04, 0.07, 0.20, 0.49, 0.84, 1.00, 0.83, 0.55, 0.40, 0.17, 0.03])
+	lm.ls.set_scintillation_property('FASTCOMPONENT', energy_scint, spect_scint)
+
+	# TODO: These keys much match the Geant4 pmaterial property names.  Get rid of these magic strings.
+	lm.ls.set_scintillation_property('SCINTILLATIONYIELD', 20000. / MeV)    # Was 10000 originally
+	lm.ls.set_scintillation_property('RESOLUTIONSCALE', 1.0)
+	lm.ls.set_scintillation_property('FASTTIMECONSTANT', 1. * ns)
+	lm.ls.set_scintillation_property('SLOWTIMECONSTANT', 10. * ns)
+	lm.ls.set_scintillation_property('YIELDRATIO', 1.0)  		# Was 0.8 - I think this is all fast
+
 	kabamland = Detector(lm.ls)
 	kbl.build_kabamland(kabamland, config)
 	kabamland.flatten()
@@ -90,6 +105,7 @@ def bkg_dist_hist(sample,amount,sim,analyzer,sigma=0.01):
 			sim_event = kbl.gaussian_sphere(lg, sigma, amount)
 			for ev in sim.simulate(sim_event, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 				tracks = analyzer.generate_tracks(ev)
+				print('Location index: ' + str(i) + ' Track count: ' + str(len(tracks)))
 				if i == 0:
 					coord = f.create_dataset('coord',data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
 					uncert = f.create_dataset('sigma',data=tracks.sigmas,chunks=True)
@@ -104,15 +120,16 @@ def bkg_dist_hist(sample,amount,sim,analyzer,sigma=0.01):
 			i =+ 1
 		f.create_dataset('idx',data=arr)
 
-	
-
+data_file_prefix = '/home/parallels/Desktop/dev/'
 
 if __name__ == '__main__':
 	sample = 1000
 	distance = np.linspace(100,700,6)
 	cfg = 'cfJiani3_2'
 	seed_loc = 'r0-1'
-	path = '/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data/'+seed_loc
+	path = data_file_prefix+cfg+'/raw_data/'+seed_loc
+	if not os.path.exists(path):
+		os.makedirs(path)
 	start_time = time.time()
 	sim,analyzer = sim_setup(cfg,'/home/miladmalek/TestData/detresang-cfJiani3_2_1DVariance_100million.root')
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
