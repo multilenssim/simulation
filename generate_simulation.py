@@ -3,7 +3,9 @@ from EventAnalyzer import EventAnalyzer
 from chroma.detector import Detector
 from chroma.sim import Simulation
 from chroma.loader import load_bvh
+from chroma.generator import vertex
 
+import Geant4
 from Geant4.hepunit import *
 
 import lensmaterials as lm
@@ -52,10 +54,11 @@ def sim_setup(config,in_file):
 	# Set scintillation properties on ls
 	energy_scint = list((2*pi*hbarc/(np.linspace(360,350,11).astype(float)*nanometer)))
 	spect_scint = list([0.04, 0.07, 0.20, 0.49, 0.84, 1.00, 0.83, 0.55, 0.40, 0.17, 0.03])
-	lm.ls.set_scintillation_property('FASTCOMPONENT', energy_scint, spect_scint)
 
 	# TODO: These keys much match the Geant4 pmaterial property names.  Get rid of these magic strings.
-	lm.ls.set_scintillation_property('SCINTILLATIONYIELD', 20000. / MeV)    # Was 10000 originally
+	lm.ls.set_scintillation_property('FASTCOMPONENT', energy_scint, spect_scint)
+
+	lm.ls.set_scintillation_property('SCINTILLATIONYIELD', 10000. / MeV)    # Was 10000 originally
 	lm.ls.set_scintillation_property('RESOLUTIONSCALE', 1.0)
 	lm.ls.set_scintillation_property('FASTTIMECONSTANT', 1. * ns)
 	lm.ls.set_scintillation_property('SLOWTIMECONSTANT', 10. * ns)
@@ -70,74 +73,96 @@ def sim_setup(config,in_file):
 	analyzer = EventAnalyzer(det_res)
 	return sim, analyzer
 
+def run_simulation_and_write_events_file(file, sim, events, analyzer, first=False):
+	arr = []
+	for ev in sim.simulate(events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
+		tracks = analyzer.generate_tracks(ev)
+		print('Track count: ' + str(len(tracks)))
+		if first:
+			coord = file.create_dataset('coord',data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
+			uncert = file.create_dataset('sigma',data=tracks.sigmas,chunks=True)
+			arr.append(tracks.sigmas.shape[0])
+			file.create_dataset('r_lens',data=tracks.lens_rad)
+		else:
+			coord = file['coord']
+			uncert = file['sigma']
+			coord.resize(coord.shape[1]+tracks.means.shape[1], axis=1)
+			coord[:,-tracks.means.shape[1]:,:] = [tracks.hit_pos.T, tracks.means.T]
+			uncert.resize(uncert.shape[0]+tracks.sigmas.shape[0], axis=0)
+			uncert[-tracks.sigmas.shape[0]:] = tracks.sigmas
+			arr.append(uncert.shape[0])
+	return arr
+
 def fixed_dist_hist(dist,sample,amount,sim,analyzer,sigma=0.01):
 	arr = []
-	i = 0
+	first = True
 	locs1, locs2, rad = fixed_dist(sample,5000,rads=dist)
 	fname = 'd-site'+str(int(dist/10))+'cm.h5'
+	print('File: ' + path + fname)
 	with h5py.File(path+fname,'w') as f:
 		for lc1,lc2 in zip(locs1,locs2):
 			sim_events = create_double_source_events(lc1, lc2, sigma, amount/2, amount/2)
-			for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
-				tracks = analyzer.generate_tracks(ev)
-				if i == 0:
-					coord = f.create_dataset('coord',data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
-					uncert = f.create_dataset('sigma',data=tracks.sigmas,chunks=True)
-					arr.append(tracks.sigmas.shape[0])
-					f.create_dataset('r_lens',data=tracks.lens_rad)
-				else:
-					coord.resize(coord.shape[1]+tracks.means.shape[1], axis=1)
-					coord[:,-tracks.means.shape[1]:,:] = [tracks.hit_pos.T, tracks.means.T]
-					uncert.resize(uncert.shape[0]+tracks.sigmas.shape[0], axis=0)
-					uncert[-tracks.sigmas.shape[0]:] = tracks.sigmas
-					arr.append(uncert.shape[0])
-			i =+ 1
+			arr.append(run_simulation_and_write_events_file(f, sim, sim_events, analyzer, first))
+			first = False
 		f.create_dataset('idx',data=arr)
 
 
 def bkg_dist_hist(sample,amount,sim,analyzer,sigma=0.01):
 	arr = []
-	i = 0
+	first = True
 	location = sph_scatter(sample)
 	fname = 's-site.h5'
+	print('File: ' + path + fname)
 	with h5py.File(path+fname,'w') as f:
 		for lg in location:
 			sim_event = kbl.gaussian_sphere(lg, sigma, amount)
-			for ev in sim.simulate(sim_event, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
-				tracks = analyzer.generate_tracks(ev)
-				print('Location index: ' + str(i) + ' Track count: ' + str(len(tracks)))
-				if i == 0:
-					coord = f.create_dataset('coord',data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
-					uncert = f.create_dataset('sigma',data=tracks.sigmas,chunks=True)
-					arr.append(tracks.sigmas.shape[0])
-					f.create_dataset('r_lens',data=tracks.lens_rad)
-				else:
-					coord.resize(coord.shape[1]+tracks.means.shape[1], axis=1)
-					coord[:,-tracks.means.shape[1]:,:] = [tracks.hit_pos.T, tracks.means.T]
-					uncert.resize(uncert.shape[0]+tracks.sigmas.shape[0], axis=0)
-					uncert[-tracks.sigmas.shape[0]:] = tracks.sigmas
-					arr.append(uncert.shape[0])
-			i =+ 1
+			arr.append(run_simulation_and_write_events_file(f, sim, sim_event, analyzer, first))
+			first = False
 		f.create_dataset('idx',data=arr)
 
-data_file_prefix = '/home/parallels/Desktop/dev/'
+
+def fire_particles(particle_name,sample,energy,sim,analyzer,sigma=0.01):
+	arr = []
+	first = True
+	location = sph_scatter(sample)
+	fname = particle_name+'.h5'
+	with h5py.File(path+fname,'w') as f:
+		for lg in location:
+			#location = [0,0,0]
+			gun = vertex.particle_gun([particle_name], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.99, float(energy) * 1.01))
+			arr.append(run_simulation_and_write_events_file(f, sim, gun, analyzer, first))
+			first = False
+		f.create_dataset('idx',data=arr)
+
+data_file_prefix = '/home/kwells/Desktop/chroma_hdf5_files/'
 
 if __name__ == '__main__':
+	#Geant4.gApplyUICommand("/run/verbose 2")
+	#Geant4.gApplyUICommand("/event/verbose 2")
+	#Geant4.gApplyUICommand("/tracking/verbose 2")
+
 	sample = 1000
 	distance = np.linspace(100,700,6)
 	cfg = 'cfJiani3_2'
-	seed_loc = 'r0-1'
-	path = data_file_prefix+cfg+'/raw_data/'+seed_loc
+	seed_loc = 'r0-geant/'
+	path = data_file_prefix+cfg+'/raw_data/' + seed_loc
 	if not os.path.exists(path):
 		os.makedirs(path)
 	start_time = time.time()
+
 	sim,analyzer = sim_setup(cfg,'/home/miladmalek/TestData/detresang-cfJiani3_2_1DVariance_100million.root')
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
+
+	fire_particles('e-', sample, 0.5*MeV, sim, analyzer)
+	fire_particles('gamma', sample, 0.5*MeV, sim, analyzer)
+
+	'''
 	bkg_dist_hist(sample,6600,sim,analyzer)
 	print 's-site done'
 	for dst in distance:
 		fixed_dist_hist(dst,sample,6600,sim,analyzer)
 		print 'distance '+str(int(dst/10))+' done'
+	'''
 	print time.time()-start_time
 	
 #'cfSam1_1'
