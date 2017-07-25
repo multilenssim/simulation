@@ -14,6 +14,8 @@ import numpy as np
 import time, h5py
 import os
 
+from pprint import pprint
+
 def fixed_dist(sample,radius,rads=None):
 	loc1 = sph_scatter(sample)
 	loc2 = sph_scatter(sample)
@@ -77,7 +79,9 @@ def run_simulation_and_write_events_file(file, sim, events, analyzer, first=Fals
 	arr = []
 	for ev in sim.simulate(events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 		tracks = analyzer.generate_tracks(ev)
-		print('Track count: ' + str(len(tracks)))
+		#pprint(vars(ev))
+		print('Firing particle ' + ev.primary_vertex.particle_name + ' from ' + str(ev.primary_vertex.pos) + ' toward ' + str(ev.primary_vertex.dir))
+		print('Photons begin count, track count:\t' + str(len(ev.photons_beg)) + '\t' + str(len(tracks)))
 		if first:
 			coord = file.create_dataset('coord',data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
 			uncert = file.create_dataset('sigma',data=tracks.sigmas,chunks=True)
@@ -120,6 +124,12 @@ def bkg_dist_hist(sample,amount,sim,analyzer,sigma=0.01):
 			first = False
 		f.create_dataset('idx',data=arr)
 
+from chroma.sample import uniform_sphere
+
+def myhack():
+    while True:
+        yield uniform_sphere()
+        #yield [-1,0,0]
 
 def fire_particles(particle_name,sample,energy,sim,analyzer,sigma=0.01):
 	arr = []
@@ -128,23 +138,27 @@ def fire_particles(particle_name,sample,energy,sim,analyzer,sigma=0.01):
 	fname = particle_name+'.h5'
 	with h5py.File(path+fname,'w') as f:
 		for lg in location:
-			#location = [0,0,0]
-			gun = vertex.particle_gun([particle_name], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.99, float(energy) * 1.01))
+			lg = [7000,0,0]
+			direction = [-1,0,0]
+			# Direction original code is: vertex.isotropic()
+			gun = vertex.particle_gun([particle_name], vertex.constant(lg), myhack(), vertex.flat(float(energy) * 0.99, float(energy) * 1.01))
 			arr.append(run_simulation_and_write_events_file(f, sim, gun, analyzer, first))
 			first = False
 		f.create_dataset('idx',data=arr)
 
 data_file_prefix = '/home/kwells/Desktop/chroma_hdf5_files/'
 
+energy = 0.5
+
 if __name__ == '__main__':
 	#Geant4.gApplyUICommand("/run/verbose 2")
 	#Geant4.gApplyUICommand("/event/verbose 2")
 	#Geant4.gApplyUICommand("/tracking/verbose 2")
 
-	sample = 1000
+	sample = 5;
 	distance = np.linspace(100,700,6)
 	cfg = 'cfJiani3_2'
-	seed_loc = 'r0-geant/'
+	seed_loc = 'r-test--geant/'
 	path = data_file_prefix+cfg+'/raw_data/' + seed_loc
 	if not os.path.exists(path):
 		os.makedirs(path)
@@ -153,8 +167,10 @@ if __name__ == '__main__':
 	sim,analyzer = sim_setup(cfg,'/home/miladmalek/TestData/detresang-cfJiani3_2_1DVariance_100million.root')
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
 
-	fire_particles('e-', sample, 0.5*MeV, sim, analyzer)
-	fire_particles('gamma', sample, 0.5*MeV, sim, analyzer)
+	print('Firing ' + str(energy) + ' MeV e-''s')
+	fire_particles('e-', sample, energy*MeV, sim, analyzer)
+	print('Firing ' + str(energy) + 'MeV gammas')
+	fire_particles('gamma', sample, energy*MeV, sim, analyzer)
 
 	'''
 	bkg_dist_hist(sample,6600,sim,analyzer)
