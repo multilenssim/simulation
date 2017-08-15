@@ -1,9 +1,8 @@
 from lenssystem import get_system_measurements, get_half_EPD
 import numpy as np
-#from kabamland2 import find_max_radius
 
 class DetectorConfig(object):
-    def __init__ (self, edge_length, base, pmtxbins, pmtybins, diameter_ratio, thickness_ratio=0.25, blockers=True, blocker_thickness_ratio=1.0/1000, lens_system_name=None, EPD_ratio=1.0, focal_length=1.0, light_confinement=False, nsteps=10):
+    def __init__ (self, edge_length, base, pmtxbins, pmtybins, diameter_ratio, thickness_ratio=0.25, blockers=True, blocker_thickness_ratio=1.0/1000, lens_system_name=None, EPD_ratio=1.0, focal_length=1.0, light_confinement=False, nsteps=10,b_pixel=4):
         # Two configurations are considered here: one with a single planar detecting surface for each
         # icosahedral side (detector_r=0.) and one with curved detecting surfaces behind each lens system,
         # with the parameters of the lens system defined in lenssystem.py for any given name. 
@@ -36,6 +35,7 @@ class DetectorConfig(object):
             self.half_EPD = diameter_ratio*max_radius # Just uses diameter_ratio instead of EPD_ratio, for backwards compatibility
         self.light_confinement = light_confinement
         self.nsteps = nsteps # number of steps to generate curved detecting surface - sets number of PMTs
+	self.b_pixel = b_pixel # number of pixels in the first ring (active only with NEW PIXELIZATION)
 
 # All configpc diameters given are for kabamlandpc packing (different for kabamland2) 
 # Up to configpc4, focal_length=diameter
@@ -73,6 +73,8 @@ configdict['cfJiani3_3'] = DetectorConfig(10000.0, 9, 0, 0, 1.0, lens_system_nam
 configdict['cfJiani3_test2'] = DetectorConfig(10000.0, 4, 0, 0, 1.0, lens_system_name='Jiani3', light_confinement=True, nsteps=12) # Test 2
 configdict['cfJiani3_4'] = DetectorConfig(10000.0, 4, 0, 0, 1.0, lens_system_name='Jiani3', light_confinement=True, nsteps=32) # Should have ~100k pixels, 10 lens systems/face, 20 faces
 configdict['cfJiani3_5'] = DetectorConfig(10000.0, 10, 0, 0, 1.0, lens_system_name='Jiani3', light_confinement=True, nsteps=12) # Should have ~100k pixels, 55lens systems/face, 20 faces
+configdict['cfJiani3_6'] = DetectorConfig(10000.0,8,0,0,1.0, lens_system_name='Jiani3', light_confinement=True, nsteps=7) #97920 pixels, 36 system/face, lens radius: 43cm NP
+configdict['cfJiani3_7'] = DetectorConfig(10000.0,15,0,0,1.0, lens_system_name='Jiani3', light_confinement=True, nsteps=4, b_pixel=5) #100800 pixels, 120 system/face, lens radius: 24cm NP
 configdict['cfSam1_1'] = DetectorConfig(10000.0, 6, 0, 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=23) # Should have ~100k pixels, 21 lens systems/face, 20 faces
 configdict['cfSam1_1_test'] = DetectorConfig(10000.0, 3, 0, 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=23) # Should have ~100k pixels, 21 lens systems/face, 20 faces
 configdict['cfSam1_2'] = DetectorConfig(10000.0, 4, 0, 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=23) # Should have ~100k pixels, 10 lens systems/face, 20 faces

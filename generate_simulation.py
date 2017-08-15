@@ -5,7 +5,6 @@ from chroma.sim import Simulation
 from chroma.loader import load_bvh
 import lensmaterials as lm
 import kabamland2 as kbl
-import detectorconfig
 import numpy as np
 import time, h5py
 
@@ -110,11 +109,11 @@ def bkg_dist_hist(sample,amount,sim,analyzer,sigma=0.01):
 if __name__ == '__main__':
 	sample = 1000
 	distance = np.linspace(100,700,6)
-	cfg = 'cfJiani3_2'
+	cfg = 'cfJiani3_7'
 	seed_loc = 'r0-1'
 	path = '/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data/'+seed_loc
 	start_time = time.time()
-	sim,analyzer = sim_setup(cfg,'/home/miladmalek/TestData/detresang-cfJiani3_2_1DVariance_100million.root')
+	sim,analyzer = sim_setup(cfg,'/home/miladmalek/TestData/detresang-cfJiani3_7_1DVariance_100million.root')
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
 	bkg_dist_hist(sample,6600,sim,analyzer)
 	print 's-site done'

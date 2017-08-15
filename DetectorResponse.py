@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import time
 
-from kabamland2 import get_curved_surf_triangle_centers, find_max_radius, get_lens_triangle_centers
+from kabamland2 import get_curved_surf_triangle_centers, get_lens_triangle_centers, find_max_radius
 
 from scipy import spatial 
 
@@ -33,13 +33,13 @@ class DetectorResponse(object):
         self.n_lens_sys = int(config.base*(config.base+1)/2.) # Number of lens systems per face
         self.detector_r = config.detector_r
         self.nsteps = config.nsteps
-        self.n_triangles_per_surf = int(2*self.nsteps*int((self.nsteps-2)/2.))
+        #self.n_triangles_per_surf = int(2*self.nsteps*int((self.nsteps-2)/2.))
         
-        self.n_pmts_per_surf = int(self.n_triangles_per_surf/2.)
-        if not self.detector_r:
-            self.npmt_bins = 20*self.pmtxbins*self.pmtybins
-        else:
-            self.npmt_bins = 20*self.n_lens_sys*self.n_pmts_per_surf # One curved detecting surf for each lens system
+        #self.n_pmts_per_surf = int(self.n_triangles_per_surf/2.)
+        #if not self.detector_r:
+        #    self.npmt_bins = 20*self.pmtxbins*self.pmtybins
+        #else:
+        #    self.npmt_bins = 20*self.n_lens_sys*self.n_pmts_per_surf # One curved detecting surf for each lens system
         
         self.diameter_ratio = config.diameter_ratio
         self.thickness_ratio = config.thickness_ratio
@@ -56,10 +56,14 @@ class DetectorResponse(object):
         self.displacement_matrix = self.build_displacement_matrix()
         self.inverse_rotated_displacement_matrix = self.build_inverse_rotated_displacement_matrix()
         self.lens_inverse_rotated_displacement_matrix = self.build_lensplane_inverse_rotated_displacement_matrix()
-        #new properties for curved surface detectors 
-        self.triangle_centers = get_curved_surf_triangle_centers(self.edge_length, config.base, self.detector_r, self.focal_length, self.nsteps)
+        #new properties for curved surface detectors
+        self.triangle_centers,self.n_triangles_per_surf,self.ring = get_curved_surf_triangle_centers(self.edge_length, config.base, self.detector_r, self.focal_length, self.nsteps, config.b_pixel)
         self.triangle_centers_tree = spatial.cKDTree(self.triangle_centers)
-        
+        self.n_pmts_per_surf = int(self.n_triangles_per_surf/2.)
+        if not self.detector_r:
+            self.npmt_bins = 20*self.pmtxbins*self.pmtybins
+        else:
+            self.npmt_bins = 20*self.n_lens_sys*self.n_pmts_per_surf # One curved detecting surf for each lens system        
         self.lens_centers, _ = get_lens_triangle_centers(config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
         
         self.lens_rad = config.half_EPD 
@@ -272,7 +276,18 @@ class DetectorResponse(object):
         writer.close()
 
         return detector_dir_list
-    
+
+    def scaled_pmt_arr_surf(self,closest_triangle_index):
+	closest_triangle_index = np.asarray(closest_triangle_index)
+	curved_surface_index = (closest_triangle_index/self.n_triangles_per_surf).astype(int)
+	renorm_triangle = closest_triangle_index % self.n_triangles_per_surf
+	c_rings = np.cumsum(self.ring)
+	c_rings = np.roll(c_rings,1)
+	c_rings[0] = 0
+	mtx = (np.tile(2*c_rings,(len(renorm_triangle),1)).T - renorm_triangle).T
+	stop_arr = c_rings[np.argmax(mtx>0,axis=1)-1]
+	return ((renorm_triangle - 2*stop_arr) % self.ring[np.argmax(mtx>0,axis=1)-1]) + stop_arr + curved_surface_index*self.n_pmts_per_surf
+
     def find_pmt_bin_array(self, pos_array):
         
         if(self.detector_r == 0):
@@ -309,11 +324,11 @@ class DetectorResponse(object):
         else:
             #print "Curved surface detector was selected."
             closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array)
-            curved_surface_index = [int(x / self.n_triangles_per_surf) for x in closest_triangle_index]
-            surface_pmt_index = [((x % self.n_triangles_per_surf) % (self.n_pmts_per_surf)) for x in closest_triangle_index]
-            bin_array = [((x*self.n_pmts_per_surf) + y) for x,y in zip(curved_surface_index,surface_pmt_index)]
-            n_pmts_total = self.n_pmts_per_surf*self.n_lens_sys*20.
-            bad_bins = np.array(np.where(np.array(bin_array) >= n_pmts_total))
+	    bin_array = self.scaled_pmt_arr_surf(closest_triangle_index)
+            #curved_surface_index = [int(x / self.n_triangles_per_surf) for x in closest_triangle_index]
+            #surface_pmt_index = [((x % self.n_triangles_per_surf) % (self.n_pmts_per_surf)) for x in closest_triangle_index]
+            #bin_array = [((x*self.n_pmts_per_surf) + y) for x,y in zip(curved_surface_index,surface_pmt_index)]
+            bad_bins = np.array(np.where(np.array(bin_array) >= self.npmt_bins))
             #print np.array(bin_array) >= n_pmts_total
             #print np.extract((np.array(bin_array) >= n_pmts_total), bin_array)
             if np.size(bad_bins) > 0:
@@ -338,7 +353,6 @@ class DetectorResponse(object):
         #print "Finding closest triangle centers..."
         if(max_dist == 1.):
             max_dist = 1.1*2*np.pi*find_max_radius(self.edge_length, self.base)/self.nsteps # Circumference of detecting surface divided by number of steps, with 1.1x of wiggle room
-            #print max_dist
         #max_dist = 1
         #max_dist=1000
         query_results = self.triangle_centers_tree.query(pos_array,distance_upper_bound = max_dist)
