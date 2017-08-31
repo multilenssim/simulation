@@ -1,17 +1,25 @@
 from chroma.geometry import Material, Solid, Surface
 import numpy as np
 
-ls_refractive_index = 1.5
 lensmat_refractive_index = 2.0
 lensmat_ohara_refractive_index = 1.923
 
 #ls stands for "liquid scintillator"
+ls_refractive_index = 1.5
 ls = Material('ls')
 ls.set('refractive_index', ls_refractive_index)
 ls.set('absorption_length', 1e8)
 ls.set('scattering_length', 1e8)
 ls.density = 0.780
 ls.composition = { 'H' : 0.663210, 'C' : 0.336655, 'N' : 1.00996e-4, 'O': 3.36655e-5 }
+
+# This is elemental helium - vs. G4_HE
+he = Material('He')
+he.set('refractive_index', 1.0)
+he.set('absorption_length', 1e8)
+he.set('scattering_length', 1e8)
+he.density = 0.5
+he.composition = { 'He' : 1.0 }
 
 lensmat = Material('lensmat')
 lensmat.set('refractive_index', lensmat_refractive_index)
