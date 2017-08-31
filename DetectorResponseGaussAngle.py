@@ -134,7 +134,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
             try:
 				#draw_pmt_ind = None
 				draw_pmt_ind = int(draw_pmt_ind)
-				if i == draw_pmt_ind or draw_pmt_ind<0:
+				'''if i == draw_pmt_ind or draw_pmt_ind<0:
 					# Temporary, to visualize histogram of angles, distances
 					#angles = np.arccos(projection_norms)
 					#ang_variance = np.var(angles, ddof=1)
@@ -172,7 +172,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
 					
 					#print "Average projected variance: ", variance
 					#print "Variance of projected 2D norms: ", np.var(orthogonal_complements, ddof=1)
-					draw_pmt_ind = raw_input("Enter index of next PMT to draw; will stop drawing if not a valid PMT index.\n")
+					draw_pmt_ind = raw_input("Enter index of next PMT to draw; will stop drawing if not a valid PMT index.\n")'''
             except ValueError:
                 pass
             except TypeError:

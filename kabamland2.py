@@ -482,15 +482,13 @@ def calc_steps(x_value,y_value,detector_r,base_pixel):
 	n_step = (lat_area/lat_area[-1]*base_pixel).astype(int)
 	return x_coord, y_coord, n_step
     
-def curved_surface2(detector_r=1.0, diameter = 2.5, nsteps=10,base_pxl=4):
+def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=8,base_pxl=4,ret_arr=False):
     '''Builds a curved surface based on the specified radius. Origin is center of surface.'''
     if (detector_r < diameter/2.0):
         raise Exception('The Radius of the curved surface must be larger than diameter/2.0')
-    fig = plt.figure(figsize=(10, 8))
     shift1 = np.sqrt(detector_r**2 - (diameter/2.0)**2)
     theta1 = np.arctan(shift1/(diameter/2.0))
     angles1 = np.linspace(theta1, np.pi/2, nsteps)
-
     x_value = abs(detector_r*np.cos(angles1))
     y_value = detector_r-detector_r*np.sin(angles1)
     surf = None 
@@ -500,37 +498,31 @@ def curved_surface2(detector_r=1.0, diameter = 2.5, nsteps=10,base_pxl=4):
 		surf = make.rotate_extrude(x,y,n_stp)
 	else:
 		surf += make.rotate_extrude(x,y,n_stp)
-    plot_mesh_object(surf)
-    return  surf
+    if ret_arr: return  surf, n_step
+    else: return surf
 
-def get_curved_surf_triangle_centers(edge_length, base, detector_r = 1.0, focal_length=1.0, nsteps = 10):
+def get_curved_surf_triangle_centers(edge_length, base, detector_r = 1.0, focal_length=1.0, nsteps = 10, b_pxl=4):
     edge_length, facecoords, direction, axis, angle, spin_angle = return_values(edge_length, base)
     max_radius = find_max_radius(edge_length, base)
     xshift = edge_length/2.0
     yshift = edge_length/(2.0*np.sqrt(3))
-    #print detector_r
     #iterating the curved surfaces into a hexagonal pattern within a single side using triangular numbers. First, coordinate indices are created, and then these are transformed into the actual coordinate positions based on the parameters given.
     lens_xindices, lens_yindices = triangular_indices(base)
     first_lens_xcoord = np.sqrt(3)*max_radius
     first_lens_ycoord = max_radius
     lens_xcoords = max_radius*lens_xindices + first_lens_xcoord - xshift
     lens_ycoords = np.sqrt(3)*max_radius*lens_yindices + first_lens_ycoord - yshift
-
     #Changed the rotation matrix to try and keep the curved surface towards the interior
     #Make sure diameter, etc. are set properly
-    initial_curved_surf = mh.rotate(curved_surface(detector_r, diameter=2*max_radius, nsteps=nsteps), make_rotation_matrix(+np.pi/2, (1,0,0)))
-
+    mesh_surf, ring = curved_surface2(detector_r, diameter=2*max_radius, nsteps=nsteps, base_pxl=b_pxl,ret_arr=True)
+    initial_curved_surf = mh.rotate(mesh_surf, make_rotation_matrix(-np.pi/2, (1,0,0)))     #-np.pi with curved_surface2
+    triangles_per_surface = initial_curved_surf.triangles.shape[0]
     #print initial_curved_surf.remove_null_triangles()
     #print initial_curved_surf.remove_duplicate_vertices()
-    
     new_curved_surf2 = mh.shift(initial_curved_surf, (lens_xcoords[0], lens_ycoords[0], 0))
-
     nr_triangles = len(new_curved_surf2.get_triangle_centers()[:,1])
     #print "Number of triangles per curved surface:	", nr_triangles 
-    
-    
     #plot_mesh_animate(initial_curved_surf.get_triangle_centers()[:nr_triangles ,:], initial_curved_surf.assemble()[:nr_triangles ,:,:])
-        
     for i in np.linspace(1, triangular_number(base)-1, triangular_number(base)-1):
         #print i 
         #new_curved_surf = mh.shift(initial_curved_surf, (lens_xcoords[i], lens_ycoords[i], 0))
@@ -547,17 +539,13 @@ def get_curved_surf_triangle_centers(edge_length, base, detector_r = 1.0, focal_
         else:
             curved_surf_triangle_centers = np.concatenate((curved_surf_triangle_centers, new_curved_surf3.get_triangle_centers()),0)
             curved_surf_triangle_vertices = np.concatenate((curved_surf_triangle_vertices, new_curved_surf3.assemble()),0)
-    
     #plot_mesh_triangle_centers(curved_surf_triangle_centers)   
-    
     #plot_mesh_curved_surface(curved_surf_triangle_centers[:nr_triangles ,:], curved_surf_triangle_vertices[:nr_triangles ,:,:])  
     #quit()
     #plot_mesh_animate(curved_surf_triangle_centers[:nr_triangles ,:], curved_surf_triangle_vertices[:nr_triangles ,:,:])
+    return curved_surf_triangle_centers,triangles_per_surface,ring
 
-    
-    return curved_surf_triangle_centers
-
-def plot_mesh_triangle_centers(curved_surf_triangle_centers):
+'''def plot_mesh_triangle_centers(curved_surf_triangle_centers):
     fig = plt.figure(figsize=(15, 10))
     ax = fig.add_subplot(111, projection='3d')
     ax.view_init(elev=0, azim=90)
@@ -621,27 +609,37 @@ def plot_mesh_animate(curved_surf_triangle_centers, curved_surf_triangle_vertice
     ax.scatter(curved_surf_triangle_centers[:,0].tolist(), curved_surf_triangle_centers[:,1].tolist(), curved_surf_triangle_centers[:,2].tolist(), c='b')
     ax.scatter(curved_surf_triangle_centers[:nr_triangles,0].tolist(), curved_surf_triangle_centers[:nr_triangles,1].tolist(), curved_surf_triangle_centers[:nr_triangles,2].tolist(), c='b')
     plt.show()
+
+# def build_pmt_icosahedron_test(edge_length, base, diameter_ratio, thickness_ratio, focal_length_ratio):
+#     # input focal length ratio to place the pmt_icosahedron at length focal_length_ratio*focal_length from the lens_icosahedron 
+#     edge_length, facecoords, direction, axis, angle, spin_angle = return_values(edge_length, base)
+#     focal_length = focal_length_ratio*find_focal_length(edge_length, base, diameter_ratio, thickness_ratio)
     
-def build_curvedsurface_icosahedron(kabamland, edge_length, base, diameter_ratio, focal_length=1.0, detector_r = 1.0, nsteps = 10):
+#     # creation of triangular pmts arranged around the inner icosahedron
+#     pmt_side_length = np.sqrt(3)*(3-np.sqrt(5))*focal_length + edge_length
+#     for k in range(20):
+#         kabamland.add_pmt(Solid(triangle_mesh(pmt_side_length, 0.000001), glass, lm.ls, lm.fulldetect, 0xBBFFFFFF), rotation=np.dot(make_rotation_matrix(spin_angle[k], direction[k]), make_rotation_matrix(angle[k], axis[k])), displacement=facecoords[k] + focal_length*normalize(facecoords[k]) + 0.0000005*normalize(facecoords[k]))
+
+# def build_kabamland_test(configname, focal_length_ratio):
+#     config = detectorconfig.configdict[configname]
+#     build_lens_icosahedron(config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, config.blockers, config.blocker_thickness_ratio)
+#     build_pmt_icosahedron_test(config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, focal_length_ratio)
+'''
+def build_curvedsurface_icosahedron(kabamland, edge_length, base, diameter_ratio, focal_length=1.0, detector_r = 1.0, nsteps = 10, b_pxl=4):
     
     edge_length, facecoords, direction, axis, angle, spin_angle = return_values(edge_length, base)
     max_radius = find_max_radius(edge_length, base)
     diameter = max_radius*2.0
     xshift = edge_length/2.0
     yshift = edge_length/(2.0*np.sqrt(3))
-
     #iterating the lenses into a hexagonal pattern within a single side using triangular numbers. First, coordinate indices are created, and then these are transformed into the actual coordinate positions based on the parameters given.
     lens_xindices, lens_yindices = triangular_indices(base)
     first_lens_xcoord = np.sqrt(3)*max_radius
     first_lens_ycoord = max_radius
     lens_xcoords = max_radius*lens_xindices + first_lens_xcoord - xshift
     lens_ycoords = np.sqrt(3)*max_radius*lens_yindices + first_lens_ycoord - yshift
-    
-    # print lens_xcoords[0]
-    # print lens_ycoords[0]
-    
     #Changed the rotation matrix to try and keep the curved surface towards the interior
-    initial_curved_surf = mh.rotate(curved_surface(detector_r, diameter=diameter, nsteps=nsteps), make_rotation_matrix(+np.pi/2, (1,0,0)))
+    initial_curved_surf = mh.rotate(curved_surface2(detector_r, diameter=diameter, nsteps=nsteps, base_pxl=b_pxl), make_rotation_matrix(-np.pi/2, (1,0,0)))
     face = Solid(mh.shift(initial_curved_surf, (lens_xcoords[0], lens_ycoords[0], 0)), lm.ls, lm.ls, lm.fulldetect, 0x0000FF)  
     for i in np.linspace(1, triangular_number(base)-1, triangular_number(base)-1):
         face = face + Solid(mh.shift(initial_curved_surf, (lens_xcoords[int(i)], lens_ycoords[int(i)], 0)), lm.ls, lm.ls, lm.fulldetect, 0x0000FF) 
@@ -660,7 +658,7 @@ def build_pmt_icosahedron(kabamland, edge_length, base, focal_length=1.0):
     #print "pmt fl: ", focal_length
     pmt_side_length = np.sqrt(3)*(3-np.sqrt(5))*focal_length + edge_length
     for k in range(20):
-        kabamland.add_pmt(Solid(triangle_mesh(pmt_side_length, .001*pmt_side_length), glass, lm.ls, lm.fullabsorb, 0xBBFFFFFF), rotation=np.dot(make_rotation_matrix(spin_angle[k], direction[k]), make_rotation_matrix(angle[k], axis[k])), displacement=facecoords[k] + focal_length*normalize(facecoords[k]) + 0.0000005*normalize(facecoords[k]))
+       kabamland.add_pmt(Solid(triangle_mesh(pmt_side_length, .001*pmt_side_length), glass, lm.ls, lm.fullabsorb, 0xBBFFFFFF), rotation=np.dot(make_rotation_matrix(spin_angle[k], direction[k]), make_rotation_matrix(angle[k], axis[k])), displacement=facecoords[k] + focal_length*normalize(facecoords[k]) + 0.0000005*normalize(facecoords[k]))
 
 def build_kabamland(kabamland, configname):
     # focal_length sets dist between lens plane and PMT plane (or back of curved detecting surface);
@@ -668,27 +666,9 @@ def build_kabamland(kabamland, configname):
     config = detectorconfig.configdict[configname]
 
     build_lens_icosahedron(kabamland, config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
-    
-    #get_lens_triangle_centers(config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
-   
-    build_pmt_icosahedron(kabamland, config.edge_length, config.base, focal_length=config.focal_length*1.5) # Built further out, just as a way of stopping photons
-    
-    build_curvedsurface_icosahedron(kabamland, config.edge_length, config.base, config.diameter_ratio, focal_length=config.focal_length, detector_r = config.detector_r, nsteps = config.nsteps)
-
-# def build_pmt_icosahedron_test(edge_length, base, diameter_ratio, thickness_ratio, focal_length_ratio):
-#     # input focal length ratio to place the pmt_icosahedron at length focal_length_ratio*focal_length from the lens_icosahedron 
-#     edge_length, facecoords, direction, axis, angle, spin_angle = return_values(edge_length, base)
-#     focal_length = focal_length_ratio*find_focal_length(edge_length, base, diameter_ratio, thickness_ratio)
-    
-#     # creation of triangular pmts arranged around the inner icosahedron
-#     pmt_side_length = np.sqrt(3)*(3-np.sqrt(5))*focal_length + edge_length
-#     for k in range(20):
-#         kabamland.add_pmt(Solid(triangle_mesh(pmt_side_length, 0.000001), glass, lm.ls, lm.fulldetect, 0xBBFFFFFF), rotation=np.dot(make_rotation_matrix(spin_angle[k], direction[k]), make_rotation_matrix(angle[k], axis[k])), displacement=facecoords[k] + focal_length*normalize(facecoords[k]) + 0.0000005*normalize(facecoords[k]))
-
-# def build_kabamland_test(configname, focal_length_ratio):
-#     config = detectorconfig.configdict[configname]
-#     build_lens_icosahedron(config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, config.blockers, config.blocker_thickness_ratio)
-#     build_pmt_icosahedron_test(config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, focal_length_ratio)
+        #get_lens_triangle_centers(config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
+    build_pmt_icosahedron(kabamland, config.edge_length, config.base, focal_length=config.focal_length*1.5) # Built further out, just as a way of stopping photons    
+    build_curvedsurface_icosahedron(kabamland, config.edge_length, config.base, config.diameter_ratio, focal_length=config.focal_length, detector_r=config.detector_r, nsteps=config.nsteps, b_pxl=config.b_pixel)
 
 def create_event(location, sigma, amount, config, eventname, datadir=""):
 	#simulates a single event within the detector for a given configuration.
@@ -793,12 +773,13 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 	
 	config = detectorconfig.configdict[configname] 
 	kabamland = Detector(lm.ls)
+	print 'starting to build'
 	build_kabamland(kabamland, configname)
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
 	print "Detector was built"
 	#view(kabamland)
-	#quit()
+	#exit()
 	f = ShortRootWriter(datadir + simname)
 	sim = Simulation(kabamland)
 	for j in range(100):
@@ -811,9 +792,9 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 if __name__ == '__main__':
 
 	datadir = "/home/miladmalek/TestData/"
-	#plot_mesh_object(mh.rotate(curved_surface2(2, diameter=2.5, nsteps=10), make_rotation_matrix(+np.pi/2, (1,0,0))))
-    # Good sample full simulation
-    #full_detector_simulation(100, 'cfJiani3_3', 'sim-cfJiani3_3_100million.root')
+	print curved_surface(2,2.5,23).triangles.shape
+	#plot_mesh_object(curved_surface2(2, diameter=2.5, nsteps=6,base_pxl=2))
+	#full_detector_simulation(100, 'cfJiani3_3', 'sim-cfJiani3_3_100million.root')
 
     #create_event((0,0,0), 0.1, 100000, 'cfJiani3_2', 'event-cfJiani3_2-(0-0-0)-100000.root')
  

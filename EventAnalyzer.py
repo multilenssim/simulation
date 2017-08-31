@@ -626,7 +626,7 @@ class EventAnalyzer(object):
             # beginning_photons = beginning_photons[start:(start+n_ph),:]
             # ending_photons = ending_photons[start:(start+n_ph),:]
             length = n_ph
-        
+ 
         end_direction_array = normalize(ending_photons-beginning_photons).T
         event_pmt_bin_array = np.array(self.det_res.find_pmt_bin_array(ending_photons)) # Get PMT hit location
         event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T
@@ -683,7 +683,6 @@ class EventAnalyzer(object):
             means = normalize((-end_direction_array+ang_noise).T).T
             return Tracks(hit_pos, means, sigmas)
         else: # Detector is calibrated, use response to generate tracks
-            
             tracks = Tracks(event_lens_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = self.det_res.lens_rad)  
             #tracks = Tracks(event_pmt_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = 0.0000001)   
             tracks.cull(np.where(tracks.sigmas>0.001)) # Remove tracks with zero uncertainty (not calibrated)

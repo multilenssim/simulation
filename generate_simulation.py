@@ -157,14 +157,13 @@ if __name__ == '__main__':
 
 	sample = 5;
 	distance = np.linspace(100,700,6)
-	cfg = 'cfJiani3_2'
-	seed_loc = 'r-test--geant/'
-	path = data_file_prefix+cfg+'/raw_data/' + seed_loc
+	cfg = 'cfJiani3_7'
+	seed_loc = 'r0-test-geant'
+	path = data_file_prefix+cfg+'/raw_data/'+seed_loc
 	if not os.path.exists(path):
 		os.makedirs(path)
 	start_time = time.time()
-
-	sim,analyzer = sim_setup(cfg,'/home/miladmalek/TestData/detresang-cfJiani3_2_1DVariance_100million.root')
+	sim,analyzer = sim_setup(cfg,'/home/miladmalek/TestData/detresang-cfJiani3_7_1DVariance_100million.root')
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
 
 	print('Firing ' + str(energy) + ' MeV e-''s')

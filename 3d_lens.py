@@ -35,16 +35,14 @@ def build_kabamland(kabamland, configname):
     config = detectorconfig.configdict[configname]
 	
     _, lens = kb.get_lens_triangle_centers(config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
-	
-    surf = mh.rotate(kb.curved_surface(config.detector_r, diameter=2*kb.find_max_radius(config.edge_length, config.base), nsteps=config.nsteps), make_rotation_matrix(+np.pi/2, (1,0,0)))
+    surf = mh.rotate(kb.curved_surface2(config.detector_r, diameter=2*kb.find_max_radius(config.edge_length, config.base), nsteps=9), make_rotation_matrix(-np.pi/2, (1,0,0)))
     surf = mh.shift(surf, (0, 0, -config.focal_length))
-
     kabamland.add_solid(Solid(surf, lm.ls, lm.ls, lm.fulldetect, 0x0000FF), rotation=None, displacement=(0,0,0))
     kabamland.add_solid(Solid(lens, lm.lensmat, lm.ls) , rotation=None, displacement=None)
     
     blocker = BuildBlocker(np.max(lens.assemble()[:,:,0].flatten()), lens.assemble()[:,:,2].flatten()[np.argmax(lens.assemble()[:,:,0].flatten())])
     kabamland.add_solid(Solid(blocker, lm.ls, lm.ls, lm.fullabsorb, 0x0000FF), rotation=None, displacement=(0,0,0))
-    
+    kabamland.channel_index_to_channel_id = [1]
     return lens, surf
     
 def getRandom():
@@ -98,6 +96,7 @@ def event_display(numPhotons, photon_track, vertex, surf2, lens2, pos):
 	# Get triangle vertices for entire mesh
 	lens_vertices = lens2.assemble()
 	surf_vertices = surf2.assemble()
+
 	
 	# Get total number of triangles for the curved surface
 	nr_triangles2 = len(surf2.get_triangle_centers()[:,1])
@@ -111,7 +110,7 @@ def event_display(numPhotons, photon_track, vertex, surf2, lens2, pos):
 	triang_blocker, Z_blocker = PlotBlocker(np.max(X2), Z2[np.argmax(X2)])
 	
 	# Plot blocker. 
-	ax.plot_trisurf(triang_blocker, Z_blocker, color="black", alpha = 0.4)
+	ax.plot_trisurf(triang_blocker, Z_blocker, color="grey", alpha = 0.3)
 
 	# Define triangulation, e.g. define which coordinates belong to one triangle, so that the mesh can be build properly. Typically, each pair of three subsequent coordinates in 3D belong to one triangle. 
 	triangles = [[3*ii,3*ii+1,3*ii+2] for ii in range(len(X2)/3)]
@@ -120,8 +119,9 @@ def event_display(numPhotons, photon_track, vertex, surf2, lens2, pos):
 	triang = Triangulation(X2, Y2, triangles)
 	
 	# Plot only half of all the triangles, since we are grouping two triangles to one PMT pixel. 
-	for ii in range(nr_triangles2/2):
-		ax.plot(surf_vertices[ii,:,0], surf_vertices[ii,:,1], surf_vertices[ii,:,2], color='black', lw = 1.)
+	for sv in surf_vertices:
+		ax.plot(sv[:,0], sv[:,1], sv[:,2], color='black', lw = 1.)
+		ax.plot(sv[0:2,0], sv[0:2,1], sv[0:2,2], color='white', lw = 1.2)
 	
 	# Plot photon rays. 
 	for i in range(numPhotons):
@@ -143,16 +143,17 @@ def event_display(numPhotons, photon_track, vertex, surf2, lens2, pos):
 	ax.view_init(elev=12, azim=90)
 	
 	#Plot the lens with the previously defined triangulation and make it a bit transparent with alpha < 1. 
-	ax.plot_trisurf(triang, Z2, color="white", shade = True, alpha = 0.8)
+	ax.plot_trisurf(triang, Z2, color="white", shade = True, alpha = 0.05)
 	
 	plt.show()
 		
 def photon_angle(rep, pos=[0,0,0]):
-    off = (rep-1)*100/2
+    off = 200
     photon_pos = np.zeros((rep,3))
     upshift = 800
-    for i in range(rep):
-		photon_pos[i,:] = [pos[0]-i*100+off-100, pos[1]+off+400, pos[2]+upshift]      
+    for i in range(5):
+		photon_pos[i,:] = [pos[0]-i*100+off-100, pos[1]+off+400, pos[2]+upshift]
+    photon_pos[5,:] = [-800,600,800]
     photon_dir = np.tile(np.array([0.2,-0.55,-1]),(rep,1))
     pol = np.cross(photon_dir, uniform_sphere(rep))
     wavelength = np.repeat(300.0, rep)
@@ -185,7 +186,7 @@ if __name__ == '__main__':
     #quit()
     sim = Simulation(kabamland, geant4_processes=0)
     runs = 1
-    numPhotons = 5
+    numPhotons = 6
     events, pos = photon_angle(rep=numPhotons)
     nr_hits = np.zeros((runs))
     doRandom = getRandom()
