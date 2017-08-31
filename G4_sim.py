@@ -10,7 +10,7 @@ import sys
 import Geant4		# Only needed to turn logging on
 from Geant4.hepunit import *
 
-import driver
+import lensmaterials
 
 class G4Generator:
 	def generate(self, particle_name, position, direction, scintillator, generator, energy=2.):
@@ -93,7 +93,7 @@ if __name__ == '__main__':
 	#NISTManager->ListMaterials("all");
 	##########
 
-	scintillator = driver.create_scintillaton_material()
+	scintillator = lensmaterials.create_scintillaton_material()
 
 	x_position = None
 	if len(sys.argv) > 1:
