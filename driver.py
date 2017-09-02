@@ -4,7 +4,7 @@ from chroma.sim import Simulation
 from chroma.detector import Detector
 from chroma.loader import load_bvh
 from chroma.generator import vertex
-from chroma.io.root import RootWriter
+#from chroma.io.root import RootWriter
 
 import kabamland2 as k2
 import lensmaterials as lm
@@ -48,6 +48,9 @@ def create_gamma_event(location, energy, amount, config, eventname, datadir=""):
 	# at position given by location for a given configuration.
 	# Gamma energy is in MeV.
 	kabamland = Detector(lm.create_scintillaton_material())
+	kabamland.orb_radius = 7.
+	kabamland.world_material = 'G4_Calactic'
+
 	k2.build_kabamland(kabamland, config)
 	# Adds a small blue cube at the event location, for viewing
 	# kabamland.add_solid(Solid(make.box(0.1,0.1,0.1,center=location), glass, lm.ls, color=0x0000ff))
