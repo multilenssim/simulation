@@ -221,7 +221,7 @@ class EventAnalyzer(object):
         # the true directions the photons came from
         
         # Create a list of tracks (from hits and detector response, if calibrated, else w/ perfect resolution)
-        tracks = self.generate_tracks(event, sig_cone, n_ph, debug)
+        tracks = self.generate_tracks(event, heat_map=False,sig_cone=sig_cone, n_ph=n_ph, lens_dia=None,debug=False)
         
         # Find/fit vertices using adaptive vertex fitter method
         return self.AVF(tracks, min_tracks, chiC, temps, tol, debug) # list of Vertex objects
@@ -604,7 +604,7 @@ class EventAnalyzer(object):
             
         return vtcs
 
-    def generate_tracks(self, ev, sig_cone=0.01, n_ph=0, lens_dia=None, debug=False):
+    def generate_tracks(self, ev, heat_map = False, sig_cone=0.01, n_ph=0, lens_dia=None, debug=False):
         #Makes tracks for event ev; allow for multiple track representations?
         detected = (ev.photons_end.flags & (0x1 <<2)).astype(bool)
         reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
@@ -694,6 +694,8 @@ class EventAnalyzer(object):
                 print "Tracks for calibrated PMTs: " + str(len(tracks))
             #tracks.cull(np.where(tracks.sigmas<0.2)) # Remove tracks with too large uncertainty
             #tracks.sigmas[:] = 0.054 # Temporary! Checking if setting all sigmas equal to each other helps or hurts
+	    if heat_map == True:
+		return tracks, event_pmt_bin_array
             return tracks     
     
     @staticmethod

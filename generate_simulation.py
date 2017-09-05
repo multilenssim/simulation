@@ -6,11 +6,11 @@ from chroma.loader import load_bvh
 import lensmaterials as lm
 import kabamland2 as kbl
 import numpy as np
-import time, h5py
+import time, h5py, os
 
 def fixed_dist(sample,radius,rads=None):
-	loc1 = sph_scatter(sample)
-	loc2 = sph_scatter(sample)
+	loc1 = sph_scatter(sample,in_shell = 4000,out_shell = 5000)
+	loc2 = sph_scatter(sample,in_shell = 4000,out_shell = 5000)
 	if rads == None:
 		rads = np.linspace(50,500,sample)
 	else:
@@ -82,7 +82,7 @@ def fixed_dist_hist(dist,sample,amount,sim,analyzer,sigma=0.01):
 def bkg_dist_hist(sample,amount,sim,analyzer,sigma=0.01):
 	arr = []
 	i = 0
-	location = sph_scatter(sample)
+	location = sph_scatter(sample,in_shell = 4000,out_shell = 5000)
 	fname = 's-site.h5'
 	with h5py.File(path+fname,'w') as f:
 		for lg in location:
@@ -109,11 +109,14 @@ def bkg_dist_hist(sample,amount,sim,analyzer,sigma=0.01):
 if __name__ == '__main__':
 	sample = 1000
 	distance = np.linspace(100,700,6)
-	cfg = 'cfJiani3_7'
-	seed_loc = 'r0-1'
-	path = '/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data/'+seed_loc
+	cfg = 'cfJiani3_9'
+	seed_loc = 'r4-5'
+	ptf = '/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data/'
+	if not os.path.exists(ptf):
+		os.makedirs(ptf)
+	path = ptf+seed_loc
 	start_time = time.time()
-	sim,analyzer = sim_setup(cfg,'/home/miladmalek/TestData/detresang-cfJiani3_7_1DVariance_100million.root')
+	sim,analyzer = sim_setup(cfg,'/home/miladmalek/TestData/detresang-'+cfg+'_1DVariance_100million.root')
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
 	bkg_dist_hist(sample,6600,sim,analyzer)
 	print 's-site done'

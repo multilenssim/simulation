@@ -739,7 +739,7 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 if __name__ == '__main__':
 
 	datadir = "/home/miladmalek/TestData/"
-	print curved_surface(2,2.5,23).triangles.shape
+	config = detectorconfig.configdict['cfJiani3_8']
 	#plot_mesh_object(curved_surface2(2, diameter=2.5, nsteps=6,base_pxl=2))
 	#full_detector_simulation(100, 'cfJiani3_3', 'sim-cfJiani3_3_100million.root')
 
