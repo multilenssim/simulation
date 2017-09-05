@@ -67,7 +67,7 @@ _ls = None
 
 # TODO: Many modules rely on lm.ls which will have to be changed
 # "create" is not really a great name for this.  Use "get" or perhaps no prefix?
-def create_scintillaton_material():
+def create_scintillation_material():
 	global _ls
 	if _ls is None:
 		# ls stands for "liquid scintillator"

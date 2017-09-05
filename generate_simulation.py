@@ -53,20 +53,7 @@ def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 	return events
 
 def sim_setup(config,in_file):
-	# Set scintillation properties on ls
-	energy_scint = list((2*pi*hbarc/(np.linspace(360,350,11).astype(float)*nanometer)))
-	spect_scint = list([0.04, 0.07, 0.20, 0.49, 0.84, 1.00, 0.83, 0.55, 0.40, 0.17, 0.03])
-
-	# TODO: These keys much match the Geant4 pmaterial property names.  Get rid of these magic strings.
-	lm.ls.set_scintillation_property('FASTCOMPONENT', energy_scint, spect_scint)
-
-	lm.ls.set_scintillation_property('SCINTILLATIONYIELD', 10000. / MeV)    # Was 10000 originally
-	lm.ls.set_scintillation_property('RESOLUTIONSCALE', 1.0)
-	lm.ls.set_scintillation_property('FASTTIMECONSTANT', 1. * ns)
-	lm.ls.set_scintillation_property('SLOWTIMECONSTANT', 10. * ns)
-	lm.ls.set_scintillation_property('YIELDRATIO', 1.0)  		# Was 0.8 - I think this is all fast
-
-	kabamland = Detector(lm.ls)
+	kabamland = Detector(lm.create_scintillation_material())
 	kbl.build_kabamland(kabamland, config)
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
@@ -159,8 +146,8 @@ if __name__ == '__main__':
 	sample = 5;
 	distance = np.linspace(100,700,6)
 	seed_loc = 'r0-test-geant'
-	path = data_file_prefix+cfg+'/raw_data/'+seed_loc
 	cfg = 'cfJiani3_9'
+	path = data_file_prefix+cfg+'/raw_data/'+seed_loc
 	ptf = data_file_prefix+cfg+'/raw_data/'
 	if not os.path.exists(ptf):
 		os.makedirs(ptf)

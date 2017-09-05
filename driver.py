@@ -11,7 +11,7 @@ import lensmaterials as lm
 
 datadir = "/home/kwells/TestData/"
 
-fileinfo = 'cfJiani3_4'    #'configpc6-meniscus6-fl1_027-confined'#'configpc7-pcrad09dia-fl2-confined'#'configview-meniscus6-fl2_113-confined'
+fileinfo = 'cfJiani3_8'    #'configpc6-meniscus6-fl1_027-confined'#'configpc7-pcrad09dia-fl2-confined'#'configview-meniscus6-fl2_113-confined'
 
 
 '''
@@ -47,7 +47,7 @@ def create_gamma_event(location, energy, amount, config, eventname, datadir=""):
 	# simulates a number of single gamma photon events equal to amount
 	# at position given by location for a given configuration.
 	# Gamma energy is in MeV.
-	kabamland = Detector(lm.create_scintillaton_material())
+	kabamland = Detector(lm.create_scintillation_material())
 	kabamland.orb_radius = 7.
 	kabamland.world_material = 'G4_Calactic'
 
@@ -71,7 +71,6 @@ def create_gamma_event(location, energy, amount, config, eventname, datadir=""):
 
 if __name__ == '__main__':
 	create_gamma_event((0, 0, 0), 2., 1, fileinfo, 'gamma-test-', datadir=datadir)
-
 
 # From Scott's scripts_stanford.py
 

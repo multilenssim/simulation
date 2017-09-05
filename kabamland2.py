@@ -388,7 +388,7 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
         lensmat = lenssystem.get_lens_material(lens_system_name)
     
     face = None
-    ls = lm.create_scintillaton_material()
+    ls = lm.create_scintillation_material()
     for lens_i in lenses: # Add all the lenses for the first lens system to solid 'face'
         lens_solid_i = Solid(mh.shift(lens_i, (lens_xcoords[0], lens_ycoords[0], 0.)), lensmat, ls)
         if not face:
@@ -641,7 +641,7 @@ def build_curvedsurface_icosahedron(kabamland, edge_length, base, diameter_ratio
     lens_ycoords = np.sqrt(3)*max_radius*lens_yindices + first_lens_ycoord - yshift
     #Changed the rotation matrix to try and keep the curved surface towards the interior
     initial_curved_surf = mh.rotate(curved_surface2(detector_r, diameter=diameter, nsteps=nsteps, base_pxl=b_pxl), make_rotation_matrix(-np.pi/2, (1,0,0)))
-    ls = lm.create_scintillaton_material()
+    ls = lm.create_scintillation_material()
     face = Solid(mh.shift(initial_curved_surf, (lens_xcoords[0], lens_ycoords[0], 0)), ls, ls, lm.fulldetect, 0x0000FF)
     for i in np.linspace(1, triangular_number(base)-1, triangular_number(base)-1):
         face = face + Solid(mh.shift(initial_curved_surf, (lens_xcoords[int(i)], lens_ycoords[int(i)], 0)), ls, ls, lm.fulldetect, 0x0000FF)
@@ -659,7 +659,7 @@ def build_pmt_icosahedron(kabamland, edge_length, base, focal_length=1.0):
     #creation of triangular pmts arranged around the inner icosahedron
     #print "pmt fl: ", focal_length
     pmt_side_length = np.sqrt(3)*(3-np.sqrt(5))*focal_length + edge_length
-    ls = lm.create_scintillaton_material()
+    ls = lm.create_scintillation_material()
     for k in range(20):
        kabamland.add_pmt(Solid(triangle_mesh(pmt_side_length, .001*pmt_side_length), glass, ls, lm.fullabsorb, 0xBBFFFFFF), rotation=np.dot(make_rotation_matrix(spin_angle[k], direction[k]), make_rotation_matrix(angle[k], axis[k])), displacement=facecoords[k] + focal_length*normalize(facecoords[k]) + 0.0000005*normalize(facecoords[k]))
 
@@ -700,8 +700,7 @@ def create_electron_event(location, energy, amount, config, eventname, datadir="
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
 	#view(kabamland)
-	#quit()
-	f = ShortRootWriter(datadir + eventname)
+	#quit()	f = ShortRootWriter(datadir + eventname)
 	sim = Simulation(kabamland)
 	gun = vertex.particle_gun(['e-']*amount, vertex.constant(location), vertex.isotropic(),vertex.flat(float(energy)*0.99,float(energy)*1.01))
 	for ev in sim.simulate(gun, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
@@ -721,30 +720,14 @@ def create_gamma_event(location, energy, amount, config, eventname, datadir=""):
     # simulates a number of single gamma photon events equal to amount
     # at position given by location for a given configuration.
     # Gamma energy is in MeV.
-    kabamland = Detector(lm.ls)
+    kabamland = Detector(lm.create_scintillation_material())
     build_kabamland(kabamland, config)
     # kabamland.add_solid(Solid(make.box(0.1,0.1,0.1,center=location), glass, lm.ls, color=0x0000ff)) # Adds a small blue cube at the event location, for viewing
     kabamland.flatten()
-    # kabamland.bvh = load_bvh(kabamland)
+    kabamland.bvh = load_bvh(kabamland)
     # view(kabamland)
     # quit()
     # f = RootWriter(datadir + eventname)
-
-    # Scintillation properties
-    # TODO: These keys much match the Geant4 pmaterial property names.  Get rid of these magic strings.
-    kabamland.detector_material.set_scintillation_property('SCINTILLATIONYIELD', 10000. / MeV)
-    kabamland.detector_material.set_scintillation_property('RESOLUTIONSCALE', 0.0)
-    kabamland.detector_material.set_scintillation_property('FASTTIMECONSTANT', 1. * ns)
-    kabamland.detector_material.set_scintillation_property('SLOWTIMECONSTANT', 10. * ns)
-    kabamland.detector_material.set_scintillation_property('YIELDRATIO', 0.8)
-
-    # This causes different effects from using the separate FAST and SLOW components below
-    # kabamland.detector_material.set_scintillation_property('SCINTILLATION', [float(2*pi*hbarc / (360. * nanometer))], [float(1.0)]) # From KamLAND photocathode paper   # Per Scott
-
-    # See https://geant4.web.cern.ch/geant4/UserDocumentation/UsersGuides/ForApplicationDeveloper/html/ch02s03.html
-    # Need to validate that the types are being passed through properly.  Previously was using list(Scnt_PP.astype(float)
-    kabamland.detector_material.set_scintillation_property('FASTCOMPONENT', Scnt_PP, Scnt_FAST);
-    kabamland.detector_material.set_scintillation_property('SLOWCOMPONENT', Scnt_PP, Scnt_SLOW);
 
     sim = Simulation(kabamland, geant4_processes=1)
     print "Starting gun simulation:" + datadir + eventname
