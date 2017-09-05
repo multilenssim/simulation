@@ -9,7 +9,7 @@ def calc_steps(x_value,y_value,detector_r,base_pixel):
         n_step = (lat_area/lat_area[-1]*base_pixel).astype(int)
         return x_coord, y_coord, n_step
 
-def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=20,base_pxl=4,ret_arr=False):
+def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=20,base_pxl=4):
     '''Builds a curved surface based on the specified radius. Origin is center of surface.'''
     if (detector_r < diameter/2.0):
         raise Exception('The Radius of the curved surface must be larger than diameter/2.0')
@@ -22,7 +22,7 @@ def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=20,base_pxl=4,ret_arr
     x_coord,y_coord,n_step = calc_steps(x_value,y_value,detector_r,base_pixel=base_pxl)
     return calc_steps(x_value,y_value,detector_r,base_pxl)
 
-def param_arr(base,b_pxl,l_sys):
+def param_arr(base,b_pxl,l_sys,detec_r,max_rad):
 	if l_sys == 'Jiani3':
 		scal_lens = 488.0/643.0
 	elif l_sys == 'Sam1':
@@ -30,13 +30,12 @@ def param_arr(base,b_pxl,l_sys):
 	arr,ix = [],[]
 	for i in xrange(2,20):
 		ix.append(i)
-		arr.append(np.cumsum(curved_surface2(dtc_r,2*max_rad,i,b_pxl)[2])[-1])
+		arr.append(np.cumsum(curved_surface2(detec_r,2*max_rad,i,b_pxl)[2])[-1])
 	arr = np.asarray(arr)
 	dct = np.stack((ix,scal_lens*10000/(2*(np.sqrt(10000/arr).astype(int)+np.sqrt(3)-1))))
 	sel_arr = np.absolute(((base*(base+1))/2*arr-5000)/5000.0)<0.1
 	dct = dct[:,sel_arr]
 	if dct.shape[1]>1:
-		print dct
 		dct = dct[:,np.argmin(np.absolute((base*(base+1))/2*arr[sel_arr]-5000))]
 	return dct
 
@@ -46,7 +45,7 @@ if __name__ == '__main__':
 	base = int(raw_input('input the number of optical system at the base: '))
 	max_rad = 10000.0/(2*(base+np.sqrt(3)-1))
 	dtc_r = get_system_measurements(lens_system_name,max_rad)[1]
-	a = param_arr(base,b_pxl,lens_system_name)
+	a = param_arr(base,b_pxl,lens_system_name,dtc_r,max_rad)
 	print 'rings in the optical system (+1): '+str(int(a[0]))
 	print 'lenses per face: '+str(int((base*(base+1))/2))
 	print 'adjusted lens radius [mm]: '+str(int(a[1]))
