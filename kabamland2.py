@@ -384,7 +384,7 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
     
     face = None
     for lens_i in lenses: # Add all the lenses for the first lens system to solid 'face'
-        lens_solid_i = Solid(mh.shift(lens_i, (lens_xcoords[0], lens_ycoords[0], 0.)), lensmat, lm.ls) 
+        lens_solid_i = Solid(mh.shift(lens_i, (lens_xcoords[0], lens_ycoords[0], 0.)), lensmat, kabamland.detector_material) 
         if not face:
             face = lens_solid_i
         else:
@@ -392,7 +392,7 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
     # Repeat for all lens systems on this face
     for i in np.linspace(1, triangular_number(base)-1, triangular_number(base)-1):
         for lens_i in lenses:
-            face = face + Solid(mh.shift(lens_i, (lens_xcoords[np.int(i)], lens_ycoords[np.int(i)], 0.)), lensmat, lm.ls)
+            face = face + Solid(mh.shift(lens_i, (lens_xcoords[np.int(i)], lens_ycoords[np.int(i)], 0.)), lensmat, kabamland.detector_material)
         
     
     #creating the various blocker shapes to fill in the empty space of a single face.
@@ -402,7 +402,7 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
         if light_confinement:
             shield = mh.rotate(cylindrical_shell(max_radius*(1 - 0.001), max_radius, focal_length), make_rotation_matrix(np.pi/2.0, (1,0,0)))
             for i in np.linspace(0, triangular_number(base)-1, triangular_number(base)):  
-                face = face + Solid(mh.shift(shield, (lens_xcoords[np.int(i)], lens_ycoords[np.int(i)], -focal_length/2.0)), lensmat, lm.ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(shield, (lens_xcoords[np.int(i)], lens_ycoords[np.int(i)], -focal_length/2.0)), lensmat, kabamland.detector_material, black_surface, 0xff0000)
 
         if base >= 2:
             down_blocker = inner_blocker_mesh(max_radius, blocker_thickness)
@@ -412,7 +412,7 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
             down_blocker_xcoords = max_radius*down_blocker_xindices + first_down_blocker_xcoord - xshift
             down_blocker_ycoords = np.sqrt(3)*max_radius*down_blocker_yindices + first_down_blocker_ycoord - yshift
             for i in range(triangular_number(base-1)):
-                face = face + Solid(mh.shift(down_blocker, (down_blocker_xcoords[i], down_blocker_ycoords[i], 0)), lensmat, lm.ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(down_blocker, (down_blocker_xcoords[i], down_blocker_ycoords[i], 0)), lensmat, kabamland.detector_material, black_surface, 0xff0000)
 
             bottom_blocker = outer_blocker_mesh(max_radius, blocker_thickness)
             right_blocker = mh.rotate(bottom_blocker, make_rotation_matrix(-2*np.pi/3.0, (0, 0, 1)))
@@ -424,9 +424,9 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
             left_blocker_xcoords = distances*np.cos(np.pi/3.0) - xshift
             left_blocker_ycoords = distances*np.sin(np.pi/3.0) - yshift
             for i in range(base-1):
-                face = face + Solid(mh.shift(bottom_blocker, (bottom_blocker_xcoords[i], -yshift, 0)), lensmat, lm.ls, black_surface, 0xff0000)
-                face = face + Solid(mh.shift(right_blocker, (right_blocker_xcoords[i], right_blocker_ycoords[i], 0)), lensmat, lm.ls, black_surface, 0xff0000)
-                face = face + Solid(mh.shift(left_blocker, (left_blocker_xcoords[i], left_blocker_ycoords[i], 0)), lensmat, lm.ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(bottom_blocker, (bottom_blocker_xcoords[i], -yshift, 0)), lensmat, kabamland.detector_material, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(right_blocker, (right_blocker_xcoords[i], right_blocker_ycoords[i], 0)), lensmat, kabamland.detector_material, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(left_blocker, (left_blocker_xcoords[i], left_blocker_ycoords[i], 0)), lensmat, kabamland.detector_material, black_surface, 0xff0000)
 
         if base >= 3:
             up_blocker = mh.rotate(down_blocker, make_rotation_matrix(np.pi, (0, 0, 1)))
@@ -436,19 +436,19 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
             up_blocker_xcoords = max_radius*up_blocker_xindices + first_up_blocker_xcoord - xshift
             up_blocker_ycoords = np.sqrt(3)*max_radius*up_blocker_yindices + first_up_blocker_ycoord - yshift
             for i in range(triangular_number(base-2)):    
-                face = face + Solid(mh.shift(up_blocker, (up_blocker_xcoords[i], up_blocker_ycoords[i], 0)), lensmat, lm.ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(up_blocker, (up_blocker_xcoords[i], up_blocker_ycoords[i], 0)), lensmat, kabamland.detector_material, black_surface, 0xff0000)
         
         corner_blocker = corner_blocker_mesh(max_radius, blocker_thickness)
         for i in range(3):
             theta = 2*np.pi/3.0*i + np.pi/2.0 
             rotated_corner_blocker = mh.rotate(corner_blocker, make_rotation_matrix(-2*np.pi/3.0*i, (0, 0, 1)))
-            face = face + Solid(mh.shift(rotated_corner_blocker, (2*yshift*np.cos(theta), 2*yshift*np.sin(theta), 0)), lensmat, lm.ls, black_surface, 0xff0000)
+            face = face + Solid(mh.shift(rotated_corner_blocker, (2*yshift*np.cos(theta), 2*yshift*np.sin(theta), 0)), lensmat, kabamland.detector_material, black_surface, 0xff0000)
 
         # Build entrance pupil blockers if needed
         if half_EPD < max_radius:
             annulus_blocker = mh.rotate(cylindrical_shell(half_EPD, max_radius, blocker_thickness), make_rotation_matrix(np.pi/2.0, (1,0,0)))
             for i in range(triangular_number(base)):
-                face = face + Solid(mh.shift(annulus_blocker, (lens_xcoords[i], lens_ycoords[i], 0)), lensmat, lm.ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(annulus_blocker, (lens_xcoords[i], lens_ycoords[i], 0)), lensmat, kabamland.detector_material, black_surface, 0xff0000)
 
     #creating all 20 faces and putting them into the detector with the correct orientations.
     for k in range(20):   
@@ -635,9 +635,9 @@ def build_curvedsurface_icosahedron(kabamland, edge_length, base, diameter_ratio
     lens_ycoords = np.sqrt(3)*max_radius*lens_yindices + first_lens_ycoord - yshift
     #Changed the rotation matrix to try and keep the curved surface towards the interior
     initial_curved_surf = mh.rotate(curved_surface2(detector_r, diameter=diameter, nsteps=nsteps, base_pxl=b_pxl), make_rotation_matrix(-np.pi/2, (1,0,0)))
-    face = Solid(mh.shift(initial_curved_surf, (lens_xcoords[0], lens_ycoords[0], 0)), lm.ls, lm.ls, lm.fulldetect, 0x0000FF)  
+    face = Solid(mh.shift(initial_curved_surf, (lens_xcoords[0], lens_ycoords[0], 0)), kabamland.detector_material, kabamland.detector_material, lm.fulldetect, 0x0000FF)  
     for i in np.linspace(1, triangular_number(base)-1, triangular_number(base)-1):
-        face = face + Solid(mh.shift(initial_curved_surf, (lens_xcoords[int(i)], lens_ycoords[int(i)], 0)), lm.ls, lm.ls, lm.fulldetect, 0x0000FF) 
+        face = face + Solid(mh.shift(initial_curved_surf, (lens_xcoords[int(i)], lens_ycoords[int(i)], 0)), kabamland.detector_material, kabamland.detector_material, lm.fulldetect, 0x0000FF) 
     for k in range(20):   
         kabamland.add_solid(face, rotation=np.dot(make_rotation_matrix(spin_angle[k], direction[k]), make_rotation_matrix(angle[k], axis[k])), displacement=facecoords[k] + focal_length*normalize(facecoords[k]))
 
@@ -653,7 +653,7 @@ def build_pmt_icosahedron(kabamland, edge_length, base, focal_length=1.0):
     #print "pmt fl: ", focal_length
     pmt_side_length = np.sqrt(3)*(3-np.sqrt(5))*focal_length + edge_length
     for k in range(20):
-       kabamland.add_pmt(Solid(triangle_mesh(pmt_side_length, .001*pmt_side_length), glass, lm.ls, lm.fullabsorb, 0xBBFFFFFF), rotation=np.dot(make_rotation_matrix(spin_angle[k], direction[k]), make_rotation_matrix(angle[k], axis[k])), displacement=facecoords[k] + focal_length*normalize(facecoords[k]) + 0.0000005*normalize(facecoords[k]))
+       kabamland.add_pmt(Solid(triangle_mesh(pmt_side_length, .001*pmt_side_length), glass, kabamland.detector_material, lm.fullabsorb, 0xBBFFFFFF), rotation=np.dot(make_rotation_matrix(spin_angle[k], direction[k]), make_rotation_matrix(angle[k], axis[k])), displacement=facecoords[k] + focal_length*normalize(facecoords[k]) + 0.0000005*normalize(facecoords[k]))
 
 def build_kabamland(kabamland, configname):
     # focal_length sets dist between lens plane and PMT plane (or back of curved detecting surface);
@@ -739,9 +739,9 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 if __name__ == '__main__':
 
 	datadir = "/home/miladmalek/TestData/"
-	config = detectorconfig.configdict['cfJiani3_8']
+	#config = detectorconfig.configdict['cfJiani3_8']
 	#plot_mesh_object(curved_surface2(2, diameter=2.5, nsteps=6,base_pxl=2))
-	#full_detector_simulation(100, 'cfJiani3_3', 'sim-cfJiani3_3_100million.root')
+	full_detector_simulation(100, 'cfJiani3_3', 'sim-cfJiani3_3_100million.root')
 
     #create_event((0,0,0), 0.1, 100000, 'cfJiani3_2', 'event-cfJiani3_2-(0-0-0)-100000.root')
  
