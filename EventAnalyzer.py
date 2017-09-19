@@ -604,12 +604,24 @@ class EventAnalyzer(object):
             
         return vtcs
 
-    def generate_tracks(self, ev, heat_map = False, sig_cone=0.01, n_ph=0, lens_dia=None, debug=False):
+    def QE(self,gen,qe):
+	#applies a given quantum efficiency to each pixel to a vector containing the hit pixel
+	mask = []
+	for e in np.unique(gen):
+		arr_id = np.where(gen==e)[0]
+		counts = np.random.poisson(qe*len(arr_id))
+		if counts>len(arr_id):
+			counts = np.random.choice(len(arr_id))
+		fltr = np.random.choice(arr_id,counts,replace=False)
+		mask.extend(fltr)
+	return gen[sorted(mask)]
+
+    def generate_tracks(self, ev, qe=None, heat_map = False, sig_cone=0.01, n_ph=0, lens_dia=None, debug=False):
         #Makes tracks for event ev; allow for multiple track representations?
         detected = (ev.photons_end.flags & (0x1 <<2)).astype(bool)
-        reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
-        reflected_specular = (ev.photons_end.flags & (0x1 <<6)).astype(bool)
-        good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
+        #reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
+        #reflected_specular = (ev.photons_end.flags & (0x1 <<6)).astype(bool)
+        #good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
              
         beginning_photons = ev.photons_beg.pos[detected] # Include reflected photons
         ending_photons = ev.photons_end.pos[detected]
@@ -629,6 +641,10 @@ class EventAnalyzer(object):
  
         end_direction_array = normalize(ending_photons-beginning_photons).T
         event_pmt_bin_array = np.array(self.det_res.find_pmt_bin_array(ending_photons)) # Get PMT hit location
+	if qe == None:
+		pass
+	else:
+		event_pmt_bin_array = self.QE(event_pmt_bin_array,qe)
         event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T
         
         event_lens_bin_array = np.array(event_pmt_bin_array/self.det_res.n_pmts_per_surf)

@@ -152,16 +152,23 @@ if __name__ == '__main__':
 
 	sample = 5;
 	distance = np.linspace(100,700,6)
+<<<<<<< HEAD:generate_simulation.py
 	seed_loc = 'r0-test-geant-'
 	cfg = 'cfJiani3_9'
 	path = data_file_prefix+cfg+'/raw_data/'+seed_loc
 	ptf = data_file_prefix+cfg+'/raw_data/'
+=======
+	cfg = 'cfJiani3_8'
+	seed_loc = 'r0-1'
+	ptf = '/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data/'
+>>>>>>> origin/master:nog4_sim.py
 	if not os.path.exists(ptf):
 		os.makedirs(ptf)
 	path = ptf+seed_loc
 	start_time = time.time()
 	sim,analyzer = sim_setup(cfg,'/home/miladmalek/TestData/detresang-'+cfg+'_1DVariance_100million.root')
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
+<<<<<<< HEAD:generate_simulation.py
 
 	print('Firing ' + str(energy) + ' MeV e-''s')
 	fire_particles('e-', sample, energy*MeV, sim, analyzer)
@@ -170,9 +177,12 @@ if __name__ == '__main__':
 
 	'''
 	bkg_dist_hist(sample,6600,sim,analyzer)
+=======
+	bkg_dist_hist(sample,13200,sim,analyzer)
+>>>>>>> origin/master:nog4_sim.py
 	print 's-site done'
 	for dst in distance:
-		fixed_dist_hist(dst,sample,6600,sim,analyzer)
+		fixed_dist_hist(dst,sample,13200,sim,analyzer)
 		print 'distance '+str(int(dst/10))+' done'
 	'''
 	print time.time()-start_time

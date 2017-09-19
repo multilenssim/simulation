@@ -57,7 +57,7 @@ def eff_test(config, detres=None, detbins=10, sig_pos=0.01, n_ph_sim=[6600], rep
         ttree.Branch("multiplicity", multiplicity, "multiplicity/I")	
        
 		# Build detector 
-        kabamland = Detector(lm.ls)
+        kabamland = Detector(get_scintillation_material(),geant4_processes=0)
         kbl.build_kabamland(kabamland, config)
         kabamland.flatten()
         kabamland.bvh = load_bvh(kabamland)
@@ -168,18 +168,15 @@ def create_single_source_events(rad, sigma, amount, repetition):
 
 def plot_double_yaxis(recon, n_ph_sim, n_pos, max_rad):
 		# Create double y-axis plot with position resolution shown on the left side in blue and the light collection efficiency on the right side in red 
-		
 		# Create axis object for plotting
 	ax1 = plt.gca()
-		
+	plt.suptitle(detfile,fontsize=20)
 	ax2 = ax1.twinx()
-		
 	ax1.set_xlabel('Radius [cm]')
 	ax1.set_ylabel('Position Resolution [mm]', color='blue')
 	ax2.set_ylabel('Light Collection Efficiency', color='red')
-        
-	ax1.set_xlim(-100, max_rad*1.1/10)
-	ax1.set_ylim(0, 400)
+	ax1.set_xlim(-10, max_rad*1.02/10)
+	ax1.set_ylim(0, 480)
 	ax2.set_ylim(0, .35)
         
 	for zz, amount in enumerate(n_ph_sim):
@@ -245,7 +242,7 @@ def get_eff_from_root(filename, n_ph_sim, repetition, n_pos):
 
 if __name__ == '__main__':
     print "Efficiency test started"
-    design = ['cfJiani3_7']
+    design = ['cfJiani3_8']
     suffix = '_1DVariance'
     energy = [6600]
     repetition = 100
@@ -258,9 +255,9 @@ if __name__ == '__main__':
 		os.makedirs(rootdir)
 	fname = detfile + suffix		
 	print "Lens design used:	", detfile 
-	eff_test(detfile, detres='detresang-'+fname+'_100million.root', detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
+	#eff_test(detfile, detres='detresang-'+fname+'_100million.root', detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
     
-    	#filename = 'rep-'+str(repetition)+'_npos-'+str(n_pos)
-    	#get_eff_from_root(filename=filename , n_ph_sim=energy, repetition=repetition, n_pos=n_pos)
+    	filename = 'rep-'+str(repetition)+'_npos-'+str(n_pos)
+    	get_eff_from_root(filename=filename , n_ph_sim=energy, repetition=repetition, n_pos=n_pos)
     
     print "Simulation done."
