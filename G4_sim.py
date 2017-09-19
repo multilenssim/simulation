@@ -6,6 +6,7 @@ from chroma.generator import g4gen
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
+import pprint
 
 import Geant4		# Only needed to turn logging on
 from Geant4.hepunit import *
@@ -93,7 +94,7 @@ if __name__ == '__main__':
 	#NISTManager->ListMaterials("all");
 	##########
 
-	scintillator = lensmaterials.create_scintillaton_material()
+	scintillator = lensmaterials.create_scintillation_material()
 
 	x_position = None
 	if len(sys.argv) > 1:
@@ -119,8 +120,8 @@ if __name__ == '__main__':
 	g4 = None
 	'''
 
-	e_x_distances = np.linspace(6.97, 7.04, 29)    # (6.97, 7.04, 29)		# (6.99, 7.001, 12)
-	gamma_x_distances = np.linspace(5.5, 7.20, 35)    # (5.5, 7.20, 35)					# (5.8, 7.05, 26)
+	e_x_distances = [0.]   # np.linspace(6.97, 7.04, 29)    # (6.97, 7.04, 29)		# (6.99, 7.001, 12)
+	gamma_x_distances = [0.]   #np.linspace(5.5, 7.20, 35)    # (5.5, 7.20, 35)					# (5.8, 7.05, 26)
 
 	particles = ['e-','gamma'] # ['gamma','e-']
 
@@ -134,7 +135,7 @@ if __name__ == '__main__':
 
 	print("Starting photon generation")
 
-	run_count = 10
+	run_count = 1
 	for counter in xrange(run_count):
 		for particle in particles:
 			x_distances = e_x_distances if particle == "e-" else gamma_x_distances
@@ -146,12 +147,13 @@ if __name__ == '__main__':
 				position = (x * m, 0., 0.)
 				# gen = g4gen.G4Generator(scint)
 				g4 = G4Generator()		# Should not be necessary
-				output = g4.generate(particle, position, momentum, scintillator, gen)
+				output = g4.generate(particle, position, momentum, scintillator, gen, energy=200.)
 				g4 = None
 				counts[particle][x].append(len(output.pos))
 
 				# Count subtypes
 				subtype_bins = np.bincount(output.process_subtypes)
+				type_bins = np.bincount(output.process_types)
 				# Magic numbers.  For subtype definitions, see:
 				#    http://geant4.web.cern.ch/geant4/collaboration/working_groups/electromagnetic/
 				scint_count = 0
@@ -165,23 +167,8 @@ if __name__ == '__main__':
 				cherenkov_counts[particle][x].append(cherenkov_count)
 				if counts[particle][x][-1] != scint_counts[particle][x][-1] + cherenkov_counts[particle][x][-1]:
 					print("===>>> Uh oh: counts don't add up: ", particle, x, counts[particle][x], scint_counts[particle][x], cherenkov_counts[particle][x]);
-
-	'''
-	Initial manual binning:
-	        process_counters = {}
-        for ptype in process_types:
-            if ptype in process_counters:
-                process_counters[ptype] += 1
-            else:
-                process_counters[ptype] = 1
-
-        process_subtype_counters = {}
-        for ptype in process_subtypes:
-            if ptype in process_subtype_counters:
-                process_subtype_counters[ptype] += 1
-            else:
-                process_subtype_counters[ptype] = 1
-	'''
+				print("Type bins: ", pprint.pformat(type_bins))
+				print("Subtype bins: ", pprint.pformat(subtype_bins))
 
 	e_avgs, e_yerr = compute_stats(counts['e-'], e_x_distances)
 	gamma_avgs, gamma_yerr = compute_stats(counts['gamma'], gamma_x_distances)
@@ -273,4 +260,3 @@ if __name__ == '__main__':
 	gen2 = g4gen.G4Generator(scintillator)
 	out_ph1 = g4.generate('e-', (0. * m, 0., 0.), momentum, scintillator, gen2, energy=2.)		# NOTE the energy here.  for testing !!!!!
 	'''
-	final = 1

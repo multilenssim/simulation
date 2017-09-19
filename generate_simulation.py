@@ -54,10 +54,11 @@ def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 
 def sim_setup(config,in_file):
 	kabamland = Detector(lm.create_scintillation_material())
+	kabamland.orb_radius = 7.
 	kbl.build_kabamland(kabamland, config)
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
-	sim = Simulation(kabamland)
+	sim = Simulation(kabamland, geant4_processes=1)
 	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)
 	analyzer = EventAnalyzer(det_res)
 	return sim, analyzer
@@ -67,7 +68,12 @@ def run_simulation_and_write_events_file(file, sim, events, analyzer, first=Fals
 	for ev in sim.simulate(events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 		tracks = analyzer.generate_tracks(ev)
 		#pprint(vars(ev))
-		print('Firing particle ' + ev.primary_vertex.particle_name + ' from ' + str(ev.primary_vertex.pos) + ' toward ' + str(ev.primary_vertex.dir))
+		print('Firing particle name/photon count/track count/location/direction: \t' +  # Add energy
+		      ev.primary_vertex.particle_name + '\t' +
+		      str(len(ev.photons_beg)) + '\t' +
+		      str(len(tracks)) + '\t' +
+		      str(ev.primary_vertex.pos) + '\t' +
+		      str(ev.primary_vertex.dir) + '\t')
 		print('Photons begin count, track count:\t' + str(len(ev.photons_beg)) + '\t' + str(len(tracks)))
 		if first:
 			coord = file.create_dataset('coord',data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
@@ -125,18 +131,19 @@ def fire_particles(particle_name,sample,energy,sim,analyzer,sigma=0.01):
 	location = sph_scatter(sample)
 	fname = particle_name+'.h5'
 	with h5py.File(path+fname,'w') as f:
-		for lg in location:
-			lg = [7000,0,0]
-			direction = [-1,0,0]
+		for lg in location:     # x in np.linspace(0., 1000., num=20):
+			#lg = [7000.,0,0]
+			# direction = [-1,0,0]
 			# Direction original code is: vertex.isotropic()
-			gun = vertex.particle_gun([particle_name], vertex.constant(lg), myhack(), vertex.flat(float(energy) * 0.99, float(energy) * 1.01))
+			gun = vertex.particle_gun([particle_name], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.99, float(energy) * 1.01))
+			# gun = vertex.particle_gun([particle_name], vertex.constant(lg), myhack(), vertex.flat(float(energy) * 0.99, float(energy) * 1.01))
 			arr.append(run_simulation_and_write_events_file(f, sim, gun, analyzer, first))
 			first = False
 		f.create_dataset('idx',data=arr)
 
-data_file_prefix = '/home/kwells/Desktop/chroma_hdf5_files/'
+data_file_prefix = '/home/kwells/ch_hdf5_files/'
 
-energy = 0.5
+energy = 1.
 
 if __name__ == '__main__':
 	#Geant4.gApplyUICommand("/run/verbose 2")
@@ -145,7 +152,7 @@ if __name__ == '__main__':
 
 	sample = 5;
 	distance = np.linspace(100,700,6)
-	seed_loc = 'r0-test-geant'
+	seed_loc = 'r0-test-geant-'
 	cfg = 'cfJiani3_9'
 	path = data_file_prefix+cfg+'/raw_data/'+seed_loc
 	ptf = data_file_prefix+cfg+'/raw_data/'
@@ -158,7 +165,7 @@ if __name__ == '__main__':
 
 	print('Firing ' + str(energy) + ' MeV e-''s')
 	fire_particles('e-', sample, energy*MeV, sim, analyzer)
-	print('Firing ' + str(energy) + 'MeV gammas')
+	print('Firing ' + str(energy) + ' MeV gammas')
 	fire_particles('gamma', sample, energy*MeV, sim, analyzer)
 
 	'''

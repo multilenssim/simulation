@@ -11,7 +11,7 @@ from chroma.event import Photons
 from chroma.loader import load_bvh
 from chroma.generator import vertex
 
-#from ShortIO.root_short import ShortRootWriter
+from ShortIO.root_short import ShortRootWriter
 #from chroma.io.root import RootWriter
 from Geant4.hepunit import *
 
@@ -675,7 +675,7 @@ def build_kabamland(kabamland, configname):
 
 def create_event(location, sigma, amount, config, eventname, datadir=""):
 	#simulates a single event within the detector for a given configuration.
-	kabamland = Detector(lm.ls)
+	kabamland = Detector(lm.create_scintillation_material())
 	build_kabamland(kabamland, config)
 	#kabamland.add_solid(Solid(make.box(0.1,0.1,0.1,center=location), glass, lm.ls, color=0x0000ff)) # Adds a small blue cube at the event location, for viewing
 	kabamland.flatten()
@@ -694,7 +694,7 @@ def create_electron_event(location, energy, amount, config, eventname, datadir="
 	#simulates a number of single electron events equal to amount
 	#at position given by location for a given configuration.
 	#Electron energy is in MeV.
-	kabamland = Detector(lm.ls)
+	kabamland = Detector(lm.create_scintillation_material())
 	build_kabamland(kabamland, config)
 	#kabamland.add_solid(Solid(make.box(0.1,0.1,0.1,center=location), glass, lm.ls, color=0x0000ff)) # Adds a small blue cube at the event location, for viewing
 	kabamland.flatten()
@@ -741,7 +741,7 @@ def create_gamma_event(location, energy, amount, config, eventname, datadir=""):
 
 def create_double_source_event(loc1, loc2, sigma, amount, config, eventname, datadir=""):
 	#simulates an event with two different photon sources for a given configuration.
-	kabamland = Detector(lm.ls)
+	kabamland = Detector(lm.create_scintillation_material())
 	build_kabamland(kabamland, config)
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
@@ -758,7 +758,7 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 	#simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron. Note that viewing may crash if there are too many lenses. (try using configview)
 	
 	config = detectorconfig.configdict[configname] 
-	kabamland = Detector(lm.ls)
+	kabamland = Detector(lm.create_scintillation_material())
 	print 'starting to build'
 	build_kabamland(kabamland, configname)
 	kabamland.flatten()

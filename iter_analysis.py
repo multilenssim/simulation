@@ -143,6 +143,9 @@ def find_cl(ss_site,ms_site,cl):
 	ix = np.abs(ms_site-val).argmin()
 	return ss_site[ix]
 
+cfg = 'cfJiani3_9'
+path_prefix = '/home/kwells/ch_hdf5_files/'
+seed_loc = 'r0-test-geant'
 
 if __name__ == '__main__':
 	max_val = 2000
@@ -153,16 +156,15 @@ if __name__ == '__main__':
 	sgm = True
 	outlier = False
 	bn_arr = np.linspace(0,max_val,n_bin)
-	cfg = 'Jiani3_2'
-	path = '/farmshare/user_data/jdalmass/'+cfg+'/'
-	seed_loc = 'r0-1'
-	ssite = path+seed_loc+'s-site.h5'
+	path = path_prefix + cfg + '/raw_data/'
+	ssite = path+seed_loc+'e-.h5'
+	print('File: ' + ssite)
 	with h5py.File(ssite,'r') as f:
 		b_idx = f['idx'][:60]
 	avg_sgn = track_util(ssite,b_idx,'avg',0,False)
 	n_null,c2_sgn = use_chi2(ssite,b_idx,0,0,False)
 	val_avg,val_c2 = [],[]
-	for fname in sorted(glob.glob(path+seed_loc+'*cm.h5')):
+	for fname in sorted(glob.glob(path+seed_loc+'gamma.h5')):
 		print fname
 		with h5py.File(fname,'r') as f:
 			e_index = f['idx'][:step*sample]
