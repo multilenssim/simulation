@@ -2,6 +2,7 @@ from matplotlib.collections import PatchCollection
 from matplotlib.patches import Wedge,Circle,Arrow
 import matplotlib.gridspec as gridspec
 from kabamland2 import gaussian_sphere
+from chroma.generator import vertex
 import matplotlib.pyplot as plt
 import detectorconfig as dc
 import nog4_sim as gs
@@ -136,29 +137,39 @@ def tria_proj(i_rad,lens_center,l_rad,base):
 
 
 if __name__=='__main__':
-	cfg = 'cfJiani3_7'
+	cfg = 'cfSam1_5'
 	conf_par = dc.configdict[cfg]
 	sys_per_face = (conf_par.base*(conf_par.base+1))/2
+	sel_len = np.random.choice(sys_per_face,3,replace=False)
 	heat = []
+	g4 = True
 	sigma = 0.01
 	amount = 1000000
-	ix = 4
+	energy = 2
+	#ix = 4
 	sim,analyzer = gs.sim_setup(cfg,'/home/miladmalek/TestData/detresang-'+cfg+'_1DVariance_100million.root')
 	pmts_per_surf = analyzer.det_res.n_pmts_per_surf
 	lens_center = analyzer.det_res.lens_centers[:sys_per_face]
 	dir_to_lens = np.mean(lens_center,axis=0)
 	dir_to_lens_n = dir_to_lens/np.linalg.norm(dir_to_lens)
-	off_ax = gs.sph_scatter(1,in_shell = 4000,out_shell = 5000).T #2000*rand_perp(dir_to_lens_n)
-	for lg in (off_ax,[0,0,0]):#[0,0,0],2000*dir_to_lens_n,-2000*dir_to_lens_n,-off_ax):
-		sim_event = gaussian_sphere(lg, sigma, amount)			
-		for ev in sim.simulate(sim_event, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
-			tracks,pmt_arr = analyzer.generate_tracks(ev,heat_map=True)
-		if conf_par.lens_system_name == 'Jiani3':
-			l_rad = tracks.lens_rad/0.75835272409
-		elif conf_par.lens_system_name == 'Sam1':
-			l_rad = tracks.lens_rad
+	off_ax = gs.sph_scatter(1,in_shell = 0,out_shell = 1000).T #2000*rand_perp(dir_to_lens_n)
+	if np.shape(off_ax)[1] == 1:
+		off_ax = np.reshape(off_ax,(1,3))
+	else:
+		pass
+	for lg in off_ax:
+		if not g4:
+			gun = gaussian_sphere(lg, sigma, amount)
+		else:
+			gun = vertex.particle_gun(['e-','gamma'], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.999, float(energy) * 1.001))			
+		for ev in sim.simulate(gun, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
+			tracks,pmt_arr = analyzer.generate_tracks(ev,qe=(1./3.),heat_map=True)
+			if conf_par.lens_system_name == 'Jiani3':
+				l_rad = tracks.lens_rad/0.75835272409
+			elif conf_par.lens_system_name == 'Sam1':
+				l_rad = tracks.lens_rad
 			
-		#plot_heat(conf_par,color(pmt_arr,ix),ix,l_rad)
-		for i in np.random.randint(0,sys_per_face,3):
-			plot_heat(conf_par,color(pmt_arr,i),i,l_rad)
+			#plot_heat(conf_par,color(pmt_arr,ix),ix,l_rad)
+			for i in sel_len:
+				plot_heat(conf_par,color(pmt_arr,i),i,l_rad)
 		
