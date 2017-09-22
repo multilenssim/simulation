@@ -8,6 +8,7 @@ import detectorconfig as dc
 import nog4_sim as gs
 import right_amount
 import numpy as np
+import argparse
 
 def surf(rad_ring,ring_par,width_ring):
 	patches = []	
@@ -137,7 +138,10 @@ def tria_proj(i_rad,lens_center,l_rad,base):
 
 
 if __name__=='__main__':
-	cfg = 'cfSam1_5'
+	parser = argparse.ArgumentParser()
+	parser.add_argument('cfg', help='provide configuration')
+	args = parser.parse_args()
+	cfg = args.cfg
 	conf_par = dc.configdict[cfg]
 	sys_per_face = (conf_par.base*(conf_par.base+1))/2
 	sel_len = np.random.choice(sys_per_face,3,replace=False)

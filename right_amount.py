@@ -1,5 +1,6 @@
 from lenssystem import get_system_measurements,get_half_EPD
 import numpy as np
+import argparse
 
 
 def calc_steps(x_value,y_value,detector_r,base_pixel):
@@ -42,7 +43,10 @@ def param_arr(base,b_pxl,l_sys,detec_r,max_rad):
 	return dct
 
 if __name__ == '__main__':
-	lens_system_name = 'Sam1'
+	parser = argparse.ArgumentParser()
+	parser.add_argument('lens_system_name',help='provide lens design')
+	args = parser.parse_args()
+	lens_system_name = args.lens_system_name
 	b_pxl = int(raw_input('input number of pixels at the central ring: (more than 3) '))
 	base = int(raw_input('input the number of optical system at the base: '))
 	max_rad = 10000.0/(2*(base+np.sqrt(3)-1))
