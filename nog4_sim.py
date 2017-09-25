@@ -1,20 +1,12 @@
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 from EventAnalyzer import EventAnalyzer
 from chroma.detector import Detector
-from chroma.sim import Simulation
 from chroma.loader import load_bvh
-from chroma.generator import vertex
-
-import Geant4
-from Geant4.hepunit import *
-
+from chroma.sim import Simulation
+import time, h5py, os, argparse
 import lensmaterials as lm
 import kabamland2 as kbl
 import numpy as np
-import time, h5py
-import os
-
-from pprint import pprint
 
 def fixed_dist(sample,radius,rads=None):
 	loc1 = sph_scatter(sample,in_shell = 4000,out_shell = 5000)
@@ -146,16 +138,14 @@ data_file_prefix = '/home/kwells/ch_hdf5_files/'
 energy = 1.
 
 if __name__ == '__main__':
-	#Geant4.gApplyUICommand("/run/verbose 2")
-	#Geant4.gApplyUICommand("/event/verbose 2")
-	#Geant4.gApplyUICommand("/tracking/verbose 2")
-
-	sample = 5
+	parser = argparse.ArgumentParser()
+	parser.add_argument('cfg', help='detector configuration')
+	args = parser.parse_args()
+	sample = 1000
 	distance = np.linspace(100,700,6)
-	seed_loc = 'r0-test-geant-'
-	cfg = 'cfJiani3_9'
-	path = data_file_prefix+cfg+'/raw_data/'+seed_loc
-	ptf = data_file_prefix+cfg+'/raw_data/'
+	cfg = args.cfg
+	seed_loc = 'r0-1'
+	ptf = '/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data/'
 	if not os.path.exists(ptf):
 		os.makedirs(ptf)
 	path = ptf+seed_loc

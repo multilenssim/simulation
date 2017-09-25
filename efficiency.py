@@ -12,12 +12,12 @@ from chroma.sim import Simulation
 from chroma.event import Photons
 from matplotlib import rcParams
 import matplotlib.pyplot as plt
+import math,os,ROOT,argparse
 import lensmaterials as lm
 from matplotlib import cm
 import kabamland2 as kbl
 from array import array
 import detectorconfig
-import math,os,ROOT
 import numpy as np
 
     
@@ -57,14 +57,14 @@ def eff_test(config, detres=None, detbins=10, sig_pos=0.01, n_ph_sim=[6600], rep
         ttree.Branch("multiplicity", multiplicity, "multiplicity/I")	
        
 		# Build detector 
-        kabamland = Detector(get_scintillation_material(),geant4_processes=0)
+        kabamland = Detector(lm.get_scintillation_material())
         kbl.build_kabamland(kabamland, config)
         kabamland.flatten()
         kabamland.bvh = load_bvh(kabamland)
         #view(kabamland)
         #quit()
 
-        sim = Simulation(kabamland)
+        sim = Simulation(kabamland,geant4_processes=0)
         print "Simulation started."
 
         if detres is None:
@@ -177,7 +177,7 @@ def plot_double_yaxis(recon, n_ph_sim, n_pos, max_rad):
 	ax2.set_ylabel('Light Collection Efficiency', color='red')
 	ax1.set_xlim(-10, max_rad*1.02/10)
 	ax1.set_ylim(0, 480)
-	ax2.set_ylim(0, .35)
+	ax2.set_ylim(0, 1)
         
 	for zz, amount in enumerate(n_ph_sim):
 		for ii in range(n_pos+1):
@@ -192,29 +192,6 @@ def plot_double_yaxis(recon, n_ph_sim, n_pos, max_rad):
 			ax2.errorbar(recon[zz,0,ii,0], np.mean(recon[zz,:,ii,2]/float(amount)), yerr=np.std(recon[zz,:,ii,2]/float(amount)), linestyle="None", color="red")
         
 		plt.show()
-		
-		
-		#Plot light collection efficiency and position resolution of all events as a scatter plot vs. the true radius 
-		#fig = plt.figure()
-		#plt.xlabel('Radius [cm]')
-		#plt.ylabel('Light Collection Efficiency')
-		#plt.axis([-100, max_rad*1.1/10, 0, 1.0])
-		#for zz, amount in enumerate(n_ph_sim):
-			#for ii in range(n_pos+1):
-				#for kk in range(len(recon[zz,:,ii,2])): 
-					#plt.scatter(recon[zz,0,ii,0],recon[zz,kk,ii,2]/float(amount), color="blue")
-		#plt.show()
-		
-		#fig = plt.figure()
-		#plt.xlabel('Radius [cm]')
-		#plt.ylabel('Position Resolution [mm]')
-		#plt.axis([-100, max_rad*1.1/10, 0, 400])
-		#for zz, amount in enumerate(n_ph_sim):
-			#for ii in range(n_pos+1):
-				#distance = np.sqrt(recon[zz,:,ii,3]*recon[zz,:,ii,3] + recon[zz,:,ii,4]*recon[zz,:,ii,4] + recon[zz,:,ii,5]*recon[zz,:,ii,5])
-				#for kk in range(len(distance)):
-					#plt.scatter(recon[zz,0,ii,0], distance[kk], color="blue")	
-		#plt.show()
 		
         
 def radius_equal_vol(steps = 11, max_rad = 6000):
@@ -241,8 +218,12 @@ def get_eff_from_root(filename, n_ph_sim, repetition, n_pos):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('cfg',help='detector configuration')
+    parser.add_argument('run',help='compute/plot')
+    args = parser.parse_args() 
     print "Efficiency test started"
-    design = ['cfJiani3_8']
+    design = [args.cfg]
     suffix = '_1DVariance'
     energy = [6600]
     repetition = 100
@@ -255,9 +236,10 @@ if __name__ == '__main__':
 		os.makedirs(rootdir)
 	fname = detfile + suffix		
 	print "Lens design used:	", detfile 
-	#eff_test(detfile, detres='detresang-'+fname+'_100million.root', detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
-    
-    	filename = 'rep-'+str(repetition)+'_npos-'+str(n_pos)
-    	get_eff_from_root(filename=filename , n_ph_sim=energy, repetition=repetition, n_pos=n_pos)
+	if args.run == 'compute':
+		eff_test(detfile, detres='detresang-'+fname+'_100million.root', detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
+	elif args.run == 'plot':
+		filename = 'rep-'+str(repetition)+'_npos-'+str(n_pos)
+		get_eff_from_root(filename=filename , n_ph_sim=energy, repetition=repetition, n_pos=n_pos)
     
     print "Simulation done."

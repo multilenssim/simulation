@@ -1,8 +1,8 @@
 from mpl_toolkits.mplot3d import Axes3D
 from chroma.generator import vertex
 import matplotlib.pyplot as plt
+import h5py,time,argparse
 import nog4_sim as setup
-import h5py,time
 
 
 def gen_ev(sample,cfg,particle,energy,i_r,o_r):
@@ -38,9 +38,13 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r):
 		f.create_dataset('idx_depo',data=arr_depo)
 
 if __name__=='__main__':
+	parser = argparse.ArgumentParser()
+	parser.add_argument('particle', help='particle to simulate')
+	parser.add_argument('cfg', help='detector configuration')
+	args = parser.parse_args()
 	sample = 1000
-	particle = 'e-'
-	cfg = 'cfJiani3_8'
+	particle = args.particle
+	cfg = args.cfg
 	energy = 2
 	start_time = time.time()
 	gen_ev(sample,cfg,particle,energy,0,1)

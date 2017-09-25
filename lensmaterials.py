@@ -75,7 +75,7 @@ def get_scintillation_material():
 		_ls.set_scintillation_property('FASTCOMPONENT', energy_scint, spect_scint)
 		# scint.set_scintillation_property('SLOWCOMPONENT', Scnt_PP, Scnt_SLOW);
 		# TODO: These keys much match the Geant4 pmaterial property names.  Get rid of these magic strings.
-		_ls.set_scintillation_property('SCINTILLATIONYIELD', 20000. / MeV)  # Was 10000 originally
+		_ls.set_scintillation_property('SCINTILLATIONYIELD', 8000. / MeV)  # Moved from 20000 to 8000 according to KamLand slides
 		_ls.set_scintillation_property('RESOLUTIONSCALE', 1.0)  # Was 1.0 originally
 		_ls.set_scintillation_property('FASTTIMECONSTANT', 1. * ns)
 		_ls.set_scintillation_property('SLOWTIMECONSTANT', 10. * ns)

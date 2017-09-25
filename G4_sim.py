@@ -233,7 +233,7 @@ if __name__ == '__main__':
 	fig = plt.figure()
 	ax = fig.gca(projection='3d')
 	ax.plot(out_ph1.pos[:,0],out_ph1.pos[:,1],out_ph1.pos[:,2],'.',label='e$^-$')
-	ax.plot(out_ph2.pos[:,0],out_ph2.pos[:,1],out_ph2.pos[:,2],'.',label='$\gamma$')
+	#ax.plot(out_ph2.pos[:,0],out_ph2.pos[:,1],out_ph2.pos[:,2],'.',label='$\gamma$')
 	plt.legend()
 	plt.show()
 	'''
