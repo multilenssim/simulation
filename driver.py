@@ -2,6 +2,7 @@ import sys
 
 from chroma.sim import Simulation
 from chroma.detector import Detector
+from chroma.detector import G4DetectorParameters
 from chroma.loader import load_bvh
 from chroma.generator import vertex
 #from chroma.io.root import RootWriter
@@ -47,9 +48,7 @@ def create_gamma_event(location, energy, amount, config, eventname, datadir=""):
 	# simulates a number of single gamma photon events equal to amount
 	# at position given by location for a given configuration.
 	# Gamma energy is in MeV.
-	kabamland = Detector(lm.create_scintillaton_material())
-	kabamland.orb_radius = 7.
-	kabamland.world_material = 'G4_Calactic'
+	kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Calactic'))
 
 	k2.build_kabamland(kabamland, config)
 	# Adds a small blue cube at the event location, for viewing

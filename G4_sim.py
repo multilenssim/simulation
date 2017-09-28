@@ -2,15 +2,25 @@
 
 from chroma.event import Vertex, Photons
 from chroma.generator import g4gen
+from chroma.detector import G4DetectorParameters
 
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
+import pprint
 
 import Geant4		# Only needed to turn logging on
 from Geant4.hepunit import *
 
 import lensmaterials
+
+def _print_bins(bins, label):
+    print(label + ' counts:')
+    i = 0
+    for index, count in enumerate(bins):
+        if count != 0:
+            print('    ' + str(index) + ': ' + str(count))
+    print
 
 class G4Generator:
 	def generate(self, particle_name, position, direction, scintillator, generator, energy=2.):
@@ -93,13 +103,14 @@ if __name__ == '__main__':
 	#NISTManager->ListMaterials("all");
 	##########
 
-	scintillator = lensmaterials.create_scintillaton_material()
+	scintillator = lensmaterials.create_scintillation_material()
 
 	x_position = None
 	if len(sys.argv) > 1:
 		x_position = float(sys.argv[1])
 
-	gen = g4gen.G4Generator(scintillator, orb_radius=7.)
+	g4_params = G4DetectorParameters(world_material='G4_AIR', orb_radius=2.02)
+	gen = g4gen.G4Generator(scintillator, g4_detector_parameters=g4_params)
 	momentum = (1, 0, 0)
 
 	# Wierd things happen when we make the world out of scintillator
@@ -119,8 +130,8 @@ if __name__ == '__main__':
 	g4 = None
 	'''
 
-	e_x_distances = np.linspace(6.97, 7.04, 29)    # (6.97, 7.04, 29)		# (6.99, 7.001, 12)
-	gamma_x_distances = np.linspace(5.5, 7.20, 35)    # (5.5, 7.20, 35)					# (5.8, 7.05, 26)
+	e_x_distances = [0., 2.] # np.linspace(6.97, 7.04, 29)    # (6.97, 7.04, 29)		# (6.99, 7.001, 12)
+	gamma_x_distances = [0., 2.] # np.linspace(5.5, 7.20, 35)    # (5.5, 7.20, 35)					# (5.8, 7.05, 26)
 
 	particles = ['e-','gamma'] # ['gamma','e-']
 
@@ -132,13 +143,14 @@ if __name__ == '__main__':
 		scint_counts[particle] = {}
 		cherenkov_counts[particle] = {}
 
-	print("Starting photon generation")
 
-	run_count = 10
+	run_count = 1
 	for counter in xrange(run_count):
 		for particle in particles:
+			print("===> Starting photon generation: " + particle)
 			x_distances = e_x_distances if particle == "e-" else gamma_x_distances
 			for x in x_distances:
+				print("======> Distance: " + str(x))
 				if counter == 0:
 					counts[particle][x] = []
 					scint_counts[particle][x] = []
@@ -146,10 +158,11 @@ if __name__ == '__main__':
 				position = (x * m, 0., 0.)
 				# gen = g4gen.G4Generator(scint)
 				g4 = G4Generator()		# Should not be necessary
-				output = g4.generate(particle, position, momentum, scintillator, gen)
+				output = g4.generate(particle, position, momentum, scintillator, gen, energy=2.)
 				g4 = None
 				counts[particle][x].append(len(output.pos))
 
+				type_bins = np.bincount(output.process_types)
 				# Count subtypes
 				subtype_bins = np.bincount(output.process_subtypes)
 				# Magic numbers.  For subtype definitions, see:
@@ -166,22 +179,12 @@ if __name__ == '__main__':
 				if counts[particle][x][-1] != scint_counts[particle][x][-1] + cherenkov_counts[particle][x][-1]:
 					print("===>>> Uh oh: counts don't add up: ", particle, x, counts[particle][x], scint_counts[particle][x], cherenkov_counts[particle][x]);
 
-	'''
-	Initial manual binning:
-	        process_counters = {}
-        for ptype in process_types:
-            if ptype in process_counters:
-                process_counters[ptype] += 1
-            else:
-                process_counters[ptype] = 1
+				print("Process types: ", pprint.pformat(type_bins))
+				print("Process subtypes: ", pprint.pformat(subtype_bins))
+				_print_bins(type_bins, 'Process type')
+				_print_bins(subtype_bins, 'Process subtype')
 
-        process_subtype_counters = {}
-        for ptype in process_subtypes:
-            if ptype in process_subtype_counters:
-                process_subtype_counters[ptype] += 1
-            else:
-                process_subtype_counters[ptype] = 1
-	'''
+
 
 	e_avgs, e_yerr = compute_stats(counts['e-'], e_x_distances)
 	gamma_avgs, gamma_yerr = compute_stats(counts['gamma'], gamma_x_distances)
