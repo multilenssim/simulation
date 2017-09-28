@@ -9,10 +9,11 @@ from chroma.generator import vertex
 
 import kabamland2 as k2
 import lensmaterials as lm
+import detectoranalysis as da
 
 datadir = "/home/kwells/TestData/"
 
-fileinfo = 'cfJiani3_4'    #'configpc6-meniscus6-fl1_027-confined'#'configpc7-pcrad09dia-fl2-confined'#'configview-meniscus6-fl2_113-confined'
+fileinfo = 'cfJiani3_8'    #'configpc6-meniscus6-fl1_027-confined'#'configpc7-pcrad09dia-fl2-confined'#'configview-meniscus6-fl2_113-confined'
 
 
 '''
@@ -71,10 +72,12 @@ def create_gamma_event(location, energy, amount, config, eventname, datadir=""):
 if __name__ == '__main__':
 	create_gamma_event((0, 0, 0), 2., 1, fileinfo, 'gamma-test-', datadir=datadir)
 
-
 # From Scott's scripts_stanford.py
 
-#kb.full_detector_simulation(100000, 'cfSam1_1', 'sim-'+fileinfo+'_100million.root', datadir=datadir)
+	# To build the calibration file
+	# fileinfo='cfJiani3_10kw' # And replace all the Jiani's below
+	#k2.full_detector_simulation(100000, 'cfJiani3_10kw', 'sim-'+fileinfo+'_100million.root', datadir=datadir)
+	#da.create_detres('cfJiani3_10kw', 'sim-'+'cfJiani3_10kw'+'_100million.root', 'detresang-'+'cfJiani3_10kw'+'_1DVariance_100million.root', method="GaussAngle", nevents=-1, datadir=datadir)
 
 # For an inscribed radius of ~7400, (3000, 3000, 3000) corresponds to a radius of about 70% of the inscribed radius
 #kb.create_event((3000,3000,3000), 0.1, 100000, 'cfJiani3_4', 'event-'+fileinfo+'-(3000-3000-3000)-100000.root', datadir=datadir)
@@ -85,7 +88,6 @@ if __name__ == '__main__':
 
 #kb.create_event((0, 0, 0), 0.1, 100000, 'cfSam1_1', 'event-'+fileinfo+'-(0-0-0)-100000.root', datadir=datadir)
 
-#da.create_detres('cfJiani3_4', 'sim-'+fileinfo+'_100million.root', 'detresang-'+fileinfo+'_1DVariance_100million.root', method="GaussAngle", nevents=-1, datadir=datadir)
     
 #da.check_detres_sigmas('cfJiani3_4', 'detresang-'+fileinfo+'_1DVariance_100million.root', datadir=datadir)
 

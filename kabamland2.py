@@ -12,7 +12,7 @@ from chroma.event import Photons
 from chroma.loader import load_bvh
 from chroma.generator import vertex
 
-#from ShortIO.root_short import ShortRootWriter
+from ShortIO.root_short import ShortRootWriter
 #from chroma.io.root import RootWriter
 from Geant4.hepunit import *
 
@@ -391,7 +391,7 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
     face = None
     ls = lm.create_scintillation_material()
     for lens_i in lenses: # Add all the lenses for the first lens system to solid 'face'
-        lens_solid_i = Solid(mh.shift(lens_i, (lens_xcoords[0], lens_ycoords[0], 0.)), lensmat, ls)
+        lens_solid_i = Solid(mh.shift(lens_i, (lens_xcoords[0], lens_ycoords[0], 0.)), lensmat, kabamland.detector_material) 
         if not face:
             face = lens_solid_i
         else:
@@ -399,7 +399,7 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
     # Repeat for all lens systems on this face
     for i in np.linspace(1, triangular_number(base)-1, triangular_number(base)-1):
         for lens_i in lenses:
-            face = face + Solid(mh.shift(lens_i, (lens_xcoords[np.int(i)], lens_ycoords[np.int(i)], 0.)), lensmat, ls)
+            face = face + Solid(mh.shift(lens_i, (lens_xcoords[np.int(i)], lens_ycoords[np.int(i)], 0.)), lensmat, kabamland.detector_material)
         
     
     #creating the various blocker shapes to fill in the empty space of a single face.
@@ -409,7 +409,7 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
         if light_confinement:
             shield = mh.rotate(cylindrical_shell(max_radius*(1 - 0.001), max_radius, focal_length), make_rotation_matrix(np.pi/2.0, (1,0,0)))
             for i in np.linspace(0, triangular_number(base)-1, triangular_number(base)):  
-                face = face + Solid(mh.shift(shield, (lens_xcoords[np.int(i)], lens_ycoords[np.int(i)], -focal_length/2.0)), lensmat, ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(shield, (lens_xcoords[np.int(i)], lens_ycoords[np.int(i)], -focal_length/2.0)), lensmat, kabamland.detector_material, black_surface, 0xff0000)
 
         if base >= 2:
             down_blocker = inner_blocker_mesh(max_radius, blocker_thickness)
@@ -419,7 +419,7 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
             down_blocker_xcoords = max_radius*down_blocker_xindices + first_down_blocker_xcoord - xshift
             down_blocker_ycoords = np.sqrt(3)*max_radius*down_blocker_yindices + first_down_blocker_ycoord - yshift
             for i in range(triangular_number(base-1)):
-                face = face + Solid(mh.shift(down_blocker, (down_blocker_xcoords[i], down_blocker_ycoords[i], 0)), lensmat, ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(down_blocker, (down_blocker_xcoords[i], down_blocker_ycoords[i], 0)), lensmat, kabamland.detector_material, black_surface, 0xff0000)
 
             bottom_blocker = outer_blocker_mesh(max_radius, blocker_thickness)
             right_blocker = mh.rotate(bottom_blocker, make_rotation_matrix(-2*np.pi/3.0, (0, 0, 1)))
@@ -431,9 +431,9 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
             left_blocker_xcoords = distances*np.cos(np.pi/3.0) - xshift
             left_blocker_ycoords = distances*np.sin(np.pi/3.0) - yshift
             for i in range(base-1):
-                face = face + Solid(mh.shift(bottom_blocker, (bottom_blocker_xcoords[i], -yshift, 0)), lensmat, ls, black_surface, 0xff0000)
-                face = face + Solid(mh.shift(right_blocker, (right_blocker_xcoords[i], right_blocker_ycoords[i], 0)), lensmat, ls, black_surface, 0xff0000)
-                face = face + Solid(mh.shift(left_blocker, (left_blocker_xcoords[i], left_blocker_ycoords[i], 0)), lensmat, ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(bottom_blocker, (bottom_blocker_xcoords[i], -yshift, 0)), lensmat, kabamland.detector_material, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(right_blocker, (right_blocker_xcoords[i], right_blocker_ycoords[i], 0)), lensmat, kabamland.detector_material, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(left_blocker, (left_blocker_xcoords[i], left_blocker_ycoords[i], 0)), lensmat, kabamland.detector_material, black_surface, 0xff0000)
 
         if base >= 3:
             up_blocker = mh.rotate(down_blocker, make_rotation_matrix(np.pi, (0, 0, 1)))
@@ -443,19 +443,19 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
             up_blocker_xcoords = max_radius*up_blocker_xindices + first_up_blocker_xcoord - xshift
             up_blocker_ycoords = np.sqrt(3)*max_radius*up_blocker_yindices + first_up_blocker_ycoord - yshift
             for i in range(triangular_number(base-2)):    
-                face = face + Solid(mh.shift(up_blocker, (up_blocker_xcoords[i], up_blocker_ycoords[i], 0)), lensmat, ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(up_blocker, (up_blocker_xcoords[i], up_blocker_ycoords[i], 0)), lensmat, kabamland.detector_material, black_surface, 0xff0000)
         
         corner_blocker = corner_blocker_mesh(max_radius, blocker_thickness)
         for i in range(3):
             theta = 2*np.pi/3.0*i + np.pi/2.0 
             rotated_corner_blocker = mh.rotate(corner_blocker, make_rotation_matrix(-2*np.pi/3.0*i, (0, 0, 1)))
-            face = face + Solid(mh.shift(rotated_corner_blocker, (2*yshift*np.cos(theta), 2*yshift*np.sin(theta), 0)), lensmat, ls, black_surface, 0xff0000)
+            face = face + Solid(mh.shift(rotated_corner_blocker, (2*yshift*np.cos(theta), 2*yshift*np.sin(theta), 0)), lensmat, kabamland.detector_material, black_surface, 0xff0000)
 
         # Build entrance pupil blockers if needed
         if half_EPD < max_radius:
             annulus_blocker = mh.rotate(cylindrical_shell(half_EPD, max_radius, blocker_thickness), make_rotation_matrix(np.pi/2.0, (1,0,0)))
             for i in range(triangular_number(base)):
-                face = face + Solid(mh.shift(annulus_blocker, (lens_xcoords[i], lens_ycoords[i], 0)), lensmat, ls, black_surface, 0xff0000)
+                face = face + Solid(mh.shift(annulus_blocker, (lens_xcoords[i], lens_ycoords[i], 0)), lensmat, kabamland.detector_material, black_surface, 0xff0000)
 
     #creating all 20 faces and putting them into the detector with the correct orientations.
     for k in range(20):   
@@ -642,10 +642,9 @@ def build_curvedsurface_icosahedron(kabamland, edge_length, base, diameter_ratio
     lens_ycoords = np.sqrt(3)*max_radius*lens_yindices + first_lens_ycoord - yshift
     #Changed the rotation matrix to try and keep the curved surface towards the interior
     initial_curved_surf = mh.rotate(curved_surface2(detector_r, diameter=diameter, nsteps=nsteps, base_pxl=b_pxl), make_rotation_matrix(-np.pi/2, (1,0,0)))
-    ls = lm.create_scintillation_material()
-    face = Solid(mh.shift(initial_curved_surf, (lens_xcoords[0], lens_ycoords[0], 0)), ls, ls, lm.fulldetect, 0x0000FF)
+    face = Solid(mh.shift(initial_curved_surf, (lens_xcoords[0], lens_ycoords[0], 0)), kabamland.detector_material, kabamland.detector_material, lm.fulldetect, 0x0000FF)
     for i in np.linspace(1, triangular_number(base)-1, triangular_number(base)-1):
-        face = face + Solid(mh.shift(initial_curved_surf, (lens_xcoords[int(i)], lens_ycoords[int(i)], 0)), ls, ls, lm.fulldetect, 0x0000FF)
+        face = face + Solid(mh.shift(initial_curved_surf, (lens_xcoords[int(i)], lens_ycoords[int(i)], 0)), kabamland.detector_material, kabamland.detector_material, lm.fulldetect, 0x0000FF) 
     for k in range(20):   
         kabamland.add_solid(face, rotation=np.dot(make_rotation_matrix(spin_angle[k], direction[k]), make_rotation_matrix(angle[k], axis[k])), displacement=facecoords[k] + focal_length*normalize(facecoords[k]))
 
@@ -662,7 +661,7 @@ def build_pmt_icosahedron(kabamland, edge_length, base, focal_length=1.0):
     pmt_side_length = np.sqrt(3)*(3-np.sqrt(5))*focal_length + edge_length
     ls = lm.create_scintillation_material()
     for k in range(20):
-       kabamland.add_pmt(Solid(triangle_mesh(pmt_side_length, .001*pmt_side_length), glass, ls, lm.fullabsorb, 0xBBFFFFFF), rotation=np.dot(make_rotation_matrix(spin_angle[k], direction[k]), make_rotation_matrix(angle[k], axis[k])), displacement=facecoords[k] + focal_length*normalize(facecoords[k]) + 0.0000005*normalize(facecoords[k]))
+       kabamland.add_pmt(Solid(triangle_mesh(pmt_side_length, .001*pmt_side_length), glass, kabamland.detector_material, lm.fullabsorb, 0xBBFFFFFF), rotation=np.dot(make_rotation_matrix(spin_angle[k], direction[k]), make_rotation_matrix(angle[k], axis[k])), displacement=facecoords[k] + focal_length*normalize(facecoords[k]) + 0.0000005*normalize(facecoords[k]))
 
 def build_kabamland(kabamland, configname):
     # focal_length sets dist between lens plane and PMT plane (or back of curved detecting surface);
@@ -676,7 +675,7 @@ def build_kabamland(kabamland, configname):
 
 def create_event(location, sigma, amount, config, eventname, datadir=""):
 	#simulates a single event within the detector for a given configuration.
-	kabamland = Detector(lm.ls)
+	kabamland = Detector(lm.create_scintillation_material())
 	build_kabamland(kabamland, config)
 	#kabamland.add_solid(Solid(make.box(0.1,0.1,0.1,center=location), glass, lm.ls, color=0x0000ff)) # Adds a small blue cube at the event location, for viewing
 	kabamland.flatten()
@@ -695,14 +694,13 @@ def create_electron_event(location, energy, amount, config, eventname, datadir="
 	#simulates a number of single electron events equal to amount
 	#at position given by location for a given configuration.
 	#Electron energy is in MeV.
-	kabamland = Detector(lm.ls, g4_detector_parameters=G4DetectorParameters(orb_radius=7.))
+	kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=G4DetectorParameters(orb_radius=7.))
 	build_kabamland(kabamland, config)
 	#kabamland.add_solid(Solid(make.box(0.1,0.1,0.1,center=location), glass, lm.ls, color=0x0000ff)) # Adds a small blue cube at the event location, for viewing
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
 	#view(kabamland)
-	#quit()
-	f = ShortRootWriter(datadir + eventname)
+	#quit()	f = ShortRootWriter(datadir + eventname)
 	sim = Simulation(kabamland)
 	gun = vertex.particle_gun(['e-']*amount, vertex.constant(location), vertex.isotropic(),vertex.flat(float(energy)*0.99,float(energy)*1.01))
 	for ev in sim.simulate(gun, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
@@ -722,30 +720,14 @@ def create_gamma_event(location, energy, amount, config, eventname, datadir=""):
     # simulates a number of single gamma photon events equal to amount
     # at position given by location for a given configuration.
     # Gamma energy is in MeV.
-    kabamland = Detector(lm.ls)
+    kabamland = Detector(lm.create_scintillation_material())
     build_kabamland(kabamland, config)
     # kabamland.add_solid(Solid(make.box(0.1,0.1,0.1,center=location), glass, lm.ls, color=0x0000ff)) # Adds a small blue cube at the event location, for viewing
     kabamland.flatten()
-    # kabamland.bvh = load_bvh(kabamland)
+    kabamland.bvh = load_bvh(kabamland)
     # view(kabamland)
     # quit()
     # f = RootWriter(datadir + eventname)
-
-    # Scintillation properties
-    # TODO: These keys much match the Geant4 pmaterial property names.  Get rid of these magic strings.
-    kabamland.detector_material.set_scintillation_property('SCINTILLATIONYIELD', 10000. / MeV)
-    kabamland.detector_material.set_scintillation_property('RESOLUTIONSCALE', 0.0)
-    kabamland.detector_material.set_scintillation_property('FASTTIMECONSTANT', 1. * ns)
-    kabamland.detector_material.set_scintillation_property('SLOWTIMECONSTANT', 10. * ns)
-    kabamland.detector_material.set_scintillation_property('YIELDRATIO', 0.8)
-
-    # This causes different effects from using the separate FAST and SLOW components below
-    # kabamland.detector_material.set_scintillation_property('SCINTILLATION', [float(2*pi*hbarc / (360. * nanometer))], [float(1.0)]) # From KamLAND photocathode paper   # Per Scott
-
-    # See https://geant4.web.cern.ch/geant4/UserDocumentation/UsersGuides/ForApplicationDeveloper/html/ch02s03.html
-    # Need to validate that the types are being passed through properly.  Previously was using list(Scnt_PP.astype(float)
-    kabamland.detector_material.set_scintillation_property('FASTCOMPONENT', Scnt_PP, Scnt_FAST);
-    kabamland.detector_material.set_scintillation_property('SLOWCOMPONENT', Scnt_PP, Scnt_SLOW);
 
     sim = Simulation(kabamland, geant4_processes=1)
     print "Starting gun simulation:" + datadir + eventname
@@ -759,7 +741,7 @@ def create_gamma_event(location, energy, amount, config, eventname, datadir=""):
 
 def create_double_source_event(loc1, loc2, sigma, amount, config, eventname, datadir=""):
 	#simulates an event with two different photon sources for a given configuration.
-	kabamland = Detector(lm.ls)
+	kabamland = Detector(lm.create_scintillation_material())
 	build_kabamland(kabamland, config)
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
@@ -776,8 +758,9 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 	#simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron. Note that viewing may crash if there are too many lenses. (try using configview)
 	
 	config = detectorconfig.configdict[configname] 
-	kabamland = Detector(lm.ls)
-	print 'starting to build'
+    kabamland = Detector(lm.get_scintillation_material())
+    kabamland.orb_radius = 2.0
+    print 'starting to build'
 	build_kabamland(kabamland, configname)
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
@@ -785,7 +768,7 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 	#view(kabamland)
 	#exit()
 	f = ShortRootWriter(datadir + simname)
-	sim = Simulation(kabamland)
+	sim = Simulation(kabamland,geant4_processes=0)
 	for j in range(100):
 		print j
 		sim_events = [uniform_photons(config.edge_length, amount) for i in range(10)]
@@ -796,9 +779,9 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 if __name__ == '__main__':
 
 	datadir = "/home/miladmalek/TestData/"
-	print curved_surface(2,2.5,23).triangles.shape
+	#config = detectorconfig.configdict['cfJiani3_8']
 	#plot_mesh_object(curved_surface2(2, diameter=2.5, nsteps=6,base_pxl=2))
-	#full_detector_simulation(100, 'cfJiani3_3', 'sim-cfJiani3_3_100million.root')
+	full_detector_simulation(100, 'cfJiani3_3', 'sim-cfJiani3_3_100million.root')
 
     #create_event((0,0,0), 0.1, 100000, 'cfJiani3_2', 'event-cfJiani3_2-(0-0-0)-100000.root')
  

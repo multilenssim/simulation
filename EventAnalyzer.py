@@ -221,7 +221,7 @@ class EventAnalyzer(object):
         # the true directions the photons came from
         
         # Create a list of tracks (from hits and detector response, if calibrated, else w/ perfect resolution)
-        tracks = self.generate_tracks(event, sig_cone, n_ph, debug)
+        tracks = self.generate_tracks(event, heat_map=False,sig_cone=sig_cone, n_ph=n_ph, lens_dia=None,debug=False)
         
         # Find/fit vertices using adaptive vertex fitter method
         return self.AVF(tracks, min_tracks, chiC, temps, tol, debug) # list of Vertex objects
@@ -604,12 +604,24 @@ class EventAnalyzer(object):
             
         return vtcs
 
-    def generate_tracks(self, ev, sig_cone=0.01, n_ph=0, lens_dia=None, debug=False):
+    def QE(self,gen,qe):
+	#applies a given quantum efficiency to each pixel to a vector containing the hit pixel
+	mask = []
+	for e in np.unique(gen):
+		arr_id = np.where(gen==e)[0]
+		counts = np.random.poisson(qe*len(arr_id))
+		if counts>len(arr_id):
+			counts = np.random.choice(len(arr_id))
+		fltr = np.random.choice(arr_id,counts,replace=False)
+		mask.extend(fltr)
+	return gen[sorted(mask)]
+
+    def generate_tracks(self, ev, qe=None, heat_map = False, sig_cone=0.01, n_ph=0, lens_dia=None, debug=False):
         #Makes tracks for event ev; allow for multiple track representations?
         detected = (ev.photons_end.flags & (0x1 <<2)).astype(bool)
-        reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
-        reflected_specular = (ev.photons_end.flags & (0x1 <<6)).astype(bool)
-        good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
+        #reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
+        #reflected_specular = (ev.photons_end.flags & (0x1 <<6)).astype(bool)
+        #good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
              
         beginning_photons = ev.photons_beg.pos[detected] # Include reflected photons
         ending_photons = ev.photons_end.pos[detected]
@@ -629,6 +641,10 @@ class EventAnalyzer(object):
  
         end_direction_array = normalize(ending_photons-beginning_photons).T
         event_pmt_bin_array = np.array(self.det_res.find_pmt_bin_array(ending_photons)) # Get PMT hit location
+	if qe == None:
+		pass
+	else:
+		event_pmt_bin_array = self.QE(event_pmt_bin_array,qe)
         event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T
         
         event_lens_bin_array = np.array(event_pmt_bin_array/self.det_res.n_pmts_per_surf)
@@ -694,6 +710,8 @@ class EventAnalyzer(object):
                 print "Tracks for calibrated PMTs: " + str(len(tracks))
             #tracks.cull(np.where(tracks.sigmas<0.2)) # Remove tracks with too large uncertainty
             #tracks.sigmas[:] = 0.054 # Temporary! Checking if setting all sigmas equal to each other helps or hurts
+	    if heat_map == True:
+		return tracks, event_pmt_bin_array
             return tracks     
     
     @staticmethod

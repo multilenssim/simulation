@@ -165,6 +165,7 @@ if __name__ == '__main__':
 				type_bins = np.bincount(output.process_types)
 				# Count subtypes
 				subtype_bins = np.bincount(output.process_subtypes)
+				type_bins = np.bincount(output.process_types)
 				# Magic numbers.  For subtype definitions, see:
 				#    http://geant4.web.cern.ch/geant4/collaboration/working_groups/electromagnetic/
 				scint_count = 0
@@ -183,8 +184,6 @@ if __name__ == '__main__':
 				print("Process subtypes: ", pprint.pformat(subtype_bins))
 				_print_bins(type_bins, 'Process type')
 				_print_bins(subtype_bins, 'Process subtype')
-
-
 
 	e_avgs, e_yerr = compute_stats(counts['e-'], e_x_distances)
 	gamma_avgs, gamma_yerr = compute_stats(counts['gamma'], gamma_x_distances)
@@ -249,7 +248,7 @@ if __name__ == '__main__':
 	fig = plt.figure()
 	ax = fig.gca(projection='3d')
 	ax.plot(out_ph1.pos[:,0],out_ph1.pos[:,1],out_ph1.pos[:,2],'.',label='e$^-$')
-	ax.plot(out_ph2.pos[:,0],out_ph2.pos[:,1],out_ph2.pos[:,2],'.',label='$\gamma$')
+	#ax.plot(out_ph2.pos[:,0],out_ph2.pos[:,1],out_ph2.pos[:,2],'.',label='$\gamma$')
 	plt.legend()
 	plt.show()
 	'''
@@ -276,4 +275,3 @@ if __name__ == '__main__':
 	gen2 = g4gen.G4Generator(scintillator)
 	out_ph1 = g4.generate('e-', (0. * m, 0., 0.), momentum, scintillator, gen2, energy=2.)		# NOTE the energy here.  for testing !!!!!
 	'''
-	final = 1
