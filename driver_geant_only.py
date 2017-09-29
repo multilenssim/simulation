@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import pprint
+import math
 
 import Geant4		# Only needed to turn logging on
 from Geant4.hepunit import *
@@ -139,6 +140,7 @@ if __name__ == '__main__':
 	scint_counts = {}
 	cherenkov_counts = {}
 	track_counts = {}
+	vertex_positions = {}
 
 	run_count = 100
 	for particle in particles:
@@ -146,6 +148,7 @@ if __name__ == '__main__':
 		scint_counts[particle] = {}
 		cherenkov_counts[particle] = {}
 		track_counts[particle] = np.ndarray(run_count, dtype=int)
+		vertex_positions[particle] = np.ndarray(run_count, dtype=float)
 
 	for counter in xrange(run_count):
 		for particle in particles:
@@ -163,7 +166,31 @@ if __name__ == '__main__':
 				output = g4.generate(particle, position, momentum, scintillator, gen, energy=2.)
 
 				track_tree = gen.track_tree
-				track_counts[particle][counter] = len(track_tree)
+				track_count = len(track_tree) - 1
+				track_counts[particle][counter] = track_count
+				if particle == 'e-' and track_count != 1:
+					print
+					print("e- with " +  str(track_count) + " tracks:")
+					pprint.pprint(track_tree)
+					print
+				if particle == 'gamma' and ((track_count < 18) or (track_count > 32)):
+					print
+					print("gamma with " +  str(track_count) + " tracks:")
+					pprint.pprint(track_tree)
+					print
+
+				max_distance = 0.
+				center_location_track_number = 1 if particle == 'e-' else 2		# Note: this is tricky - be careful
+				center_location = track_tree[center_location_track_number]['position']
+				for key, entry in track_tree.iteritems():
+					if 'position' in entry:
+						position = entry['position']
+						distance_from_center = math.sqrt(math.pow((position.x - center_location.x),2) +
+														 math.pow((position.y - center_location.y),2) +
+														 math.pow((position.z - center_location.z),2))
+						if distance_from_center > max_distance:
+							max_distance = distance_from_center
+				vertex_positions[particle][counter] = max_distance
 
 				counts[particle][x].append(len(output.pos))
 
@@ -191,6 +218,43 @@ if __name__ == '__main__':
 				_print_bins(subtype_bins, 'Process subtype')
 				'''
 				g4 = None
+
+	# the histogram of the data
+	# See: https://matplotlib.org/devdocs/gallery/pyplots/pyplot_text.html#sphx-glr-gallery-pyplots-pyplot-text-py
+	# n, bins, patches = plt.hist(track_counts['e-']) # , 50, normed=1, facecolor='g', alpha=0.75)
+
+	fig, axs = plt.subplots(nrows=2, ncols=2) # , sharey=True)
+	fig.suptitle("Track Histograms | 100 particles each | 2 MeV", fontsize=14)
+	# plt.title("Track counts")
+	# plt.xlabel('Number of Tracks')
+
+	plt1 = axs[0][0]
+	plt1.hist(track_counts['e-'], bins=20, histtype='step', label='e$^-$', linewidth=2) # ,bins=400,histtype='step',linewidth=2,label='e$^-$')
+	plt1.set_title('e -')
+	plt1.grid(True)		# See: https://matplotlib.org/examples/pylab_examples/axes_props.html
+	plt1.set_xlabel('Number of Tracks')
+
+	plt2 = axs[0][1]
+	plt2.hist(track_counts['gamma'], bins=20, histtype='step', label='gamma', linewidth=2) # ,bins=400,histtype='step',linewidth=2,label='e$^-$')
+	plt2.set_title('gamma')
+	plt2.grid(True)		# See: https://matplotlib.org/examples/pylab_examples/axes_props.html
+	plt2.set_xlabel('Number of Tracks')
+
+	plt3 = axs[1][0]
+	plt3.hist(vertex_positions['e-'], bins=40, histtype='step', label='e$^-$', linewidth=2) # ,bins=400,histtype='step',linewidth=2,label='e$^-$')
+	# plt3.set_title('e -')
+	plt3.grid(True)		# See: https://matplotlib.org/examples/pylab_examples/axes_props.html
+	plt3.set_xlabel('Max vertex distance from origin')
+
+	plt4 = axs[1][1]
+	plt4.hist(vertex_positions['gamma'], bins=40, histtype='step', label='gamma', linewidth=2) # ,bins=400,histtype='step',linewidth=2,label='e$^-$')
+	# plt4.set_title('gamma')
+	plt4.grid(True)		# See: https://matplotlib.org/examples/pylab_examples/axes_props.html
+	plt4.set_xlabel('Max vertex distance from first deposition')
+
+	# plt.legend()
+	plt.show()
+	exit(0)
 
 	e_avgs, e_yerr = compute_stats(counts['e-'], e_x_distances)
 	gamma_avgs, gamma_yerr = compute_stats(counts['gamma'], gamma_x_distances)
