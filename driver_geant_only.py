@@ -130,21 +130,23 @@ if __name__ == '__main__':
 	g4 = None
 	'''
 
-	e_x_distances = [0., 2.] # np.linspace(6.97, 7.04, 29)    # (6.97, 7.04, 29)		# (6.99, 7.001, 12)
-	gamma_x_distances = [0., 2.] # np.linspace(5.5, 7.20, 35)    # (5.5, 7.20, 35)					# (5.8, 7.05, 26)
+	e_x_distances = [0.] # np.linspace(6.97, 7.04, 29)    # (6.97, 7.04, 29)		# (6.99, 7.001, 12)
+	gamma_x_distances = [0.] # np.linspace(5.5, 7.20, 35)    # (5.5, 7.20, 35)					# (5.8, 7.05, 26)
 
-	particles = ['e-','gamma'] # ['gamma','e-']
+	particles = ['e-', 'gamma'] # ['gamma','e-']
 
 	counts = {}
 	scint_counts = {}
 	cherenkov_counts = {}
+	track_counts = {}
+
+	run_count = 100
 	for particle in particles:
 		counts[particle] = {}
 		scint_counts[particle] = {}
 		cherenkov_counts[particle] = {}
+		track_counts[particle] = np.ndarray(run_count, dtype=int)
 
-
-	run_count = 1
 	for counter in xrange(run_count):
 		for particle in particles:
 			print("===> Starting photon generation: " + particle)
@@ -159,7 +161,10 @@ if __name__ == '__main__':
 				# gen = g4gen.G4Generator(scint)
 				g4 = G4Generator()		# Should not be necessary
 				output = g4.generate(particle, position, momentum, scintillator, gen, energy=2.)
-				g4 = None
+
+				track_tree = gen.track_tree
+				track_counts[particle][counter] = len(track_tree)
+
 				counts[particle][x].append(len(output.pos))
 
 				type_bins = np.bincount(output.process_types)
@@ -179,11 +184,13 @@ if __name__ == '__main__':
 				cherenkov_counts[particle][x].append(cherenkov_count)
 				if counts[particle][x][-1] != scint_counts[particle][x][-1] + cherenkov_counts[particle][x][-1]:
 					print("===>>> Uh oh: counts don't add up: ", particle, x, counts[particle][x], scint_counts[particle][x], cherenkov_counts[particle][x]);
-
+				'''
 				print("Process types: ", pprint.pformat(type_bins))
 				print("Process subtypes: ", pprint.pformat(subtype_bins))
 				_print_bins(type_bins, 'Process type')
 				_print_bins(subtype_bins, 'Process subtype')
+				'''
+				g4 = None
 
 	e_avgs, e_yerr = compute_stats(counts['e-'], e_x_distances)
 	gamma_avgs, gamma_yerr = compute_stats(counts['gamma'], gamma_x_distances)
