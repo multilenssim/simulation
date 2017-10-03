@@ -197,7 +197,6 @@ if __name__ == '__main__':
 				type_bins = np.bincount(output.process_types)
 				# Count subtypes
 				subtype_bins = np.bincount(output.process_subtypes)
-				type_bins = np.bincount(output.process_types)
 				# Magic numbers.  For subtype definitions, see:
 				#    http://geant4.web.cern.ch/geant4/collaboration/working_groups/electromagnetic/
 				scint_count = 0
