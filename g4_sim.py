@@ -42,7 +42,7 @@ if __name__=='__main__':
 	parser.add_argument('particle', help='particle to simulate')
 	parser.add_argument('cfg', help='detector configuration')
 	args = parser.parse_args()
-	sample = 1000
+	sample = 500
 	particle = args.particle
 	cfg = args.cfg
 	energy = 2

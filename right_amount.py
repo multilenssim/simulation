@@ -19,7 +19,6 @@ def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=20,base_pxl=4):
     angles1 = np.linspace(theta1, np.pi/2, nsteps)
     x_value = abs(detector_r*np.cos(angles1))
     y_value = detector_r-detector_r*np.sin(angles1)
-    surf = None
     x_coord,y_coord,n_step = calc_steps(x_value,y_value,detector_r,base_pixel=base_pxl)
     return calc_steps(x_value,y_value,detector_r,base_pxl)
 
@@ -36,7 +35,8 @@ def param_arr(base,b_pxl,l_sys,detec_r,max_rad):
 		arr.append(sum(curved_surface2(detec_r,2*max_rad,i,b_pxl)[2]))
 	arr = np.asarray(arr)
 	dct = np.stack((ix,scal_lens*edge_len/(2*(np.sqrt(2*px_per_face/arr).astype(int)+np.sqrt(3)-1))))
-	sel_arr = np.absolute(((base*(base+1))/2*arr-px_per_face)/px_per_face)<0.1
+	print arr
+	sel_arr = np.absolute(((base*(base+1))/2*arr-px_per_face)/px_per_face)<0.3
 	dct = dct[:,sel_arr]
 	if dct.shape[1]>1:
 		dct = dct[:,np.argmin(np.absolute((base*(base+1))/2*arr[sel_arr]-5000))]

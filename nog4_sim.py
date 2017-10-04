@@ -46,11 +46,12 @@ def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 	return events
 
 def sim_setup(config,in_file):
-	kabamland = Detector(lm.get_scintillation_material())
-	kabamland.orb_radius = 2.0
-	kbl.build_kabamland(kabamland, config)
-	kabamland.flatten()
-	kabamland.bvh = load_bvh(kabamland)
+	#kabamland = Detector(lm.get_scintillation_material())
+	#kabamland.orb_radius = 4.5
+	#kbl.build_kabamland(kabamland, config)
+	#kabamland.flatten()
+	#kabamland.bvh = load_bvh(kabamland)
+	kabamland = kbl.load_or_build_detector(config)
 	sim = Simulation(kabamland,geant4_processes=1)
 	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)
 	analyzer = EventAnalyzer(det_res)
@@ -117,8 +118,6 @@ if __name__ == '__main__':
 	cfg = args.cfg
 	seed_loc = 'r0-1'
 	ptf = '/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data/'
-	if not os.path.exists(ptf):
-		os.makedirs(ptf)
 	path = ptf+seed_loc
 	start_time = time.time()
 	sim,analyzer = sim_setup(cfg,'/home/miladmalek/TestData/detresang-'+cfg+'_1DVariance_100million.root')
@@ -129,8 +128,4 @@ if __name__ == '__main__':
 		fixed_dist_hist(dst,sample,13200,sim,analyzer)
 		print 'distance '+str(int(dst/10))+' done'
 	print time.time()-start_time
-	
-#'cfSam1_1'
-#'/home/miladmalek/TestData/detresang-cfSam1_1_1DVariance_100million.root'
-#'cfJiani3_4'
-#/home/miladmalek/TestData/detresang-cfJiani3_4_1DVariance_100million.root
+
