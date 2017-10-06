@@ -47,5 +47,5 @@ if __name__=='__main__':
 	cfg = args.cfg
 	energy = 2
 	start_time = time.time()
-	gen_ev(sample,cfg,particle,energy,0,1)
+	gen_ev(sample,cfg,particle,energy,3,4)
 	print time.time()-start_time
