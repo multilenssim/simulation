@@ -13,18 +13,17 @@ from chroma.loader import load_bvh
 from chroma.generator import vertex
 
 from ShortIO.root_short import ShortRootWriter
-#from chroma.io.root import RootWriter
-from Geant4.hepunit import *
-
+from contextlib import contextmanager
 import detectorconfig
 import lenssystem
 import meshhelper as mh
 import lensmaterials as lm
 import numpy as np
+import matplotlib.pyplot as plt
 
-#import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.tri import Triangulation
+import pickle
 
 inputn = 16.0
 def lens(diameter, thickness, nsteps=inputn):
@@ -757,13 +756,14 @@ def create_double_source_event(loc1, loc2, sigma, amount, config, eventname, dat
 def full_detector_simulation(amount, configname, simname, datadir=""):
 	#simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron. Note that viewing may crash if there are too many lenses. (try using configview)
 	
-	config = detectorconfig.configdict[configname] 
-    kabamland = Detector(lm.get_scintillation_material())
-    kabamland.orb_radius = 2.0
-    print 'starting to build'
-	build_kabamland(kabamland, configname)
-	kabamland.flatten()
-	kabamland.bvh = load_bvh(kabamland)
+	config = detectorconfig.configdict[configname]
+	#kabamland = Detector(lm.get_scintillation_material())
+	#kabamland.orb_radius = 2.0
+	print 'starting to build'
+	#build_kabamland(kabamland, configname)
+	#kabamland.flatten()
+	#kabamland.bvh = load_bvh(kabamland)
+	kabamland = load_or_build_detector(configname)
 	print "Detector was built"
 	#view(kabamland)
 	#exit()
@@ -776,12 +776,46 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 			f.write_event(ev)
 	f.close()
 
+@contextmanager
+def opened_w_error(filename, mode="r"):
+    try:
+        f = open(filename, mode)
+    except IOError, err:
+        yield None, err
+    else:
+        try:
+            yield f, None
+        finally:
+            f.close()
+
+def load_or_build_detector(config):
+        filename = 'pickled_detectors/'+config+'.pickle'
+        with opened_w_error(filename,'rb') as (pickle_file, error):
+                if not error:   # Assume file not found
+                        print("Loading detector configuration: " + config)
+                        kabamland = pickle.load(pickle_file)
+                else:
+                        print("Building detector configuration: " + config)
+                        kabamland = Detector(lm.get_scintillation_material())
+                        kabamland.orb_radius = 4.5
+                        build_kabamland(kabamland, config)
+                        kabamland.flatten()
+                        kabamland.bvh = load_bvh(kabamland)
+                        # Compute the filename once
+                        with opened_w_error(filename,'wb') as (pickle_file, error):
+                                if error:
+                                        print("Error writing pickle file: " + filename)
+                                else:
+                                        pickle.dump(kabamland, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
+        return kabamland
+
+
 if __name__ == '__main__':
 
 	datadir = "/home/miladmalek/TestData/"
 	#config = detectorconfig.configdict['cfJiani3_8']
 	#plot_mesh_object(curved_surface2(2, diameter=2.5, nsteps=6,base_pxl=2))
-	full_detector_simulation(100, 'cfJiani3_3', 'sim-cfJiani3_3_100million.root')
+	full_detector_simulation(100, 'cfSam1_11', 'sim-cfSam1_10_100.root')
 
     #create_event((0,0,0), 0.1, 100000, 'cfJiani3_2', 'event-cfJiani3_2-(0-0-0)-100000.root')
  
