@@ -1,4 +1,4 @@
-from chroma import make, view
+from chroma import make
 from chroma.geometry import Geometry, Material, Mesh, Solid, Surface
 from chroma.demo.optics import glass, black_surface
 from chroma.detector import Detector

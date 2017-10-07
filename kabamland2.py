@@ -1,4 +1,4 @@
-from chroma import make, view, sample
+from chroma import make, sample
 from chroma.geometry import Geometry, Material, Mesh, Solid, Surface
 from chroma.demo.optics import glass, black_surface
 from chroma.detector import Detector
@@ -20,6 +20,8 @@ import meshhelper as mh
 import lensmaterials as lm
 import numpy as np
 import matplotlib.pyplot as plt
+
+from Geant4.hepunit import *
 
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.tri import Triangulation

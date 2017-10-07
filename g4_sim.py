@@ -4,11 +4,12 @@ import matplotlib.pyplot as plt
 import h5py,time,argparse
 import nog4_sim as setup
 
+import numpy as np
 
 def gen_ev(sample,cfg,particle,energy,i_r,o_r):
 	seed_loc = 'r%i-%i'%(i_r,o_r)
-	fname = '/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data/'+seed_loc+particle+'_sim.h5'
-	sim,analyzer = setup.sim_setup(cfg,'/home/miladmalek/TestData/detresang-'+cfg+'_1DVariance_100million.root')
+	fname = '/home/ubuntu/Development/TestData/'+cfg+'/raw_data/'+seed_loc+'-'+particle+'_sim.h5'
+	sim,analyzer = setup.sim_setup(cfg,'/home/ubuntu/Development/TestData/detresang-'+cfg+'_1DVariance_100million.root')
 	print 'configuration loaded'
 	location = setup.sph_scatter(sample,i_r*1000,o_r*1000)
 	arr_tr, arr_depo = [],[]
@@ -20,9 +21,9 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r):
 				vert = ev.photons_beg.pos
 				tracks = analyzer.generate_tracks(ev,qe=(1./3.))
 			if first:
-				en_depo = f.create_dataset('en_depo',data=vert,chunks=True)
-				coord = f.create_dataset('coord',data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
-				uncert = f.create_dataset('sigma',data=tracks.sigmas,chunks=True)
+				en_depo = f.create_dataset('en_depo',maxshape=(None,3),data=vert,chunks=True)
+				coord = f.create_dataset('coord',maxshape=(2,None,3),data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
+				uncert = f.create_dataset('sigma',maxshape=(None,),data=tracks.sigmas,chunks=True)
 				f.create_dataset('r_lens',data=tracks.lens_rad)
 			else:
 				en_depo.resize(en_depo.shape[0]+vert.shape[0], axis=0)
@@ -47,5 +48,5 @@ if __name__=='__main__':
 	cfg = args.cfg
 	energy = 2
 	start_time = time.time()
-	gen_ev(sample,cfg,particle,energy,0,1)
+	gen_ev(sample,cfg,particle,energy,3,4)
 	print time.time()-start_time

@@ -6,7 +6,7 @@ if __name__ == '__main__':
 	parser.add_argument('cfg',help='configuration name')
 	args = parser.parse_args()
 	cfg = args.cfg
-	ptf = '/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data/'
+	ptf = '/home/ubuntu/Development/TestData/'+cfg+'/raw_data/'
         if not os.path.exists(ptf):
                 os.makedirs(ptf)
 	with open(ptf+'conf.pkl', 'w') as outf:
