@@ -8,7 +8,7 @@ import numpy as np
 
 def gen_ev(sample,cfg,particle,energy,i_r,o_r):
 	seed_loc = 'r%i-%i'%(i_r,o_r)
-	fname = '/home/ubuntu/Development/TestData/'+cfg+'/raw_data/'+seed_loc+'-'+particle+'_sim.h5'
+	fname = '/home/ubuntu/Development/TestData/'+cfg+'/raw_data/'+seed_loc+particle+'_sim.h5'
 	sim,analyzer = setup.sim_setup(cfg,'/home/ubuntu/Development/TestData/detresang-'+cfg+'_1DVariance_100million.root')
 	print 'configuration loaded'
 	location = setup.sph_scatter(sample,i_r*1000,o_r*1000)

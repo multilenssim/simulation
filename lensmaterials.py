@@ -143,7 +143,7 @@ def create_scintillation_material():
 		# kabamland.detector_material.set_scintillation_property('SCINTILLATION', [float(2*pi*hbarc / (360. * nanometer))], [float(1.0)])
 
 		# TODO: These keys much match the Geant4 pmaterial property names.  (Magic strings)
-		_ls.set_scintillation_property('SCINTILLATIONYIELD', 20000. / MeV)  # Was 10000 originally
+		_ls.set_scintillation_property('SCINTILLATIONYIELD', 8000. / MeV)  # Was 10000 originally
 		_ls.set_scintillation_property('RESOLUTIONSCALE', 1.0)  # Was 1.0 originally
 		_ls.set_scintillation_property('FASTTIMECONSTANT', 1. * ns)
 		_ls.set_scintillation_property('SLOWTIMECONSTANT', 10. * ns)

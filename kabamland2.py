@@ -397,12 +397,16 @@ def build_lens_icosahedron(kabamland, edge_length, base, diameter_ratio, thickne
             face = lens_solid_i
         else:
             face += lens_solid_i
+        print('*   Kabamland lens created')
+
+    index = 1
     # Repeat for all lens systems on this face
     for i in np.linspace(1, triangular_number(base)-1, triangular_number(base)-1):
         for lens_i in lenses:
             face = face + Solid(mh.shift(lens_i, (lens_xcoords[np.int(i)], lens_ycoords[np.int(i)], 0.)), lensmat, kabamland.detector_material)
-        
-    
+            print('*   Kabamland lens created 2: ' + str(index))
+            index += 1
+
     #creating the various blocker shapes to fill in the empty space of a single face.
     if blockers:
         blocker_thickness = 2*max_radius*blocker_thickness_ratio
@@ -663,6 +667,7 @@ def build_pmt_icosahedron(kabamland, edge_length, base, focal_length=1.0):
     ls = lm.create_scintillation_material()
     for k in range(20):
        kabamland.add_pmt(Solid(triangle_mesh(pmt_side_length, .001*pmt_side_length), glass, kabamland.detector_material, lm.fullabsorb, 0xBBFFFFFF), rotation=np.dot(make_rotation_matrix(spin_angle[k], direction[k]), make_rotation_matrix(angle[k], axis[k])), displacement=facecoords[k] + focal_length*normalize(facecoords[k]) + 0.0000005*normalize(facecoords[k]))
+       print('*   Kabamland: pmt face ' + str(k) + ' built')
 
 def build_kabamland(kabamland, configname):
     # focal_length sets dist between lens plane and PMT plane (or back of curved detecting surface);
@@ -671,8 +676,11 @@ def build_kabamland(kabamland, configname):
 
     build_lens_icosahedron(kabamland, config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
         #get_lens_triangle_centers(config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
+    print('Kabamland iscahedron built')
     build_pmt_icosahedron(kabamland, config.edge_length, config.base, focal_length=config.focal_length*1.5) # Built further out, just as a way of stopping photons    
+    print('Kabamland iscahedron pmts built')
     build_curvedsurface_icosahedron(kabamland, config.edge_length, config.base, config.diameter_ratio, focal_length=config.focal_length, detector_r=config.detector_r, nsteps=config.nsteps, b_pxl=config.b_pixel)
+    print('Kabamland iscahedron curved surface built')
 
 def create_event(location, sigma, amount, config, eventname, datadir=""):
 	#simulates a single event within the detector for a given configuration.
@@ -803,7 +811,6 @@ def load_or_build_detector(config):
                         build_kabamland(kabamland, config)
                         kabamland.flatten()
                         kabamland.bvh = load_bvh(kabamland)
-                        # Compute the filename once
                         with opened_w_error(filename,'wb') as (pickle_file, error):
                                 if error:
                                         print("Error writing pickle file: " + filename)

@@ -151,7 +151,7 @@ if __name__=='__main__':
 	amount = 1000000
 	energy = 2
 	#ix = 4
-	sim,analyzer = gs.sim_setup(cfg,'/home/miladmalek/TestData/detresang-'+cfg+'_1DVariance_100million.root')
+	sim,analyzer = gs.sim_setup(cfg,'../TestData/detresang-'+cfg+'_1DVariance_100million.root')
 	pmts_per_surf = analyzer.det_res.n_pmts_per_surf
 	lens_center = analyzer.det_res.lens_centers[:sys_per_face]
 	dir_to_lens = np.mean(lens_center,axis=0)

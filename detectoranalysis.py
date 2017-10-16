@@ -17,6 +17,7 @@ def create_detres(config, simname, detresname, detxbins=10, detybins=10, detzbin
 		print "Warning: using generic DetectorResponse base class."
 		smalltest = DetectorResponse(config)
 	smalltest.calibrate(datadir + simname, nevents)
+        print("=== Detector analysis calibration complete.  Writing calibration file")
 	#smalltest.calibrate_old(datadir + simname, nevents)
 	# print smalltest.means[68260]
 	# print smalltest.sigmas[68260]

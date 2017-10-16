@@ -146,10 +146,10 @@ if __name__ == '__main__':
 	distance = np.linspace(100,700,6)
 	cfg = args.cfg
 	seed_loc = 'r0-1'
-	ptf = '/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data/'
+	ptf = '../TD2/'+cfg+'/raw_data/'
 	path = ptf+seed_loc
 	start_time = time.time()
-	sim,analyzer = sim_setup(cfg,'/home/miladmalek/TestData/detresang-'+cfg+'_1DVariance_100million.root')
+	sim,analyzer = sim_setup(cfg,'../TestData/detresang-'+cfg+'_1DVariance_100million.root')
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
 
 	print('Firing ' + str(energy) + ' MeV e-''s')
