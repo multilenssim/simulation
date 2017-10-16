@@ -46,11 +46,6 @@ def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 	return events
 
 def sim_setup(config,in_file):
-	#kabamland = Detector(lm.get_scintillation_material())
-	#kabamland.orb_radius = 4.5
-	#kbl.build_kabamland(kabamland, config)
-	#kabamland.flatten()
-	#kabamland.bvh = load_bvh(kabamland)
 	kabamland = kbl.load_or_build_detector(config)
 	sim = Simulation(kabamland,geant4_processes=1)
 	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)

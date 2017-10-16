@@ -24,7 +24,7 @@ def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=20,base_pxl=4):
 
 def param_arr(base,b_pxl,l_sys,detec_r,max_rad):
 	edge_len = 10000.0
-	px_per_face = 5000.0
+	px_per_face = 50000.0
 	if l_sys == 'Jiani3':
 		scal_lens = 488.0/643.0
 	elif l_sys == 'Sam1':
@@ -35,11 +35,10 @@ def param_arr(base,b_pxl,l_sys,detec_r,max_rad):
 		arr.append(sum(curved_surface2(detec_r,2*max_rad,i,b_pxl)[2]))
 	arr = np.asarray(arr)
 	dct = np.stack((ix,scal_lens*edge_len/(2*(np.sqrt(2*px_per_face/arr).astype(int)+np.sqrt(3)-1))))
-	print arr
 	sel_arr = np.absolute(((base*(base+1))/2*arr-px_per_face)/px_per_face)<0.3
 	dct = dct[:,sel_arr]
 	if dct.shape[1]>1:
-		dct = dct[:,np.argmin(np.absolute((base*(base+1))/2*arr[sel_arr]-5000))]
+		dct = dct[:,np.argmin(np.absolute((base*(base+1))/2*arr[sel_arr]-px_per_face))]
 	return dct
 
 if __name__ == '__main__':

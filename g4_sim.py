@@ -7,7 +7,7 @@ import nog4_sim as setup
 
 def gen_ev(sample,cfg,particle,energy,i_r,o_r):
 	seed_loc = 'r%i-%i'%(i_r,o_r)
-	fname = '/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data/'+seed_loc+particle+'_sim.h5'
+	fname = '/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data/'+seed_loc+'_'+str(energy)+particle+'_sim.h5'
 	sim,analyzer = setup.sim_setup(cfg,'/home/miladmalek/TestData/detresang-'+cfg+'_1DVariance_100million.root')
 	print 'configuration loaded'
 	location = setup.sph_scatter(sample,i_r*1000,o_r*1000)
@@ -45,7 +45,7 @@ if __name__=='__main__':
 	sample = 500
 	particle = args.particle
 	cfg = args.cfg
-	energy = 2
+	energy = 1
 	start_time = time.time()
 	gen_ev(sample,cfg,particle,energy,3,4)
 	print time.time()-start_time
