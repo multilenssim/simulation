@@ -9,7 +9,10 @@ import nog4_sim as gs
 import right_amount
 import numpy as np
 import argparse
+import os
+
 import heat_map
+import paths
 
 def surf(rad_ring,ring_par,width_ring):
 	patches = []	
@@ -48,7 +51,7 @@ def rot_ax(vrs,arr):
 	rtn = np.identity(3)+vx+np.linalg.matrix_power(vx,2)*(1.0/(1.0+cs))
 	return rtn
 
-def plot_heat(conf_par,heat,lns,l_rad):
+def plot_heat(conf_par,heat,lns,l_rad, config, particle_name):
 	max_rad = conf_par.edge_length/(2*(conf_par.base+np.sqrt(3)-1))
 	ring_par = right_amount.curved_surface2(conf_par.detector_r,2*max_rad,conf_par.nsteps,conf_par.b_pixel)
 	rad_ring = ring_par[0][:,0]/ring_par[0][0,0]
@@ -88,11 +91,23 @@ def plot_heat(conf_par,heat,lns,l_rad):
 	ax4.set_yticks([])
 	ax4.set_aspect('equal')
 	fig.colorbar(p, ax=ax1)
-	#F = pylab.gcf()
-	#ds = F.get_size_inches()
-	#F.set_size_inches((ds[0]*2.45,ds[1]*1.83))
-	#F.savefig('heat'+str(lns)+str(lg)[:2]+'.png')
-	plt.show()
+        fig.set_size_inches(10,6)
+
+        map_path = 'hmaps/'
+        if not os.path.exists(map_path):
+                os.makedirs(map_path)
+
+        filename = map_path+'heat'+str(lns)+'-'+config+'-'+particle_name
+        #fig.savefig(filename+'.png')
+        fig.savefig(filename+'.pdf')
+
+	'''
+        F = pylab.gcf()
+	ds = F.get_size_inches()
+	F.set_size_inches((ds[0]*2.45,ds[1]*1.83))
+	F.savefig('heat'+str(lns)+str(lg)[:2]+'.png')
+	#plt.show()
+        '''
 
 def color(pmt_arr,opt_sys):
 	mask = pmt_arr/pmts_per_surf==opt_sys
@@ -152,7 +167,7 @@ if __name__=='__main__':
 	amount = 1000000
 	energy = 2
 	#ix = 4
-	sim,analyzer = gs.sim_setup(cfg,paths.detector_configuration_path(cfg))
+	sim,analyzer = gs.sim_setup(cfg,paths.get_config_file_name(cfg))
 	pmts_per_surf = analyzer.det_res.n_pmts_per_surf
 	lens_center = analyzer.det_res.lens_centers[:sys_per_face]
 	dir_to_lens = np.mean(lens_center,axis=0)
@@ -176,5 +191,5 @@ if __name__=='__main__':
 			
 			#plot_heat(conf_par,color(pmt_arr,ix),ix,l_rad)
 			for i in sel_len:
-				plot_heat(conf_par,color(pmt_arr,i),i,l_rad)
+				plot_heat(conf_par,color(pmt_arr,i),i,l_rad,cfg,ev.primary_vertex.particle_name)
 		

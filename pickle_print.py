@@ -14,11 +14,15 @@ with open(args.pickle_file, 'rb') as f:
     data = pickle.load(f)
     np.set_printoptions()  # threshold=np.inf)  # In order to get the full arrays
     if data is not None:
-        if 'acquisition_parameters' in data:    # Special case for DM Radio
-            pprint.pprint(data.acquisition_parameters.__dict__)
-        if '__dict__' in data:
+        try:
+            if 'acquisition_parameters' in data:    # Special case for DM Radio
+                pprint.pprint(data.acquisition_parameters.__dict__)
+        except TypeError:
+            pass     # object is not iterable, just ignore this if fails as its only applicable to DMR
+
+        try:
             pprint.pprint(data.__dict__)
-        else:
+        except TypeError:  # TODO: this is speculative for DMR project
             pprint.pprint(data)
     else:
         print("No data in file: " + args.pickle_file)

@@ -797,12 +797,17 @@ def load_or_build_detector(config, material, g4_detector_parameters):
     # How to ensure the material and detector parameters are correct??
     try:
         with open(filename,'rb') as pickle_file:
-            print("Loading detector configuration: " + config)
+            print("** Loading detector configuration: " + config)
             kabamland = pickle.load(pickle_file)
-            if not hasattr(kabamland, 'g4_detector_parameters'):
+            if kabamland.g4_detector_parameters is None:
                 print('*** No Geant4 detector parameters found in loaded file ***')
+            elif g4_detector_parameters is None:
+                print('*** UsingGeant4 detector parameters found in loaded file ***')
+            else:
+                print('*** Replacing loaded Geant4 detector parameters ***')
+                kabamland.g4_detector_parameters = g4_detector_parameters
     except IOError as error:
-        print("Building detector configuration: " + config)
+        print("** Building detector configuration: " + config)
         kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
         build_kabamland(kabamland, config)
         kabamland.flatten()

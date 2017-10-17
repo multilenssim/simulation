@@ -1,6 +1,6 @@
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 from EventAnalyzer import EventAnalyzer
-from chroma.detector import Detector
+from chroma.detector import Detector, G4DetectorParameters
 from chroma.loader import load_bvh
 from chroma.sim import Simulation
 import time, h5py, os, argparse
@@ -52,7 +52,8 @@ def sim_setup(config,in_file):
 	#kbl.build_kabamland(kabamland, config)
 	#kabamland.flatten()
 	#kabamland.bvh = load_bvh(kabamland)
-	kabamland = kbl.load_or_build_detector(config)
+        g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
+	kabamland = kbl.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
 	sim = Simulation(kabamland,geant4_processes=1)
 	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)
 	analyzer = EventAnalyzer(det_res)

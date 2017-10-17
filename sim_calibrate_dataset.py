@@ -14,9 +14,9 @@ args = parser.parse_args()
 cfg = args.cfg
 
 photons_file = 'sim-'+cfg+'_100million.root'
-datadir = paths.get_data_file_path(cfg)
+datadir = paths.data_files_path
 
-if not os.path.exists(datadir):   # This is not a great structure as other configuration data may change in addition to the detector config
+if not os.path.exists(datadir+photons_file):   # This is not a great structure as other configuration data may change in addition to the detector config
         # We should really date stamp the directory containing the output and configuration files
 	print '==== setting up the detector ===='
         if not os.path.exists(paths.data_files_path + photons_file):
@@ -27,7 +27,7 @@ if not os.path.exists(datadir):   # This is not a great structure as other confi
         print("==== Calibration complete ====")
 
 if True:
-        config_path = paths.get_data_file_path()
+        config_path = paths.get_data_file_path(cfg)
         if not os.path.exists(config_path):
                 os.makedirs(config_path)
         all_config_info = {'configuration': detectorconfig.configdict[cfg].__dict__}
