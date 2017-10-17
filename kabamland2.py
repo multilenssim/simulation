@@ -13,7 +13,6 @@ from chroma.loader import load_bvh
 from chroma.generator import vertex
 
 from ShortIO.root_short import ShortRootWriter
-from contextlib import contextmanager
 import detectorconfig
 import lenssystem
 import meshhelper as mh
@@ -26,6 +25,10 @@ from Geant4.hepunit import *
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.tri import Triangulation
 import pickle
+import os
+import pprint
+
+import paths
 
 inputn = 16.0
 def lens(diameter, thickness, nsteps=inputn):
@@ -676,11 +679,11 @@ def build_kabamland(kabamland, configname):
 
     build_lens_icosahedron(kabamland, config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
         #get_lens_triangle_centers(config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
-    print('Kabamland iscahedron built')
+    print('Kabamland icosahedron built')
     build_pmt_icosahedron(kabamland, config.edge_length, config.base, focal_length=config.focal_length*1.5) # Built further out, just as a way of stopping photons    
-    print('Kabamland iscahedron pmts built')
+    print('Kabamland icosahedron pmts built')
     build_curvedsurface_icosahedron(kabamland, config.edge_length, config.base, config.diameter_ratio, focal_length=config.focal_length, detector_r=config.detector_r, nsteps=config.nsteps, b_pxl=config.b_pixel)
-    print('Kabamland iscahedron curved surface built')
+    print('Kabamland icosahedron curved surface built')
 
 def create_event(location, sigma, amount, config, eventname, datadir=""):
 	#simulates a single event within the detector for a given configuration.
@@ -773,8 +776,9 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 	#build_kabamland(kabamland, configname)
 	#kabamland.flatten()
 	#kabamland.bvh = load_bvh(kabamland)
-	kabamland = load_or_build_detector(configname)
-	print "Detector was built"
+        g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
+        kabamland = load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+        print "Detector was built"
 	#view(kabamland)
 	#exit()
 	f = ShortRootWriter(datadir + simname)
@@ -786,37 +790,29 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 			f.write_event(ev)
 	f.close()
 
-@contextmanager
-def opened_w_error(filename, mode="r"):
+def load_or_build_detector(config, material, g4_detector_parameters):
+    filename = paths.pickled_detector_path + config + '.pickle'
+    if not os.path.exists(paths.pickled_detector_path):
+        os.makedirs(paths.pickled_detector_path)
+    # How to ensure the material and detector parameters are correct??
     try:
-        f = open(filename, mode)
-    except IOError, err:
-        yield None, err
-    else:
+        with open(filename,'rb') as pickle_file:
+            print("Loading detector configuration: " + config)
+            kabamland = pickle.load(pickle_file)
+            if not hasattr(kabamland, 'g4_detector_parameters'):
+                print('*** No Geant4 detector parameters found in loaded file ***')
+    except IOError as error:
+        print("Building detector configuration: " + config)
+        kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+        build_kabamland(kabamland, config)
+        kabamland.flatten()
+        kabamland.bvh = load_bvh(kabamland)
         try:
-            yield f, None
-        finally:
-            f.close()
-
-def load_or_build_detector(config):
-        filename = 'pickled_detectors/'+config+'.pickle'
-        with opened_w_error(filename,'rb') as (pickle_file, error):
-                if not error:   # Assume file not found
-                        print("Loading detector configuration: " + config)
-                        kabamland = pickle.load(pickle_file)
-                else:
-                        print("Building detector configuration: " + config)
-                        kabamland = Detector(lm.get_scintillation_material())
-                        kabamland.orb_radius = 4.5
-                        build_kabamland(kabamland, config)
-                        kabamland.flatten()
-                        kabamland.bvh = load_bvh(kabamland)
-                        with opened_w_error(filename,'wb') as (pickle_file, error):
-                                if error:
-                                        print("Error writing pickle file: " + filename)
-                                else:
-                                        pickle.dump(kabamland, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
-        return kabamland
+            with open(filename,'wb') as pickle_file:
+                pickle.dump(kabamland, pickle_file)
+        except IOError as error:
+            print("Error writing pickle file: " + filename)
+    return kabamland
 
 
 if __name__ == '__main__':

@@ -8,6 +8,8 @@ import lensmaterials as lm
 import kabamland2 as kbl
 import numpy as np
 
+import paths
+
 def fixed_dist(sample,radius,rads=None):
 	loc1 = sph_scatter(sample,in_shell = 4000,out_shell = 5000)
 	loc2 = sph_scatter(sample,in_shell = 4000,out_shell = 5000)
@@ -146,10 +148,10 @@ if __name__ == '__main__':
 	distance = np.linspace(100,700,6)
 	cfg = args.cfg
 	seed_loc = 'r0-1'
-	ptf = '../TD2/'+cfg+'/raw_data/'
+	ptf = paths.get_data_file_path()
 	path = ptf+seed_loc
 	start_time = time.time()
-	sim,analyzer = sim_setup(cfg,'../TestData/detresang-'+cfg+'_1DVariance_100million.root')
+	sim,analyzer = sim_setup(cfg,paths.detector_configuration_path(cfg))
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
 
 	print('Firing ' + str(energy) + ' MeV e-''s')

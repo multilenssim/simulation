@@ -6,26 +6,28 @@ import lensmaterials
 import detectorconfig
 import pickle
 
+import paths
+
 parser = argparse.ArgumentParser()
 parser.add_argument('cfg', help='configuration')
 args = parser.parse_args()
 cfg = args.cfg
 
-datadir = '/home/ubuntu/Development/TestData/'
 photons_file = 'sim-'+cfg+'_100million.root'
+datadir = paths.get_data_file_path(cfg)
 
-if not os.path.exists(datadir+cfg):   # This is not a great structure as other configuration data may change in addition to the detector config
+if not os.path.exists(datadir):   # This is not a great structure as other configuration data may change in addition to the detector config
         # We should really date stamp the directory containing the output and configuration files
 	print '==== setting up the detector ===='
-        if not os.path.exists(datadir + photons_file):
+        if not os.path.exists(paths.data_files_path + photons_file):
                 kb.full_detector_simulation(100000, cfg, photons_file, datadir=datadir)
         print("==== Detector built  ====")
-        da.create_detres(args.cfg, photons_file, 'detresang-'+cfg+'_1DVariance_100million.root', method="GaussAngle", nevents=1000, datadir=datadir)
+        da.create_detres(args.cfg, photons_file, paths.get_config_file_name(cfg), method="GaussAngle", nevents=1000, datadir=datadir)
         #os.remove(photons_file)
         print("==== Calibration complete ====")
 
 if True:
-        config_path = datadir+cfg+'/raw_data/'
+        config_path = paths.get_data_file_path()
         if not os.path.exists(config_path):
                 os.makedirs(config_path)
         all_config_info = {'configuration': detectorconfig.configdict[cfg].__dict__}

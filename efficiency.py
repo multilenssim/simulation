@@ -5,7 +5,7 @@ from DetectorResponse import DetectorResponse
 from chroma.sample import uniform_sphere
 from mpl_toolkits.mplot3d import axes3d
 from EventAnalyzer import EventAnalyzer
-from chroma import make, view, sample
+from chroma import make, sample
 from chroma.detector import Detector
 from chroma.loader import load_bvh
 from chroma.sim import Simulation
@@ -20,6 +20,7 @@ from array import array
 import detectorconfig
 import numpy as np
 
+import paths
     
 def eff_test(config, detres=None, detbins=10, sig_pos=0.01, n_ph_sim=[6600], repetition=10, max_rad=6600, n_pos=10, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.05, chiC=3., temps=[256, 0.25], tol=0.1, debug=False):
 		###############################################
@@ -70,7 +71,7 @@ def eff_test(config, detres=None, detbins=10, sig_pos=0.01, n_ph_sim=[6600], rep
         if detres is None:
             det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins)
         else:
-            det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins, infile=(datadir+detres))
+            det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins, infile=detres)
         analyzer = EventAnalyzer(det_res)
         
         # Previous definition of rads 
@@ -224,20 +225,17 @@ if __name__ == '__main__':
     args = parser.parse_args() 
     print "Efficiency test started"
     design = [args.cfg]
-    suffix = '_1DVariance'
     energy = [6600]
     repetition = 100
     n_pos = 50
     set_style()
-    datadir = '/home/miladmalek/TestData/'    
     for detfile in design:
-    	rootdir = '/home/jacopodalmasson/Desktop/dev/'+detfile+'/pos_res-eff/'
+        rootdir = paths.data_files_path+'dev/'+detfile+'/pos_res-eff/'
 	if not os.path.exists(rootdir):
 		os.makedirs(rootdir)
-	fname = detfile + suffix		
 	print "Lens design used:	", detfile 
 	if args.run == 'compute':
-		eff_test(detfile, detres='detresang-'+fname+'_100million.root', detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
+		eff_test(detfile, detres=paths.get_config_file_name(args.cfg), detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
 	elif args.run == 'plot':
 		filename = 'rep-'+str(repetition)+'_npos-'+str(n_pos)
 		get_eff_from_root(filename=filename , n_ph_sim=energy, repetition=repetition, n_pos=n_pos)

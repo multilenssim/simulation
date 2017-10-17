@@ -6,10 +6,12 @@ import nog4_sim as setup
 
 import numpy as np
 
+import paths
+
 def gen_ev(sample,cfg,particle,energy,i_r,o_r):
 	seed_loc = 'r%i-%i'%(i_r,o_r)
-	fname = '/home/ubuntu/Development/TestData/'+cfg+'/raw_data/'+seed_loc+particle+'_sim.h5'
-	sim,analyzer = setup.sim_setup(cfg,'/home/ubuntu/Development/TestData/detresang-'+cfg+'_1DVariance_100million.root')
+	fname = paths.get_data_file_path(cfg)+seed_loc+particle+'_sim.h5'
+	sim,analyzer = setup.sim_setup(cfg, paths.get_config_file_name(cfg))
 	print 'configuration loaded'
 	location = setup.sph_scatter(sample,i_r*1000,o_r*1000)
 	arr_tr, arr_depo = [],[]
