@@ -29,6 +29,7 @@ import os
 import pprint
 
 import paths
+from logger_lfd import logger
 
 inputn = 16.0
 def lens(diameter, thickness, nsteps=inputn):
@@ -784,16 +785,16 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 	f = ShortRootWriter(datadir + simname)
 	sim = Simulation(kabamland,geant4_processes=0)
 	for j in range(100):
-		print j
+		logger.info('Event batch ' + str(j))
 		sim_events = [uniform_photons(config.edge_length, amount) for i in range(10)]
 		for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 			f.write_event(ev)
 	f.close()
 
 def load_or_build_detector(config, material, g4_detector_parameters):
-    filename = paths.pickled_detector_path + config + '.pickle'
-    if not os.path.exists(paths.pickled_detector_path):
-        os.makedirs(paths.pickled_detector_path)
+    filename = paths.detector_pickled_path + config + '.pickle'
+    if not os.path.exists(paths.detector_pickled_path):
+        os.makedirs(paths.detector_pickled_path)
     # How to ensure the material and detector parameters are correct??
     try:
         with open(filename,'rb') as pickle_file:

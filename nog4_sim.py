@@ -152,7 +152,7 @@ if __name__ == '__main__':
 	ptf = paths.get_data_file_path()
 	path = ptf+seed_loc
 	start_time = time.time()
-	sim,analyzer = sim_setup(cfg,paths.detector_configuration_path(cfg))
+	sim,analyzer = sim_setup(cfg,paths.get_calibration_file_name(cfg))
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
 
 	print('Firing ' + str(energy) + ' MeV e-''s')

@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 
+from logger_lfd import logger
+
 from DetectorResponse import DetectorResponse
 
 class DetectorResponseGaussAngle(DetectorResponse):
@@ -55,7 +57,8 @@ class DetectorResponseGaussAngle(DetectorResponse):
              if loops > nevents:
                  break
              
-             print "Event " + str(loops) + " of " + str(nevents)
+             logger.info("Event " + str(loops) + " of " + str(nevents))
+             logger.handlers[0].flush()
 
              detected = (ev.photons_end.flags & (0x1 <<2)).astype(bool)
              reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
@@ -95,8 +98,8 @@ class DetectorResponseGaussAngle(DetectorResponse):
          #looping through each event in the simulation, in order to save a mean_angle and a variance for each pmt.
          for i in range(self.npmt_bins):
             if i % 10000 == 0:
-                print str(i) + ' out of ' + str(self.npmt_bins) + ' PMTs'
-            
+                logger.info(str(i) + ' out of ' + str(self.npmt_bins) + ' PMTs')
+                logger.handlers[0].flush()
 
             pmt_indices = np.where(pmt_bins == i)[0]
             if np.shape(pmt_indices)[0] == 0:
@@ -111,11 +114,11 @@ class DetectorResponseGaussAngle(DetectorResponse):
             norms = np.repeat(1.0, n_angles)
             mean_angle = normalize(np.mean(angles_for_pmt, axis=0))
             
-			# For each PMT, get a pair of axes which form an 
+	    # For each PMT, get a pair of axes which form an 
             # orthonormal coordinate system with the PMT mean direction
             u_dir = np.cross(mean_angle,np.array([0,0,1]))
             if not (np.dot(u_dir, u_dir) > 0): # In case mean_angle = [0,0,1]
-				u_dir = np.cross(mean_angle,np.array([0,1,0]))
+		u_dir = np.cross(mean_angle,np.array([0,1,0]))
             u_dir = normalize(u_dir)
             v_dir = np.cross(mean_angle, u_dir)
             

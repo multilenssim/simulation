@@ -6,6 +6,9 @@ import lensmaterials
 import detectorconfig
 import pickle
 
+from chroma.log import logger as chroma_logger
+from logger_lfd import logger
+
 import paths
 
 parser = argparse.ArgumentParser()
@@ -14,17 +17,22 @@ args = parser.parse_args()
 cfg = args.cfg
 
 photons_file = 'sim-'+cfg+'_100million.root'
-datadir = paths.data_files_path
 
-if not os.path.exists(datadir+photons_file):   # This is not a great structure as other configuration data may change in addition to the detector config
+if not os.path.isfile(paths.get_calibration_file_name(cfg)):   # This is not a great structure as other configuration data may change in addition to the detector config
+        logger.info('Failed to find: ' + paths.get_calibration_file_name(cfg))
         # We should really date stamp the directory containing the output and configuration files
-	print '==== setting up the detector ===='
-        if not os.path.exists(paths.data_files_path + photons_file):
-                kb.full_detector_simulation(100000, cfg, photons_file, datadir=datadir)
-        print("==== Detector built  ====")
-        da.create_detres(args.cfg, photons_file, paths.get_config_file_name(cfg), method="GaussAngle", nevents=1000, datadir=datadir)
+	logger.info('==== Setting up the detector ====')
+        if not os.path.exists(paths.detector_calibration_path + photons_file):
+	        logger.info('==== Building detector and simulating photons ====')
+                kb.full_detector_simulation(100000, cfg, photons_file, datadir=paths.detector_calibration_path)
+        logger.info("==== Calibrating  ====")
+        da.create_detres(args.cfg, photons_file,
+                         paths.get_calibration_file_name_without_path(cfg),
+                         method="GaussAngle",
+                         nevents=1000,
+                         datadir=paths.detector_calibration_path)
         #os.remove(photons_file)
-        print("==== Calibration complete ====")
+        logger.info("==== Calibration complete ====")
 
 if True:
         config_path = paths.get_data_file_path(cfg)
@@ -42,6 +50,6 @@ if True:
         with open(config_path+'conf.pkl', 'w') as outf:
                 pickle.dump(detectorconfig.configdict[cfg].__dict__, outf)
 
-print 'simulation part'
+logger.info('==== Simulation part ====')
 os.system('python g4_sim.py e- '+cfg)
 os.system('python g4_sim.py gamma '+cfg)

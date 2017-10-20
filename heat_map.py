@@ -167,7 +167,7 @@ if __name__=='__main__':
 	amount = 1000000
 	energy = 2
 	#ix = 4
-	sim,analyzer = gs.sim_setup(cfg,paths.get_config_file_name(cfg))
+	sim,analyzer = gs.sim_setup(cfg,paths.get_calibration_file_name(cfg))
 	pmts_per_surf = analyzer.det_res.n_pmts_per_surf
 	lens_center = analyzer.det_res.lens_centers[:sys_per_face]
 	dir_to_lens = np.mean(lens_center,axis=0)

@@ -235,7 +235,7 @@ if __name__ == '__main__':
 		os.makedirs(rootdir)
 	print "Lens design used:	", detfile 
 	if args.run == 'compute':
-		eff_test(detfile, detres=paths.get_config_file_name(args.cfg), detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
+		eff_test(detfile, detres=paths.get_calibration_file_name(args.cfg), detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
 	elif args.run == 'plot':
 		filename = 'rep-'+str(repetition)+'_npos-'+str(n_pos)
 		get_eff_from_root(filename=filename , n_ph_sim=energy, repetition=repetition, n_pos=n_pos)

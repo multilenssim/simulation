@@ -11,7 +11,7 @@ import paths
 def gen_ev(sample,cfg,particle,energy,i_r,o_r):
 	seed_loc = 'r%i-%i'%(i_r,o_r)
 	fname = paths.get_data_file_path(cfg)+seed_loc+particle+'_sim.h5'
-	sim,analyzer = setup.sim_setup(cfg, paths.get_config_file_name(cfg))
+	sim,analyzer = setup.sim_setup(cfg, paths.get_calibration_file_name(cfg))
 	print 'configuration loaded'
 	location = setup.sph_scatter(sample,i_r*1000,o_r*1000)
 	arr_tr, arr_depo = [],[]

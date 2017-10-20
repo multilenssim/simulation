@@ -12,13 +12,13 @@ from chroma.detector import Detector
 from chroma.detector import G4DetectorParameters
 from chroma.loader import load_bvh
 from chroma.generator import vertex
-from chroma.log import logger
 
 import kabamland2 as k2
 import lensmaterials as lm
 import detectoranalysis as da
 
 import paths
+from logger_lfd import logger
 
 '''
 pi = 3.1
@@ -57,7 +57,7 @@ def create_gamma_event(location, energy, amount, config, eventname):
 	kabamland = k2.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
 
 	sim = Simulation(kabamland, geant4_processes=1)
-	print "Starting gun simulation:" + paths.data_files_path + eventname
+	logger.info('Starting gun simulation:' + paths.data_files_path + eventname)
 	gun = vertex.particle_gun(['gamma'] * amount, vertex.constant(location), vertex.isotropic(),
 							  vertex.flat(float(energy) * 0.99, float(energy) * 1.01))
 	for ev in sim.simulate(gun, keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100):
@@ -76,10 +76,10 @@ def create_gamma_event(location, energy, amount, config, eventname):
 		if (len(subtype_bins)) >= 21:
 			cherenkov_count = subtype_bins[21]
 
-		print("Photon counts (total/scintillation/cherenkov): " + str(ev.nphotons) + " " +
-		      str(scint_count) + " " + str(cherenkov_count))
+		logger.info('Photon counts (total/scintillation/cherenkov): ' + str(ev.nphotons) + ' ' +
+		      str(scint_count) + ' ' + str(cherenkov_count))
 		if ev.nphotons != (scint_count + cherenkov_count):
-			print("===>>> Uh oh: counts don't add up: " + str(scint_count) + " " + str(cherenkov_count))
+			logger_lfd.logger.info('===>>> Uh oh: counts don''t add up: ' + str(scint_count) + ' ' + str(cherenkov_count))
 		# print("Process types: ", pprint.pformat(type_bins))
 		# print("Process subtypes: ", pprint.pformat(subtype_bins))
 
@@ -89,7 +89,6 @@ if __name__ == '__main__':
         parser.add_argument('configuration', help='Detector configuration')
         args = parser.parse_args()
         config = args.configuration
-	logger.setLevel(logging.DEBUG)
 
 	create_gamma_event((0, 0, 0), 2., 4, config, 'gamma-test-')
 
@@ -97,7 +96,7 @@ if __name__ == '__main__':
 
 	# To build the calibration file
 	# fileinfo='cfJiani3_10kw' # And replace all the Jiani's below
-	#k2.full_detector_simulation(100000, 'cfJiani3_10kw', paths.get_config_file_name(fileinfo), datadir=datadir)
+	#k2.full_detector_simulation(100000, 'cfJiani3_10kw', paths.get_calibration_file_name(fileinfo), datadir=datadir)
 
 # For an inscribed radius of ~7400, (3000, 3000, 3000) corresponds to a radius of about 70% of the inscribed radius
 #kb.create_event((3000,3000,3000), 0.1, 100000, 'cfJiani3_4', 'event-'+fileinfo+'-(3000-3000-3000)-100000.root', datadir=datadir)
@@ -109,10 +108,10 @@ if __name__ == '__main__':
 #kb.create_event((0, 0, 0), 0.1, 100000, 'cfSam1_1', 'event-'+fileinfo+'-(0-0-0)-100000.root', datadir=datadir)
 
     
-#da.check_detres_sigmas('cfJiani3_4', paths.get_config_file_name(fileinfo), datadir=datadir)
+#da.check_detres_sigmas('cfJiani3_4', paths.get_calibration_file_name(fileinfo), datadir=datadir)
 
-#da.compare_sigmas('cfJiani3_4',paths.get_config_file_name(fileinfo),'cfJiani3_4','detresang-'+fileinfo+'_1DVariance_noreflect_100million.root',datadir=datadir)
+#da.compare_sigmas('cfJiani3_4',paths.get_calibration_file_name(fileinfo),'cfJiani3_4','detresang-'+fileinfo+'_1DVariance_noreflect_100million.root',datadir=datadir)
 
-#da.get_AVF_performance('cfJiani3_2', 'event-'+fileinfo+'-(0-0-0)-100000.root', detres=paths.get_config_file_name(fileinfo), detbins=20, n_repeat=5, event_pos=[(0.,0.,0.)], n_ph=[100, 1000, 10000], min_tracks=[0.1], chiC=[2.0], temps=[[256,0.25]], debug=False, datadir=datadir)
+#da.get_AVF_performance('cfJiani3_2', 'event-'+fileinfo+'-(0-0-0)-100000.root', detres=paths.get_calibration_file_name(fileinfo), detbins=20, n_repeat=5, event_pos=[(0.,0.,0.)], n_ph=[100, 1000, 10000], min_tracks=[0.1], chiC=[2.0], temps=[[256,0.25]], debug=False, datadir=datadir)
 
-#da.reconstruct_event_AVF('cfJiani3_2', 'event-'+fileinfo+'-(0-0-0)-100000.root', detres=paths.get_config_file_name(fileinfo), event_pos=(0,0,0), detbins=20, chiC=2., min_tracks=0.1, n_ph=100, debug=True, datadir=datadir)
+#da.reconstruct_event_AVF('cfJiani3_2', 'event-'+fileinfo+'-(0-0-0)-100000.root', detres=paths.get_calibration_file_name(fileinfo), event_pos=(0,0,0), detbins=20, chiC=2., min_tracks=0.1, n_ph=100, debug=True, datadir=datadir)
