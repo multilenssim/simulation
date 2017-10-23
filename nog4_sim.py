@@ -10,8 +10,8 @@ import numpy as np
 
 
 def fixed_dist(sample,radius,rads=None):
-	loc1 = sph_scatter(sample,in_shell = 4000,out_shell = 5000)
-	loc2 = sph_scatter(sample,in_shell = 4000,out_shell = 5000)
+	loc1 = sph_scatter(sample)
+	loc2 = sph_scatter(sample)
 	if rads == None:
 		rads = np.linspace(50,500,sample)
 	else:
@@ -22,7 +22,7 @@ def fixed_dist(sample,radius,rads=None):
 	loc2[bl_idx] = 2 * loc1[bl_idx] - loc2[bl_idx]
 	return loc1,loc2,rads
 
-def sph_scatter(sample,in_shell = 0,out_shell = 1000):
+def sph_scatter(sample,in_shell=i_s,out_shell=o_s):
 	loc = np.random.uniform(-out_shell,out_shell,(sample,3))
 	while len(loc[(np.linalg.norm(loc,axis=1)>in_shell) & (np.linalg.norm(loc,axis=1)<=out_shell)]) != sample:
 		bl_idx = np.logical_not((np.linalg.norm(loc,axis=1)>in_shell) & (np.linalg.norm(loc,axis=1)<=out_shell))
@@ -61,7 +61,7 @@ def fixed_dist_hist(dist,sample,amount,sim,analyzer,sigma=0.01):
 		for lc1,lc2 in zip(locs1,locs2):
 			sim_events = create_double_source_events(lc1, lc2, sigma, amount/2, amount/2)
 			for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
-				tracks = analyzer.generate_tracks(ev)
+				tracks = analyzer.generate_tracks(ev,qe=(1./3.))
 				if i == 0:
 					coord = f.create_dataset('coord',data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
 					uncert = f.create_dataset('sigma',data=tracks.sigmas,chunks=True)
@@ -80,13 +80,13 @@ def fixed_dist_hist(dist,sample,amount,sim,analyzer,sigma=0.01):
 def bkg_dist_hist(sample,amount,sim,analyzer,sigma=0.01):
 	arr = []
 	i = 0
-	location = sph_scatter(sample,in_shell = 4000,out_shell = 5000)
+	location = sph_scatter(sample)
 	fname = 's-site.h5'
 	with h5py.File(path+fname,'w') as f:
 		for lg in location:
 			sim_event = kbl.gaussian_sphere(lg, sigma, amount)
 			for ev in sim.simulate(sim_event, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
-				tracks = analyzer.generate_tracks(ev)
+				tracks = analyzer.generate_tracks(ev,qe=(1./3.))
 				if i == 0:
 					coord = f.create_dataset('coord',data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
 					uncert = f.create_dataset('sigma',data=tracks.sigmas,chunks=True)
@@ -106,21 +106,24 @@ def bkg_dist_hist(sample,amount,sim,analyzer,sigma=0.01):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument('cfg', help='detector configuration')
-	args = parser.parse_args()
+	parser.add_argument('cfg', help='detector configuration')	
+	parser.add_argument('sl', help='seed_location')
+	args = parser.parse_args()	
 	sample = 1000
-	distance = np.linspace(100,700,6)
+	distance = np.linspace(20,450,6)
 	cfg = args.cfg
-	seed_loc = 'r0-1'
+	seed_loc = args.sl
+	i_s = int(seed_loc[1])*1000
+	o_s = int(seed_loc[3])*1000
 	ptf = '/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data/'
 	path = ptf+seed_loc
 	start_time = time.time()
 	sim,analyzer = sim_setup(cfg,'/home/miladmalek/TestData/detresang-'+cfg+'_1DVariance_100million.root')
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
-	bkg_dist_hist(sample,13200,sim,analyzer)
+	bkg_dist_hist(sample,16000,sim,analyzer)
 	print 's-site done'
 	for dst in distance:
-		fixed_dist_hist(dst,sample,13200,sim,analyzer)
+		fixed_dist_hist(dst,sample,16000,sim,analyzer)
 		print 'distance '+str(int(dst/10))+' done'
 	print time.time()-start_time
 
