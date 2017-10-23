@@ -22,7 +22,7 @@ def fixed_dist(sample,radius,rads=None):
 	loc2[bl_idx] = 2 * loc1[bl_idx] - loc2[bl_idx]
 	return loc1,loc2,rads
 
-def sph_scatter(sample,in_shell=i_s,out_shell=o_s):
+def sph_scatter(sample):
 	loc = np.random.uniform(-out_shell,out_shell,(sample,3))
 	while len(loc[(np.linalg.norm(loc,axis=1)>in_shell) & (np.linalg.norm(loc,axis=1)<=out_shell)]) != sample:
 		bl_idx = np.logical_not((np.linalg.norm(loc,axis=1)>in_shell) & (np.linalg.norm(loc,axis=1)<=out_shell))
@@ -109,12 +109,12 @@ if __name__ == '__main__':
 	parser.add_argument('cfg', help='detector configuration')	
 	parser.add_argument('sl', help='seed_location')
 	args = parser.parse_args()	
-	sample = 1000
+	sample = 500
 	distance = np.linspace(20,450,6)
 	cfg = args.cfg
 	seed_loc = args.sl
-	i_s = int(seed_loc[1])*1000
-	o_s = int(seed_loc[3])*1000
+	in_shell = int(seed_loc[1])*1000
+	out_shell = int(seed_loc[3])*1000
 	ptf = '/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data/'
 	path = ptf+seed_loc
 	start_time = time.time()
