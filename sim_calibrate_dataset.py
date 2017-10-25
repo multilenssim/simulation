@@ -1,10 +1,11 @@
-import os, argparse
+import os
+import pickle
+import argparse
 
 import kabamland2 as kb
 import detectoranalysis as da
 import lensmaterials
 import detectorconfig
-import pickle
 
 from chroma.log import logger as chroma_logger
 from logger_lfd import logger
@@ -15,6 +16,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('cfg', help='configuration')
 args = parser.parse_args()
 cfg = args.cfg
+s_d='01'  # Seed radius range in meters
 
 photons_file = 'sim-'+cfg+'_100million.root'
 
@@ -51,5 +53,5 @@ if True:
                 pickle.dump(detectorconfig.configdict[cfg].__dict__, outf)
 
 logger.info('==== Simulation part ====')
-os.system('python g4_sim.py e- '+cfg)
-os.system('python g4_sim.py gamma '+cfg)
+os.system('python g4_sim.py e- %s %s'%(s_d,cfg))
+os.system('python g4_sim.py gamma %s %s'%(s_d,cfg))

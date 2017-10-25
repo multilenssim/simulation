@@ -43,12 +43,14 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r):
 if __name__=='__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('particle', help='particle to simulate')
+	parser.add_argument('s_d', help='seed location')
 	parser.add_argument('cfg', help='detector configuration')
 	args = parser.parse_args()
 	sample = 500
 	particle = args.particle
 	cfg = args.cfg
+	s_d = args.s_d
 	energy = 2
 	start_time = time.time()
-	gen_ev(sample,cfg,particle,energy,3,4)
+	gen_ev(sample,cfg,particle,energy,int(s_d[0]),int(s_d[1]))
 	print time.time()-start_time

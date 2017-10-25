@@ -771,17 +771,10 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 	#simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron. Note that viewing may crash if there are too many lenses. (try using configview)
 	
 	config = detectorconfig.configdict[configname]
-	#kabamland = Detector(lm.get_scintillation_material())
-	#kabamland.orb_radius = 2.0
-	print 'starting to build'
-	#build_kabamland(kabamland, configname)
-	#kabamland.flatten()
-	#kabamland.bvh = load_bvh(kabamland)
         g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
         kabamland = load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
         print "Detector was built"
 	#view(kabamland)
-	#exit()
 	f = ShortRootWriter(datadir + simname)
 	sim = Simulation(kabamland,geant4_processes=0)
 	for j in range(100):
@@ -803,7 +796,7 @@ def load_or_build_detector(config, material, g4_detector_parameters):
             if kabamland.g4_detector_parameters is None:
                 print('*** No Geant4 detector parameters found in loaded file ***')
             elif g4_detector_parameters is None:
-                print('*** UsingGeant4 detector parameters found in loaded file ***')
+                print('*** Using Geant4 detector parameters found in loaded file ***')
             else:
                 print('*** Replacing loaded Geant4 detector parameters ***')
                 kabamland.g4_detector_parameters = g4_detector_parameters
