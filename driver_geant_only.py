@@ -1,6 +1,6 @@
 # Test program for creating scintillation (and other) photons from Geant4
 
-from chroma.event import Vertex, Photons
+from chroma.event import Vertex
 from chroma.generator import g4gen
 from chroma.detector import G4DetectorParameters
 

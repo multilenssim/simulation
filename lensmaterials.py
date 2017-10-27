@@ -1,8 +1,7 @@
 from chroma.geometry import Material, Solid, Surface
 from Geant4.hepunit import *
-import numpy as np
 
-from Geant4.hepunit import *
+import numpy as np
 
 lensmat_refractive_index = 2.0
 lensmat_ohara_refractive_index = 1.923
