@@ -61,7 +61,7 @@ def sim_setup(config,in_file):
 def run_simulation(file, sim, events, analyzer, first=False):
 	arr = []
 	for ev in sim.simulate(events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
-		tracks = analyzer.generate_tracks(ev)
+		tracks = analyzer.generate_tracks(ev,qe=(1./3.))
 		#pprint(vars(ev))
                 '''
 		print('Firing particle name/photon count/track count/location/direction: \t' +  # Add energy
@@ -91,8 +91,11 @@ def fire_photons_single_site(sample,amount,sim,analyzer,in_shell,out_shell,sigma
         arr = []
         first = True
         location = sph_scatter(sample,in_shell,out_shell)
-        fname = 's-site.h5'
-        with h5py.File(path+fname,'w') as f:
+        fname = seed_loc+'s-site.h5'
+        if not os.path.exists(data_file_dir):
+                os.makedirs(data_file_dir)
+        file_path = data_file_dir+fname
+        with h5py.File(file_path,'w') as f:
                 for lg in location:
                         gun = kbl.gaussian_sphere(lg, sigma, amount)
                         arr.append(run_simulation(f, sim, gun, analyzer, first))
@@ -103,8 +106,11 @@ def fire_photons_double_site(sample,amount,sim,analyzer,in_shell,out_shell,dist,
         arr = []
         first = True
         locs1, locs2, rad = fixed_dist(sample,5000,in_shell,out_shell,rads=dist)
-        fname = 'd-site'+str(int(dist/10))+'cm.h5'
-        with h5py.File(path+fname,'w') as f:
+        fname = seed_loc+'d-site'+str(int(dist/10))+'cm.h5'
+        if not os.path.exists(data_file_dir):
+                os.makedirs(data_file_dir)
+        file_path = data_file_dir+fname
+        with h5py.File(file_path,'w') as f:
                 for lc1,lc2 in zip(locs1,locs2):
                         gun = create_double_source_events(lc1, lc2, sigma, amount/2, amount/2)
                         arr.append(run_simulation(f, sim, gun, analyzer, first))
@@ -148,8 +154,7 @@ if __name__ == '__main__':
         in_shell = int(seed_loc[0])*1000
 	out_shell = int(seed_loc[1])*1000
         print('Seed locations: ' + str(in_shell) + ' ' + str(out_shell))
-	ptf = paths.get_data_file_path(cfg)
-	path = ptf+seed_loc
+	data_file_dir = paths.get_data_file_path(cfg)
 	start_time = time.time()
 	sim,analyzer = sim_setup(cfg,paths.get_calibration_file_name(cfg))
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)

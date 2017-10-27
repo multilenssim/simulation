@@ -18,6 +18,13 @@ args = parser.parse_args()
 cfg = args.cfg
 s_d='01'  # Seed radius range in meters
 
+def save_config_file(cfg, file_name, dict):
+        config_path = paths.get_data_file_path(cfg)
+        if not os.path.exists(config_path):
+                os.makedirs(config_path)
+        with open(config_path+file_name, 'w') as outf:
+                pickle.dump(dict, outf)
+
 photons_file = 'sim-'+cfg+'_100million.root'
 
 if not os.path.isfile(paths.get_calibration_file_name(cfg)):   # This is not a great structure as other configuration data may change in addition to the detector config
@@ -37,20 +44,16 @@ if not os.path.isfile(paths.get_calibration_file_name(cfg)):   # This is not a g
         logger.info("==== Calibration complete ====")
 
 if True:
-        config_path = paths.get_data_file_path(cfg)
-        if not os.path.exists(config_path):
-                os.makedirs(config_path)
         all_config_info = {'configuration': detectorconfig.configdict[cfg].__dict__}
         all_config_info['scintillator'] = lensmaterials.create_scintillation_material().__dict__
         all_config_info['lens_material'] = lensmaterials.lensmat.__dict__
         all_config_info['G4_config'] = 'placeholder'
-        all_config_info['particle_config'] = 'placeholder'
-        with open(config_path+'full_config.pickle', 'w') as outf:
-                pickle.dump(all_config_info, outf)
+        all_config_info['particle_config'] = 'placeholder'  # Needs to include energies
+        all_config_info['quantum_efficiency'] = 'placeholder'
+        save_config_file(cfg, 'full_config.pickle', all_config_info)
 
         # Write both files for now to support Jacopo's test setup
-        with open(config_path+'conf.pkl', 'w') as outf:
-                pickle.dump(detectorconfig.configdict[cfg].__dict__, outf)
+        save_config_file(cfg, 'conf.pkl', detectorconfig.configdict[cfg].__dict__)
 
 logger.info('==== Simulation part ====')
 os.system('python g4_sim.py e- %s %s'%(s_d,cfg))
