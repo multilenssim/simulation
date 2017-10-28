@@ -1,4 +1,4 @@
-#!/c/Program Files/Python36/python
+#!/usr/bin/python
 
 import pprint
 import pickle
@@ -22,7 +22,7 @@ with open(args.pickle_file, 'rb') as f:
 
         try:
             pprint.pprint(data.__dict__)
-        except TypeError:  # TODO: this is speculative for DMR project
+        except AttributeError:  # We had this as TypeError - but that may have been speculative for DMR
             pprint.pprint(data)
     else:
         print("No data in file: " + args.pickle_file)

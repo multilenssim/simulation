@@ -318,11 +318,11 @@ class DetectorResponse(object):
             for i in range(length):
                 if (xbin_array[i] >= self.pmtxbins) or (xbin_array[i] < 0) or (ybin_array[i] >= self.pmtybins) or (ybin_array[i] < 0) or (facebin_array[i] == -1):
                     bin_array[i] = -1
-                    print "photon " + str(i) + " is a culprit"
+                    print("photon " + str(i) + " is a culprit")
             return bin_array.astype(int)
             
         else:
-            #print "Curved surface detector was selected."
+            #print("Curved surface detector was selected.")
             closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array)
 	    bin_array = self.scaled_pmt_arr_surf(closest_triangle_index)
             #curved_surface_index = [int(x / self.n_triangles_per_surf) for x in closest_triangle_index]
@@ -332,8 +332,8 @@ class DetectorResponse(object):
             #print np.array(bin_array) >= n_pmts_total
             #print np.extract((np.array(bin_array) >= n_pmts_total), bin_array)
             if np.size(bad_bins) > 0:
-				print "The following "+str(np.shape(bad_bins)[1])+" photons were not associated to a PMT: "
-				print bad_bins
+				print("The following "+str(np.shape(bad_bins)[1])+" photons were not associated to a PMT: ")
+				print(bad_bins)
 				#print max(closest_triangle_index)
 				#print max(bin_array)
 				#print n_pmts_total
