@@ -1,11 +1,14 @@
 from DetectorResponse import DetectorResponse
 from DetectorResponsePDF import DetectorResponsePDF
-from DetectorResponseGaussAngle import DetectorResponseGaussAngle
-from ShortIO.root_short import ShortRootReader
+#from DetectorResponseGaussAngle import DetectorResponseGaussAngle
+from DetectorResponseGAKW import DetectorResponseGAKW
+#from ShortIO.root_short import ShortRootReader
 from EventAnalyzer import EventAnalyzer
+
 import time
 import numpy as np
 import matplotlib.pyplot as plt
+import pickle
 
 from logger_lfd import logger
 
@@ -14,15 +17,17 @@ def create_detres(config, simname, detresname, detxbins=10, detybins=10, detzbin
 	if method=="PDF":
 		smalltest = DetectorResponsePDF(config, detxbins, detybins, detzbins)
 	elif method=="GaussAngle":
-		smalltest = DetectorResponseGaussAngle(config, detxbins, detybins, detzbins)
+		smalltest = DetectorResponseGAKW(config, detxbins, detybins, detzbins)
 	else:
 		print "Warning: using generic DetectorResponse base class."
 		smalltest = DetectorResponse(config)
-	smalltest.calibrate(datadir + simname, nevents)
+	smalltest.calibrate(datadir + simname, datadir, nevents)
         logger.info("=== Detector analysis calibration complete.  Writing calibration file")
 	#smalltest.calibrate_old(datadir + simname, nevents)
 	# print smalltest.means[68260]
 	# print smalltest.sigmas[68260]
+	with open(datadir + detresname + '.pickle', 'wb') as outf:
+		pickle.dump(smalltest, outf)
 	smalltest.write_to_ROOT(datadir + detresname)
 	
 def reconstruct_event_PDF(config, detres, event, event_pos=None, datadir=""):

@@ -8,11 +8,11 @@ import mpl_toolkits.axisartist as AA
 from mpl_toolkits.axes_grid1 import host_subplot
 from chroma.transform import normalize
 from chroma.sample import uniform_sphere
-from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader
+#from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader
 import time as time
 from DetectorResponse import DetectorResponse
 from DetectorResponsePDF import DetectorResponsePDF
-from DetectorResponseGaussAngle import DetectorResponseGaussAngle
+from DetectorResponseGAKW import DetectorResponseGAKW
 from Tracks import Tracks, Vertex
 
 
@@ -652,7 +652,7 @@ class EventAnalyzer(object):
         
         # If detector is not calibrated or not of the GaussAngle subclass, use actual photon angles
         # plus Gaussian noise (two different models, depending on if lens_dia is given)
-        if not (self.det_res.is_calibrated and isinstance(self.det_res,DetectorResponseGaussAngle)):
+        if not (self.det_res.is_calibrated and isinstance(self.det_res,DetectorResponseGAKW)):
             # If lens_dia is not given, only include angular noise of sig_cone
             sigmas = np.zeros(length)
             if lens_dia is None:

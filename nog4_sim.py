@@ -1,7 +1,6 @@
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 from EventAnalyzer import EventAnalyzer
 from chroma.detector import Detector, G4DetectorParameters
-from chroma.loader import load_bvh
 from chroma.sim import Simulation
 import time, h5py, os, argparse
 import lensmaterials as lm
@@ -26,7 +25,7 @@ def fixed_dist(sample, radius, in_shell, out_shell, rads=None):
 	return loc1,loc2,rads
 
 def sph_scatter(sample,in_shell,out_shell):
-        print('sph_scatter shell radii: ' + str(in_shell) + ' ' + str(out_shell))
+	print('sph_scatter shell radii: ' + str(in_shell) + ' ' + str(out_shell))
 	loc = np.random.uniform(-out_shell,out_shell,(sample,3))
 	while len(loc[(np.linalg.norm(loc,axis=1)>in_shell) & (np.linalg.norm(loc,axis=1)<=out_shell)]) != sample:
 		bl_idx = np.logical_not((np.linalg.norm(loc,axis=1)>in_shell) & (np.linalg.norm(loc,axis=1)<=out_shell))
@@ -43,16 +42,16 @@ def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 		locs1 = locs1.reshape((1,-1))
 		locs2 = locs2.reshape((1,-1))
 	for loc1,loc2 in zip(locs1,locs2):
-	        event1 = kbl.gaussian_sphere(loc1, sigma, int(amount1))
-	        event2 = kbl.gaussian_sphere(loc2, sigma, int(amount2))
-	        event = event1 + event2						#Just add the list of photons from the two sources into a single event
-	        events.append(event)
+		event1 = kbl.gaussian_sphere(loc1, sigma, int(amount1))
+		event2 = kbl.gaussian_sphere(loc2, sigma, int(amount2))
+		event = event1 + event2						#Just add the list of photons from the two sources into a single event
+		events.append(event)
 	return events
 
-def sim_setup(config,in_file):
-        #g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
-	kabamland = kbl.load_or_build_detector(config, lm.create_scintillation_material(), None)
-	sim = Simulation(kabamland,geant4_processes=0)
+def sim_setup(config,in_file, useGeant4=False):
+	g4_detector_parameters = G4DetectorParameters(orb_radius=7., world_material='G4_Galactic') if useGeant4 else None
+	kabamland = kbl.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+	sim = Simulation(kabamland,geant4_processes= 4 if useGeant4 else 0)
 	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)
 	analyzer = EventAnalyzer(det_res)
 	return sim, analyzer
@@ -72,7 +71,7 @@ def run_simulation(file, sim, events, analyzer, first=False):
                       str(ev.primary_vertex.dir) + '\t')
 		print('Photons begin count, track count:\t' + str(len(ev.photons_beg)) + '\t' + str(len(tracks)))
 		'''
-                if first:
+		if first:
 			coord = file.create_dataset('coord', maxshape=(2,None,3), data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
 			uncert = file.create_dataset('sigma', maxshape=(None,), data=tracks.sigmas,chunks=True)
 			arr.append(tracks.sigmas.shape[0])
@@ -151,27 +150,27 @@ if __name__ == '__main__':
 	distance = np.linspace(20,450,6)
 	cfg = args.cfg
 	seed_loc = args.sl
-        in_shell = int(seed_loc[0])*1000
+	in_shell = int(seed_loc[0])*1000
 	out_shell = int(seed_loc[1])*1000
-        print('Seed locations: ' + str(in_shell) + ' ' + str(out_shell))
+	print('Seed locations: ' + str(in_shell) + ' ' + str(out_shell))
 	data_file_dir = paths.get_data_file_path(cfg)
 	start_time = time.time()
 	sim,analyzer = sim_setup(cfg,paths.get_calibration_file_name(cfg))
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
-        amount = 16000
-        fire_photons_single_site(sample, amount, sim, analyzer, in_shell, out_shell)
-        print 's-site done'
-        for dst in distance:
-                fire_photons_double_site(sample,16000,sim,analyzer, in_shell, out_shell, dst)
-                print 'distance '+str(int(dst/10))+' done'
+	amount = 16000
+	fire_photons_single_site(sample, amount, sim, analyzer, in_shell, out_shell)
+	print 's-site done'
+	for dst in distance:
+		fire_photons_double_site(sample,16000,sim,analyzer, in_shell, out_shell, dst)
+		print 'distance '+str(int(dst/10))+' done'
 
 
-        '''
+    '''
 	print('Firing ' + str(energy) + ' MeV e-''s')
 	fire_particles('e-', sample, energy*MeV, sim, analyzer)
 	print('Firing ' + str(energy) + ' MeV gammas')
 	fire_particles('gamma', sample, energy*MeV, sim, analyzer)
-        '''
+    '''
 	'''
 	bkg_dist_hist(sample,16000,sim,analyzer)
 	print 's-site done'

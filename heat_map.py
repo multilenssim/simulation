@@ -1,17 +1,21 @@
+import numpy as np
+import argparse
+
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Wedge,Circle,Arrow
 import matplotlib.gridspec as gridspec
-from kabamland2 import gaussian_sphere
-from chroma.generator import vertex
 import matplotlib.pyplot as plt
+
+from chroma.generator import vertex
+from chroma.event import Photons
+from chroma import sample
+
+#from kabamland2 import gaussian_sphere
 import detectorconfig as dc
-import nog4_sim as gs
-import right_amount
-import numpy as np
-import argparse
+import nog4_sim as ng4s
+#import right_amount
 import os
 
-import heat_map
 import paths
 
 def surf(rad_ring,ring_par,width_ring):
@@ -83,7 +87,7 @@ def plot_heat(conf_par,heat,lns,l_rad, config, particle_name):
 	ax3.set_yticks([])
 	ax3.set_aspect('equal')
 	pl4 = locate(dir_to_lens,lens_center[lns],l_rad,lg,2)
-        ax4.plot(pl4[3][0],pl4[3][1],linewidth=3)
+	ax4.plot(pl4[3][0],pl4[3][1],linewidth=3)
 	ax4.plot(pl4[2][0],pl4[2][1],'o',markersize=15)
 	ax4.plot(pl4[0][0],pl4[0][1],linewidth=5)
 	ax4.plot(0,0,'x',markersize=15)
@@ -91,15 +95,15 @@ def plot_heat(conf_par,heat,lns,l_rad, config, particle_name):
 	ax4.set_yticks([])
 	ax4.set_aspect('equal')
 	fig.colorbar(p, ax=ax1)
-        fig.set_size_inches(10,6)
+	fig.set_size_inches(10,6)
 
-        map_path = 'hmaps/'
-        if not os.path.exists(map_path):
-                os.makedirs(map_path)
+	map_path = 'hmaps/'
+	if not os.path.exists(map_path):
+			os.makedirs(map_path)
 
-        filename = map_path+'heat'+str(lns)+'-'+config+'-'+particle_name
-        #fig.savefig(filename+'.png')
-        fig.savefig(filename+'.pdf')
+	filename = map_path+'heat'+str(lns)+'-'+config+'-'+particle_name
+	#fig.savefig(filename+'.png')
+	fig.savefig(filename+'.pdf')
 
 	'''
         F = pylab.gcf()
@@ -153,33 +157,77 @@ def tria_proj(i_rad,lens_center,l_rad,base):
 	return np.asarray([a,b,c])
 
 
+def line_of_photons(n):
+	points = np.empty((n, 3))
+	np.linspace(-2, 2, n)
+	points[:, 0] = np.linspace(-2, 2, n)
+	points[:, 1] = 0.
+	points[:, 2] = 0.
+	pos = points
+	dir = np.empty([n, 3])
+	dir[:, 0] = 0.		# there's got to be a better way to do this....
+	dir[:, 1] = 1.
+	dir[:, 2] = 0.
+	pol = np.cross(dir, sample.uniform_sphere(n))  # ??
+	# 300 nm is roughly the pseudocumene scintillation wavelength
+	wavelengths = np.repeat(300.0, n)
+	return Photons(pos, dir, pol, wavelengths)
+
+
+def gaussian_sphere(pos, sigma, n):
+	points = np.empty((n, 3))
+	points[:, 0] = np.random.normal(0.0, sigma, n) + pos[0]
+	points[:, 1] = np.random.normal(0.0, sigma, n) + pos[1]
+	points[:, 2] = np.random.normal(0.0, sigma, n) + pos[2]
+	pos = points
+	dir = sample.uniform_sphere(n)
+	pol = np.cross(dir, sample.uniform_sphere(n))
+	# 300 nm is roughly the pseudocumene scintillation wavelength
+	wavelengths = np.repeat(300.0, n)
+	return Photons(pos, dir, pol, wavelengths)
+
+def print_photons_meta_data(photons):
+	print("Gun: " + str(np.shape(gun.pos)) + " " + str(np.shape(gun.dir)) + " " + str(np.shape(gun.pol)) + " " + str(np.shape(gun.wavelengths)))
+	print("Gun types: " + str(gun.pos.dtype) + " " + str(gun.dir.dtype) + " " + str(gun.pol.dtype) + " " + str(gun.wavelengths.dtype))
+
 if __name__=='__main__':
+	g4 = False
+	sigma = 0.01
+	amount = 1000000
+	energy = 2
+
+	gun = gaussian_sphere((0,0,0), sigma, amount)
+	gun2 = line_of_photons(amount)
+	print_photons_meta_data(gun)
+	print_photons_meta_data(gun2)
+	print("Photon gun count: " + str(len(gun)))
+
 	parser = argparse.ArgumentParser()
 	parser.add_argument('cfg', help='provide configuration')
 	args = parser.parse_args()
 	cfg = args.cfg
 	conf_par = dc.configdict[cfg]
 	sys_per_face = (conf_par.base*(conf_par.base+1))/2
-	sel_len = np.random.choice(sys_per_face,3,replace=False)
+	sel_len = range(sys_per_face)  # np.random.choice(sys_per_face,3,replace=False)
 	heat = []
-	g4 = True
-	sigma = 0.01
-	amount = 1000000
-	energy = 2
 	#ix = 4
-	sim,analyzer = gs.sim_setup(cfg,paths.get_calibration_file_name(cfg))
+	sim,analyzer = ng4s.sim_setup(cfg,paths.get_calibration_file_name(cfg))
 	pmts_per_surf = analyzer.det_res.n_pmts_per_surf
 	lens_center = analyzer.det_res.lens_centers[:sys_per_face]
 	dir_to_lens = np.mean(lens_center,axis=0)
 	dir_to_lens_n = dir_to_lens/np.linalg.norm(dir_to_lens)
-	off_ax = gs.sph_scatter(1,in_shell = 0,out_shell = 1000).T #2000*rand_perp(dir_to_lens_n)
+	off_ax = ng4s.sph_scatter(1,in_shell = 0,out_shell = 1000).T #2000*rand_perp(dir_to_lens_n)
 	if np.shape(off_ax)[1] == 1:
 		off_ax = np.reshape(off_ax,(1,3))
 	else:
 		pass
+	print("Location count: " + str(len(off_ax)))
 	for lg in off_ax:
+		print("Location: " + str(lg))
 		if not g4:
-			gun = gaussian_sphere(lg, sigma, amount)
+			#gun = gaussian_sphere(lg, sigma, amount)
+			gun = line_of_photons(amount)
+			print("Photon gun count: " + str(len(gun)))
 		else:
 			gun = vertex.particle_gun(['e-','gamma'], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.999, float(energy) * 1.001))			
 		for ev in sim.simulate(gun, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):

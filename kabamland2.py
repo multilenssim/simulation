@@ -4,15 +4,14 @@ from chroma.demo.optics import glass, black_surface
 from chroma.detector import Detector
 from chroma.detector import G4DetectorParameters
 from chroma.sim import Simulation
-from chroma.generator import vertex
 from chroma.pmt import build_pmt
 from chroma.sample import uniform_sphere
 from chroma.transform import make_rotation_matrix, normalize
 from chroma.event import Photons
-from chroma.loader import load_bvh
+#from chroma.loader import load_bvh
 from chroma.generator import vertex
 
-from ShortIO.root_short import ShortRootWriter
+#from ShortIO.root_short import ShortRootWriter
 import detectorconfig
 import lenssystem
 import meshhelper as mh
@@ -20,7 +19,7 @@ import lensmaterials as lm
 import numpy as np
 import matplotlib.pyplot as plt
 
-from Geant4.hepunit import *
+#from Geant4.hepunit import *
 
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.tri import Triangulation
@@ -722,12 +721,6 @@ def create_electron_event(location, energy, amount, config, eventname, datadir="
             f.write_event(ev)
 	f.close()
 
-##### Scintillation work #####
-Scnt_PP = np.array([ 6.6*eV, 6.7*eV, 6.8*eV, 6.9*eV, 7.0*eV, 7.1*eV, 7.2*eV, 7.3*eV, 7.4*eV ])
-
-Scnt_FAST = np.array([ 0.000134, 0.004432, 0.053991, 0.241971, 0.398942, 0.000134, 0.004432, 0.053991, 0.241971 ])
-Scnt_SLOW = np.array([ 0.000010, 0.000020, 0.000030, 0.004000, 0.008000, 0.005000, 0.020000, 0.001000, 0.000010 ])
-
 
 def create_gamma_event(location, energy, amount, config, eventname, datadir=""):
     # simulates a number of single gamma photon events equal to amount
@@ -771,9 +764,10 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 	#simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron. Note that viewing may crash if there are too many lenses. (try using configview)
 	
 	config = detectorconfig.configdict[configname]
-        g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
-        kabamland = load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
-        print "Detector was built"
+	print('Starting to build')
+	g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
+	kabamland = load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+	print('Detector was built')
 	#view(kabamland)
 	f = ShortRootWriter(datadir + simname)
 	sim = Simulation(kabamland,geant4_processes=0)

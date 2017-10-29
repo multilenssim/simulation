@@ -1,6 +1,6 @@
 from chroma.transform import make_rotation_matrix, normalize
 from kabamland import find_inscribed_radius, find_focal_length, return_values
-from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader, AngleRootReader, AngleRootWriter
+#from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader, AngleRootReader, AngleRootWriter
 import detectorconfig
 import numpy as np
 import lensmaterials as lm
@@ -22,6 +22,7 @@ class DetectorResponse(object):
     '''
     def __init__(self, configname, detectorxbins=10, detectorybins=10, detectorzbins=10):
         config = detectorconfig.configdict[configname]
+        self.configname = configname        # Adding this for intermediate calibration file writing
         self.is_calibrated = False
         self.detectorxbins = detectorxbins
         self.detectorybins = detectorybins
@@ -322,7 +323,7 @@ class DetectorResponse(object):
             return bin_array.astype(int)
             
         else:
-            #print("Curved surface detector was selected.")
+            print("Curved surface detector was selected.")
             closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array)
 	    bin_array = self.scaled_pmt_arr_surf(closest_triangle_index)
             #curved_surface_index = [int(x / self.n_triangles_per_surf) for x in closest_triangle_index]
@@ -347,7 +348,7 @@ class DetectorResponse(object):
             #for ii in range(len(bin_array)):
                 #print ii, "\t", closest_triangle_index[ii],"\t",curved_surface_index[ii], "\t",surface_pmt_index[ii], "\t",bin_array[ii]    
                 
-            return bin_array
+            return bin_array.astype(int)
             
     def find_closest_triangle_center(self, pos_array, max_dist = 1.):
         #print "Finding closest triangle centers..."

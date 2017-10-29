@@ -18,4 +18,3 @@ logger.propagate = False
 logger.setLevel(logging.DEBUG)
 
 chroma_logger.setLevel(logging.DEBUG)
-

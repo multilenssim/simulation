@@ -4,10 +4,7 @@ import argparse
 
 import kabamland2 as kb
 import detectoranalysis as da
-import lensmaterials
-import detectorconfig
 
-from chroma.log import logger as chroma_logger
 from logger_lfd import logger
 
 import paths
@@ -32,17 +29,18 @@ if not os.path.isfile(paths.get_calibration_file_name(cfg)):   # This is not a g
         # We should really date stamp the directory containing the output and configuration files
 	logger.info('==== Setting up the detector ====')
         if not os.path.exists(paths.detector_calibration_path + photons_file):
-	        logger.info('==== Building detector and simulating photons ====')
+                logger.info('==== Building detector and simulating photons ====')
                 kb.full_detector_simulation(100000, cfg, photons_file, datadir=paths.detector_calibration_path)
         logger.info("==== Calibrating  ====")
-        da.create_detres(args.cfg, photons_file,
+        da.create_detres(args.cfg,
+                         photons_file,
                          paths.get_calibration_file_name_without_path(cfg),
                          method="GaussAngle",
                          nevents=1000,
                          datadir=paths.detector_calibration_path)
         #os.remove(photons_file)
         logger.info("==== Calibration complete ====")
-
+'''
 if True:
         all_config_info = {'configuration': detectorconfig.configdict[cfg].__dict__}
         all_config_info['scintillator'] = lensmaterials.create_scintillation_material().__dict__
@@ -54,7 +52,7 @@ if True:
 
         # Write both files for now to support Jacopo's test setup
         save_config_file(cfg, 'conf.pkl', detectorconfig.configdict[cfg].__dict__)
-
+'''
 logger.info('==== Simulation part ====')
 os.system('python g4_sim.py e- %s %s'%(s_d,cfg))
 os.system('python g4_sim.py gamma %s %s'%(s_d,cfg))

@@ -1,5 +1,10 @@
 # Test program for creating scintillation (and other) photons from Geant4
 
+import os
+# These 'environment variables' are not passed in.  They show up in 'set' but not 'env' on MacOS
+os.environ['LD_LIBRARY_PATH'] = '~/Development/physics/chroma_env/lib'
+os.environ['DYLD_LIBRARY_PATH'] = '~/Development/physics/chroma_env/lib'
+
 from chroma.event import Vertex
 from chroma.generator import g4gen
 from chroma.detector import G4DetectorParameters
@@ -64,46 +69,7 @@ def compute_stats(data, x_distances):
 	'''
 	return average, error
 
-
-if __name__ == '__main__':
-	'''
-	Geant4.gApplyUICommand("/run/verbose 2")
-	Geant4.gApplyUICommand("/event/verbose 2")
-	Geant4.gApplyUICommand("/tracking/verbose 2")
-	'''
-
-	print("g4gen ref count: ", sys.getrefcount(g4gen))
-
-	print("G4 state: ", Geant4.gStateManager.GetCurrentState())
-	print("Random engine: ", Geant4.HepRandom.getTheEngine())
-	print("Random seed: ", Geant4.HepRandom.getTheSeed())
-
-	##### Debugging stuff pulled from other places #####
-	# Various futzing around with world material
-	# helium = G4Material.GetMaterial("G4_HE")
-	# if helium == None:
-	#    helium = gNistManager.FindOrBuildMaterial("G4_HE")  # Isotopes parameter?
-	# If we didn't find it - squawk
-	# self.world_material = helium
-	# self.world_material = G4Material.GetMaterial("G4_AIR")
-	# self.world_material = self.create_g4material(he)
-
-	# Debugging stuff pulled out of g4gen.py
-	element_table = Geant4.gElementTable        # Was: G4Element.GetElementTable() in c++
-	# Somehow one of these blows stuff up...
-	# element_table2 = gElementTable
-	# material_table = gMaterialTable
-
-	# print("create_g4material() number of elements: ", G4Element.GetNumberOfElements())
-
-	import g4py.NISTmaterials
-
-	# Add Geant4 PrintVersion()
-	Geant4.print_version()     # Geant4 method
-	#G4NistManager * NISTManager = G4NistManager::Instance();
-	#NISTManager->ListMaterials("all");
-	##########
-
+def fire_electrons_and_gammas():
 	scintillator = lensmaterials.create_scintillation_material()
 
 	x_position = None
@@ -142,7 +108,7 @@ if __name__ == '__main__':
 	track_counts = {}
 	vertex_positions = {}
 
-	run_count = 100
+	run_count = 20
 	for particle in particles:
 		counts[particle] = {}
 		scint_counts[particle] = {}
@@ -345,3 +311,65 @@ if __name__ == '__main__':
 	gen2 = g4gen.G4Generator(scintillator)
 	out_ph1 = g4.generate('e-', (0. * m, 0., 0.), momentum, scintillator, gen2, energy=2.)		# NOTE the energy here.  for testing !!!!!
 	'''
+def fire_neutrons():
+	scintillator = lensmaterials.create_scintillation_material()
+
+	# Use srgparse and make this common code
+	x_position = None
+	if len(sys.argv) > 1:
+		x_position = float(sys.argv[1])
+
+	g4_params = G4DetectorParameters(world_material='G4_AIR', orb_radius=10.)
+	gen = g4gen.G4Generator(scintillator, g4_detector_parameters=g4_params)
+	momentum = (-1, 0, 0)
+	position = (12., 0., 0.)
+	# gen = g4gen.G4Generator(scint)
+	g4 = G4Generator()  # Should not be necessary
+	output = g4.generate("neutron", position, momentum, scintillator, gen, energy=2.)
+	track_tree = gen.track_tree
+	pprint.pprint(track_tree)
+
+if __name__ == '__main__':
+	'''
+	Geant4.gApplyUICommand("/run/verbose 2")
+	Geant4.gApplyUICommand("/event/verbose 2")
+	Geant4.gApplyUICommand("/tracking/verbose 2")
+	'''
+
+	ev_dict = os.environ
+	pprint.pprint(ev_dict)
+
+	print("g4gen ref count: ", sys.getrefcount(g4gen))
+
+	print("G4 state: ", Geant4.gStateManager.GetCurrentState())
+	print("Random engine: ", Geant4.HepRandom.getTheEngine())
+	print("Random seed: ", Geant4.HepRandom.getTheSeed())
+
+	##### Debugging stuff pulled from other places #####
+	# Various futzing around with world material
+	# helium = G4Material.GetMaterial("G4_HE")
+	# if helium == None:
+	#    helium = gNistManager.FindOrBuildMaterial("G4_HE")  # Isotopes parameter?
+	# If we didn't find it - squawk
+	# self.world_material = helium
+	# self.world_material = G4Material.GetMaterial("G4_AIR")
+	# self.world_material = self.create_g4material(he)
+
+	# Debugging stuff pulled out of g4gen.py
+	element_table = Geant4.gElementTable        # Was: G4Element.GetElementTable() in c++
+	# Somehow one of these blows stuff up...
+	# element_table2 = gElementTable
+	# material_table = gMaterialTable
+
+	# print("create_g4material() number of elements: ", G4Element.GetNumberOfElements())
+
+	import g4py.NISTmaterials
+
+	# Add Geant4 PrintVersion()
+	Geant4.print_version()     # Geant4 method
+	#G4NistManager * NISTManager = G4NistManager::Instance();
+	#NISTManager->ListMaterials("all");
+	##########
+
+	#fire_electrons_and_gammas()
+	fire_neutrons()

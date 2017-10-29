@@ -1,22 +1,14 @@
 import sys
 import logging
 import argparse
-import os
-import pickle
-
 import numpy as np
-import pprint
 
 from chroma.sim import Simulation
-from chroma.detector import Detector
 from chroma.detector import G4DetectorParameters
-from chroma.loader import load_bvh
 from chroma.generator import vertex
 
 import kabamland2 as k2
 import lensmaterials as lm
-import detectoranalysis as da
-
 import paths
 from logger_lfd import logger
 

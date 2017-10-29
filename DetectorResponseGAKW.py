@@ -1,5 +1,9 @@
-from ShortIO.root_short import GaussAngleRootWriter, GaussAngleRootReader, ShortRootReader
+#from ShortIO.root_short import GaussAngleRootWriter, GaussAngleRootReader, ShortRootReader
 import numpy as np
+from linalg_3 import *
+
+#from numpy.core import _methods   # Works - but not with numba
+
 import matplotlib.pyplot as plt
 import time
 from numba import jit
@@ -21,45 +25,16 @@ def normalize(x):
     "Returns unit vectors in the direction of `x`."
     x = np.atleast_2d(np.asarray(x, dtype=float))
     return (x/norm(x)[:,np.newaxis]).squeeze()
-            
-#@jit(nopython=True)
-def compute_pmt_calibration(pmt_bins, i, end_direction_array, n_min):
-    pmt_indices = np.where(pmt_bins == i)[0]
-    if np.shape(pmt_indices)[0] == 0:
-        # logger.info("No photons for PMT: " + str(i))
-        return None, None, None, None
-    angles_for_pmt = end_direction_array[pmt_indices]
 
-    n_angles = np.shape(angles_for_pmt)[0]
-    #skipping pmts with <2 photon hits (in which case the variance will be undefined with ddof=1)
-    #also skipping if <n_min photon hits
-    if n_angles < 2 or n_angles<n_min:
-        # logger.info("Not enough angles for PMT: " + str(i))
-        return None, None, None, None
-    norms = np.repeat(1.0, n_angles)
-    mean_angle = normalize(np.mean(angles_for_pmt, axis=0))
-    
-    # For each PMT, get a pair of axes which form an 
-    # orthonormal coordinate system with the PMT mean direction
-    u_dir = np.cross(mean_angle,np.array([0,0,1]))
-    if not (np.dot(u_dir, u_dir) > 0): # In case mean_angle = [0,0,1]
-	u_dir = np.cross(mean_angle,np.array([0,1,0]))
-    u_dir = normalize(u_dir)
-    v_dir = np.cross(mean_angle, u_dir)
-            
-    u_proj = np.dot(angles_for_pmt, u_dir)
-    u_var = np.var(u_proj, ddof=1)
-    v_proj = np.dot(angles_for_pmt, v_dir)
-    v_var = np.var(v_proj, ddof=1)
-    variance = (u_var+v_var)/2.
-
-    # Old method, which calculated variance of projected norma, even though
-    # the mean of the projections wasn't 0 due to the solid angle factor
-    projection_norms = np.dot(angles_for_pmt, mean_angle)
-    # KW - not used any more # orthogonal_complements = np.sqrt(np.maximum(norms**2 - projection_norms**2, 0.))
-    #variance = np.var(orthogonal_complements, ddof=1)
-    return mean_angle, variance, u_var - v_var, n_angles
-        
+# Dot product of a 2d array with a 1d array - element wise (something like that
+@jit(nopython=True)
+def my_dot(array1, array2):
+    result = np.empty(len(array1), dtype=np.float64)      # May not need 64?
+    i = 0
+    for i in range(len(array1)):
+        result[i] = dot(array1[i], array2)
+        i += 1
+    return result
 
 #@jit(nopython=True)
 def find_photons_for_pmt(photons_beg_pos, photons_end_pos, detected, end_direction_array, n_det, max_storage):
@@ -101,6 +76,67 @@ def find_photons_for_pmt(photons_beg_pos, photons_end_pos, detected, end_directi
     #print("---Done with gather photons----")
     return ending_photons, length
 
+# XXXX took off the dtypes in both array creations - first was dndarray, and second was int - to make numba satisfied - its never satisfoed!!!!
+#@jit(nopython=True)
+def assign_photons(npmt_bins, n_det, pmt_bins):
+    start = time.time()
+    # Lots of confusion about lists vs. np.arrays - declared it as np.ndarray, but got lists???
+    pmt_photons = np.empty(npmt_bins, dtype=list)     # Not sure if we need zeroes here or not....  and whether zeroes = None.   Zeroes add
+    for photon in range(n_det):
+        if photon % 1000000 == 0:
+            logger.info("Photon " + str(photon) + " of " + str(n_det) + ': ' + str(time.time() - start))
+        pmt = int(pmt_bins[photon])     # XXXXXXX Don't like the forcing of this to int - look upstream
+        if pmt_photons[pmt] is None:
+            pmt_photons[pmt] = [photon]
+            #pmt_photons[pmt] = np.array([photon], dtype=np.int)
+        else:
+            pmt_photons[pmt] += [photon]
+            #pmt_photons[pmt] = np.append(pmt_photons[pmt], photon)      # creates 100 million arrays
+    return pmt_photons
+
+
+#@jit(nopython=True)  # Looks like this actually slows things down by double??
+def select_photons(pmt, bins, end_direction_array):
+    pmt_indices = np.where(bins == pmt)[0]
+    if len(pmt_indices) == 0:  # np.shape(pmt_indices)[0] == 0:
+        print("No photons for PMT: ")  #  + str(i))
+        return None
+    angles_for_pmt = end_direction_array[pmt_indices]
+    return angles_for_pmt
+
+@jit(nopython=True)
+def compute_pmt_calibration(angles_for_pmt, n_min):
+    #norms = np.repeat(1.0, n_angles)
+
+    #means = _methods._mean(angles_for_pmt, axis=0)
+    #means = np.mean(angles_for_pmt, axis=0)
+    #mean_angle = normalize(means)
+    mean = np.array([np.mean(angles_for_pmt[:,0]), np.mean(angles_for_pmt[:,1]), np.mean(angles_for_pmt[:,2])])
+    mean_angle = mean / norm(mean)
+
+    # For each PMT, get a pair of axes which form an
+    # orthonormal coordinate system with the PMT mean direction
+    u_dir = cross(mean_angle,np.array([0,0,1]))
+    if not (np.dot(u_dir, u_dir) > 0): # In case mean_angle = [0,0,1]
+        u_dir = cross(mean_angle,np.array([0,1,0]))
+    #u_dir = normalize(u_dir)
+    u_dir = u_dir / norm(u_dir)
+    v_dir = cross(mean_angle, u_dir)
+    u_proj = my_dot(angles_for_pmt, u_dir)
+
+    #u_var = np.var(u_proj, ddof=1)   XXXXXXXXX Need to fix the ddof!!
+    u_var = np.var(u_proj)
+    v_proj = my_dot(angles_for_pmt, v_dir)
+    #v_var = np.var(v_proj, ddof=1)
+    v_var = np.var(v_proj)
+    variance = (u_var+v_var)/2.
+
+    # Old method, which calculated variance of projected norma, even though
+    # the mean of the projections wasn't 0 due to the solid angle factor
+    #projection_norms = np.dot(angles_for_pmt, mean_angle)
+    # KW - not used any more # orthogonal_complements = np.sqrt(np.maximum(norms**2 - projection_norms**2, 0.))
+    #variance = np.var(orthogonal_complements, ddof=1)
+    return mean_angle, variance, u_var - v_var
 
 class DetectorResponseGAKW(DetectorResponse):
     '''Detector calibration information is stored in Gaussian cones for each PMT: 
@@ -137,7 +173,14 @@ class DetectorResponseGAKW(DetectorResponse):
         pmt_bins[n_det:(n_det+length)] = pmt_b
         return length
 
-    def calibrate(self, simname, nevents=-1):
+
+    '''
+    The calibration is performed in three steps: [ my function names are probably wrong ] [Describe the file structure here]
+    1. Loop over events to find the pmt that each photon hit, and the direction for each photon.  Produces file 'hits-config.pickle'
+    2. Loop over all photons to gather them by pmt.  Produces file 'pmt-bins.config.pickle'
+    3. Loop over all photons for each pmt to compute statistics for each pmt
+    '''
+    def calibrate(self, simname, directory, nevents=-1):
         # Use with a simulation file 'simname' to calibrate the detector
         # Creates a list of mean angles and their uncertainties (sigma for
         # a cone of unit length), one for each PMT
@@ -160,17 +203,19 @@ class DetectorResponseGAKW(DetectorResponse):
 
         max_storage = min(nevents*1000000,120000000) #600M is too much, 400M is OK (for np.float32; using 300M)
         end_direction_array = np.empty((max_storage,3),dtype=np.float32) 
-        pmt_bins = np.empty(max_storage,dtype=np.float32) 
+        #pmt_bins = np.empty(max_storage,dtype=np.float32)
+        pmt_bins = np.empty(max_storage,dtype=np.int)   # Is it OK to change this to int?  Need to explore that...
         n_det = 0
 
-        pickle_name = 'hits_test.pickle'
+        pickle_name = self.configname + '-hits.pickle'
 
         try:
-            with open(pickle_name, 'rb') as inf:
+            with open(directory+pickle_name, 'rb') as inf:
                 pmt_hits = pickle.load(inf)
             logger.info('Hit map pickle file loaded: ' + pickle_name)
             pmt_bins = pmt_hits['pmt_bins']
             end_direction_array = pmt_hits['end_direction_array']
+            n_det = len(pmt_bins)
         except IOError as error:
             # Assume file not found
             logger.info('Hit map pickle file not found.  Creating: ' + pickle_name)
@@ -204,12 +249,42 @@ class DetectorResponseGAKW(DetectorResponse):
             pmt_bins.resize(n_det)
                 
             pmt_hits = {'pmt_bins': pmt_bins, 'end_direction_array': end_direction_array}
-            with open(pickle_name, 'wb') as outf:
+            with open(directory+pickle_name, 'wb') as outf:
                 pickle.dump(pmt_hits, outf)
                 logger.info('Hit map pickle file created: ' + pickle_name)
 
-        draw_pmt_ind = -1
-        #looping through each event in the simulation, in order to save a mean_angle and a variance for each pmt.
+        logger.info("Finished collection photons (or loading photon list).  Time: " + str(time.time()-start_time))
+
+        draw_pmt_ind = -1       # Is this used at all?
+        bins_file = self.configname + '-pmt-bins.pickle'
+        pmt_photons = None
+        try:
+            with open(directory + bins_file, 'rb') as inf:
+                pmt_photons = pickle.load(inf)
+            logger.info('PMT photon list pickle file loaded: ' + bins_file)
+        except IOError as error:
+            start_assign = time.time()
+            pmt_photons = assign_photons(self.npmt_bins, n_det, pmt_bins)
+            logger.info("assign_photons took: " + str(time.time() - start_assign))
+            with open(directory + bins_file, 'wb') as outf:
+                pickle.dump(pmt_photons, outf)
+                logger.info('PMT photon list pickle file created: ' + bins_file)
+
+        '''  Moved to a separate function to try out numba - which failed.  I don't think this code will work because of the +=
+        pmt_photons = []
+        for _ in range(self.npmt_bins):
+            pmt_photons.append(np.array(0, dtype=np.int))
+        for photon in range(n_det):
+            if photon % 1000000 == 0:
+                logger.info(str(photon) + ' out of ' + str(n_det) + ' photons')
+                logger.handlers[0].flush()
+                logger.info("Time: " + str(time.time() - start_time))
+            pmt_photons[int(pmt_bins[photon])] += photon
+        '''
+        logger.info("Finished listing photons by pmt.  Time: " + str(time.time() - start_time))
+
+        #looping through each event [pmt?] in the simulation, in order to save a mean_angle and a variance for each pmt.
+
         for i in range(self.npmt_bins):
             if i % 10000 == 0:
                 logger.info(str(i) + ' out of ' + str(self.npmt_bins) + ' PMTs')
@@ -217,14 +292,27 @@ class DetectorResponseGAKW(DetectorResponse):
                 logger.info("Time: " + str(time.time()-start_time))
 
             # Make n_min a constant
-            mean_angle, variance, uvvar, n_angles = compute_pmt_calibration(pmt_bins, i, end_direction_array, n_min)
-            if mean_angle is None:
+
+            #print("---Start select photons----")
+            #angles_for_pmt = select_photons(i, pmt_bins, end_direction_array)
+            photon_list = pmt_photons[i]
+            angles_for_pmt = end_direction_array[photon_list]
+            n_angles = len(angles_for_pmt)  # np.shape(angles_for_pmt)[0]
+            # skipping pmts with <2 photon hits (in which case the variance will be undefined with ddof=1)
+            # also skipping if <n_min photon hits
+            if n_angles < 2 or n_angles < n_min:
+                print("Not enough angles for PMT: " + str(i))
                 continue
 
+            #print("---Start calibrate PMT----")
+            mean_angle, variance, uvvar = compute_pmt_calibration(angles_for_pmt, n_min)
+            #print("---End calibrate PMT----")
+
             try:
-				#draw_pmt_ind = None
+                #draw_pmt_ind = None
 				draw_pmt_ind = int(draw_pmt_ind)
-				'''if i == draw_pmt_ind or draw_pmt_ind<0:
+				'''
+				if i == draw_pmt_ind or draw_pmt_ind<0:
 					# Temporary, to visualize histogram of angles, distances
 					#angles = np.arccos(projection_norms)
 					#ang_variance = np.var(angles, ddof=1)
@@ -262,11 +350,12 @@ class DetectorResponseGAKW(DetectorResponse):
 					
 					#print "Average projected variance: ", variance
 					#print "Variance of projected 2D norms: ", np.var(orthogonal_complements, ddof=1)
-					draw_pmt_ind = raw_input("Enter index of next PMT to draw; will stop drawing if not a valid PMT index.\n")'''
+					draw_pmt_ind = raw_input("Enter index of next PMT to draw; will stop drawing if not a valid PMT index.\n")
+				'''
             except ValueError:
                 pass
             except TypeError:
-				pass
+                pass
             
             total_means[i] = mean_angle
             total_variances[i] = variance
