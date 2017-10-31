@@ -97,7 +97,7 @@ def fire_photons_single_site(sample,amount,sim,analyzer,in_shell,out_shell,sigma
         with h5py.File(file_path,'w') as f:
                 for lg in location:
                         gun = kbl.gaussian_sphere(lg, sigma, amount)
-                        arr.append(run_simulation(f, sim, gun, analyzer, first))
+                        arr.extend(run_simulation(f, sim, gun, analyzer, first))
                         first = False
                 f.create_dataset('idx',data=arr)
 
@@ -112,7 +112,7 @@ def fire_photons_double_site(sample,amount,sim,analyzer,in_shell,out_shell,dist,
         with h5py.File(file_path,'w') as f:
                 for lc1,lc2 in zip(locs1,locs2):
                         gun = create_double_source_events(lc1, lc2, sigma, amount/2, amount/2)
-                        arr.append(run_simulation(f, sim, gun, analyzer, first))
+                        arr.extend(run_simulation(f, sim, gun, analyzer, first))
                         first = False
                 f.create_dataset('idx',data=arr)
 
@@ -135,7 +135,7 @@ def fire_particles(particle_name,sample,energy,sim,analyzer,sigma=0.01):
 			# Direction original code is: vertex.isotropic()
 			gun = vertex.particle_gun([particle_name], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.99, float(energy) * 1.01))
 			# gun = vertex.particle_gun([particle_name], vertex.constant(lg), myhack(), vertex.flat(float(energy) * 0.99, float(energy) * 1.01))
-			arr.append(run_simulation(f, sim, gun, analyzer, first))
+			arr.extend(run_simulation(f, sim, gun, analyzer, first))
 			first = False
 		f.create_dataset('idx',data=arr)
 
