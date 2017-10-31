@@ -2,6 +2,7 @@ from chroma import make, view, sample
 from chroma.geometry import Geometry, Material, Mesh, Solid, Surface
 from chroma.demo.optics import glass, black_surface
 from chroma.detector import Detector
+from chroma.detector import G4DetectorParameters
 from chroma.sim import Simulation
 from chroma.generator import vertex
 from chroma.pmt import build_pmt
@@ -687,7 +688,7 @@ def create_electron_event(location, energy, amount, config, eventname, datadir="
 	#simulates a number of single electron events equal to amount
 	#at position given by location for a given configuration.
 	#Electron energy is in MeV.
-	kabamland = Detector(lm.ls)
+	kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=G4DetectorParameters(orb_radius=7.))
 	build_kabamland(kabamland, config)
 	#kabamland.add_solid(Solid(make.box(0.1,0.1,0.1,center=location), glass, lm.ls, color=0x0000ff)) # Adds a small blue cube at the event location, for viewing
 	kabamland.flatten()
@@ -703,7 +704,7 @@ def create_electron_event(location, energy, amount, config, eventname, datadir="
 
 def create_double_source_event(loc1, loc2, sigma, amount, config, eventname, datadir=""):
 	#simulates an event with two different photon sources for a given configuration.
-	kabamland = Detector(lm.ls)
+	kabamland = Detector(lm.create_scintillation_material())
 	build_kabamland(kabamland, config)
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
@@ -720,9 +721,11 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 	#simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron. Note that viewing may crash if there are too many lenses. (try using configview)
 	
 	config = detectorconfig.configdict[configname]
-	print 'starting to build'
-	kabamland = load_or_build_detector(configname)
-	print "Detector was built"
+	print('Starting to build')
+	g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
+	kabamland = load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+	print('Detector was built')
+	#view(kabamland)
 	f = ShortRootWriter(datadir + simname)
 	sim = Simulation(kabamland,geant4_processes=0)
 	for j in range(100):
@@ -732,38 +735,34 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 			f.write_event(ev)
 	f.close()
 
-@contextmanager
-def opened_w_error(filename, mode="r"):
+def load_or_build_detector(config, material, g4_detector_parameters):
+    filename = paths.detector_pickled_path + config + '.pickle'
+    if not os.path.exists(paths.detector_pickled_path):
+        os.makedirs(paths.detector_pickled_path)
+    # How to ensure the material and detector parameters are correct??
     try:
-        f = open(filename, mode)
-    except IOError, err:
-        yield None, err
-    else:
+        with open(filename,'rb') as pickle_file:
+            print("** Loading detector configuration: " + config)
+            kabamland = pickle.load(pickle_file)
+            if kabamland.g4_detector_parameters is None:
+                print('*** No Geant4 detector parameters found in loaded file ***')
+            elif g4_detector_parameters is None:
+                print('*** Using Geant4 detector parameters found in loaded file ***')
+            else:
+                print('*** Replacing loaded Geant4 detector parameters ***')
+                kabamland.g4_detector_parameters = g4_detector_parameters
+    except IOError as error:
+        print("** Building detector configuration: " + config)
+        kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+        build_kabamland(kabamland, config)
+        kabamland.flatten()
+        kabamland.bvh = load_bvh(kabamland)
         try:
-            yield f, None
-        finally:
-            f.close()
-
-def load_or_build_detector(config):
-        filename = 'pickled_detectors/'+config+'.pickle'
-        with opened_w_error(filename,'rb') as (pickle_file, error):
-                if not error:   # Assume file not found
-                        print("Loading detector configuration: " + config)
-                        kabamland = pickle.load(pickle_file)
-                else:
-                        print("Building detector configuration: " + config)
-                        kabamland = Detector(lm.get_scintillation_material())
-                        kabamland.orb_radius = 6.5
-                        build_kabamland(kabamland, config)
-                        kabamland.flatten()
-                        kabamland.bvh = load_bvh(kabamland)
-                        # Compute the filename once
-                        with opened_w_error(filename,'wb') as (pickle_file, error):
-                                if error:
-                                        print("Error writing pickle file: " + filename)
-                                else:
-                                        pickle.dump(kabamland, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
-        return kabamland
+            with open(filename,'wb') as pickle_file:
+                pickle.dump(kabamland, pickle_file)
+        except IOError as error:
+            print("Error writing pickle file: " + filename)
+    return kabamland
 
 
 if __name__ == '__main__':
