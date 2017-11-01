@@ -1,8 +1,8 @@
 from DetectorResponse import DetectorResponse
 from DetectorResponsePDF import DetectorResponsePDF
-#from DetectorResponseGaussAngle import DetectorResponseGaussAngle
+from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 from DetectorResponseGAKW import DetectorResponseGAKW
-#from ShortIO.root_short import ShortRootReader
+from ShortIO.root_short import ShortRootReader
 from EventAnalyzer import EventAnalyzer
 
 import time
@@ -22,7 +22,7 @@ def create_detres(config, simname, detresname, detxbins=10, detybins=10, detzbin
 		print "Warning: using generic DetectorResponse base class."
 		smalltest = DetectorResponse(config)
 	smalltest.calibrate(datadir + simname, datadir, nevents)
-        logger.info("=== Detector analysis calibration complete.  Writing calibration file")
+	logger.info("=== Detector analysis calibration complete.  Writing calibration file")
 	#smalltest.calibrate_old(datadir + simname, nevents)
 	# print smalltest.means[68260]
 	# print smalltest.sigmas[68260]

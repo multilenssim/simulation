@@ -10,10 +10,10 @@ from chroma.generator import vertex
 from chroma.event import Photons
 from chroma import sample
 
-#from kabamland2 import gaussian_sphere
+from kabamland2 import gaussian_sphere
 import detectorconfig as dc
 import nog4_sim as ng4s
-#import right_amount
+import right_amount
 import os
 
 import paths

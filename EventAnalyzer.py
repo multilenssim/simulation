@@ -8,7 +8,7 @@ import mpl_toolkits.axisartist as AA
 from mpl_toolkits.axes_grid1 import host_subplot
 from chroma.transform import normalize
 from chroma.sample import uniform_sphere
-#from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader
+from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader
 import time as time
 from DetectorResponse import DetectorResponse
 from DetectorResponsePDF import DetectorResponsePDF
