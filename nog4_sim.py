@@ -10,8 +10,8 @@ import numpy as np
 
 
 def fixed_dist(sample,radius,rads=None):
-	loc1 = sph_scatter(sample)
-	loc2 = sph_scatter(sample)
+	loc1 = sph_scatter(sample,in_shell,out_shell)
+	loc2 = sph_scatter(sample,in_shell,out_shell)
 	if rads == None:
 		rads = np.linspace(50,500,sample)
 	else:
@@ -22,7 +22,7 @@ def fixed_dist(sample,radius,rads=None):
 	loc2[bl_idx] = 2 * loc1[bl_idx] - loc2[bl_idx]
 	return loc1,loc2,rads
 
-def sph_scatter(sample):
+def sph_scatter(sample,in_shell,out_shell):
 	loc = np.random.uniform(-out_shell,out_shell,(sample,3))
 	while len(loc[(np.linalg.norm(loc,axis=1)>in_shell) & (np.linalg.norm(loc,axis=1)<=out_shell)]) != sample:
 		bl_idx = np.logical_not((np.linalg.norm(loc,axis=1)>in_shell) & (np.linalg.norm(loc,axis=1)<=out_shell))
@@ -48,7 +48,7 @@ def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 def sim_setup(config,in_file):
 	kabamland = kbl.load_or_build_detector(config)
 	sim = Simulation(kabamland,geant4_processes=1)
-	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)
+	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)	
 	analyzer = EventAnalyzer(det_res)
 	return sim, analyzer
 
@@ -80,7 +80,7 @@ def fixed_dist_hist(dist,sample,amount,sim,analyzer,sigma=0.01):
 def bkg_dist_hist(sample,amount,sim,analyzer,sigma=0.01):
 	arr = []
 	i = 0
-	location = sph_scatter(sample)
+	location = sph_scatter(sample,in_shell,out_shell)
 	fname = 's-site.h5'
 	with h5py.File(path+fname,'w') as f:
 		for lg in location:

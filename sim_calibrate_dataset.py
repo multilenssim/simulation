@@ -1,8 +1,11 @@
-import os
+import os, itertools
 
-configs = ['cfSam1_k%i_8'%k for k in [1,2,3,4,6]]
+l_base = [1,2,4,6,8,10]
+EPDR = [10,8]
+configs = ['cfSam1_K%i_%i'%(k[0],k[1]) for k in list(itertools.product(l_base,EPDR))[:-1]]
 
 for cfg in configs:
+	print '----------------------------------------------------------------%s----------------------------------------------------------------'%cfg
 	for s_d in ['01','34']: 
 		if os.path.exists('/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data'):
 			print 'simulation part'
