@@ -1,5 +1,4 @@
 import sys
-import logging
 import argparse
 import numpy as np
 
@@ -12,6 +11,10 @@ import lensmaterials as lm
 import paths
 from logger_lfd import logger
 
+import pycuda.driver as cuda
+
+import count_processes
+
 '''
 pi = 3.1
 hbarc = 4.3
@@ -22,6 +25,12 @@ material = lm.ls
 energy = list((2*pi*hbarc / (material.refractive_index[::-1,0] * nanometer)).astype(float))
 foo = list([1.0][::,-1,1].astype(float))
 '''
+
+def cuda_stat():
+    cuda.init()
+    ndevices = cuda.Device.count()
+    print('CUDA/GPU device count: ' + str(ndevices))
+    # Can we assume that they are in linear order??
 
 # Testing an exception hook
 # See https://stackoverflow.com/questions/12217537/can-i-force-debugging-python-on-assertionerror
@@ -55,18 +64,7 @@ def create_gamma_event(location, energy, amount, config, eventname):
 	for ev in sim.simulate(gun, keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100):
 		# print 'End photons: ' + str(ev.photons_end)
 
-		type_bins = np.bincount(ev.photons_beg.process_types)
-		# Count subtypes
-		subtype_bins = np.bincount(ev.photons_beg.process_subtypes)
-		# Magic numbers.  For subtype definitions, see:
-		#    http://geant4.web.cern.ch/geant4/collaboration/working_groups/electromagnetic/
-		scint_count = 0
-		if (len(subtype_bins)) >= 22:
-			scint_count = subtype_bins[22]
-
-		cherenkov_count = 0
-		if (len(subtype_bins)) >= 21:
-			cherenkov_count = subtype_bins[21]
+                scint_count, cherenkov_count = count_processes.count_processes(ev.photons_beg, print_counts=False)
 
 		logger.info('Photon counts (total/scintillation/cherenkov): ' + str(ev.nphotons) + ' ' +
 		      str(scint_count) + ' ' + str(cherenkov_count))
@@ -82,6 +80,7 @@ if __name__ == '__main__':
         args = parser.parse_args()
         config = args.configuration
 
+        cuda_stat()
 	create_gamma_event((0, 0, 0), 2., 4, config, 'gamma-test-')
 
 # From Scott's scripts_stanford.py

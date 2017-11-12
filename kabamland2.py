@@ -778,7 +778,7 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 			f.write_event(ev)
 	f.close()
 
-def load_or_build_detector(config, material, g4_detector_parameters):
+def load_or_build_detector(config, detector_material, g4_detector_parameters):
     filename = paths.detector_pickled_path + config + '.pickle'
     if not os.path.exists(paths.detector_pickled_path):
         os.makedirs(paths.detector_pickled_path)
@@ -787,13 +787,25 @@ def load_or_build_detector(config, material, g4_detector_parameters):
         with open(filename,'rb') as pickle_file:
             print("** Loading detector configuration: " + config)
             kabamland = pickle.load(pickle_file)
-            if kabamland.g4_detector_parameters is None:
-                print('*** No Geant4 detector parameters found in loaded file ***')
-            elif g4_detector_parameters is None:
+
+            if g4_detector_parameters is not None:
+                print('*** Using Geant4 detector parameters specified' +
+                      (' - replacement' if kabamland.g4_detector_parameters is not None else '') + ' ***')
+                kabamland.g4_detector_parameters = g4_detector_parameters
+            elif kabamland.g4_detector_parameters is not None:
                 print('*** Using Geant4 detector parameters found in loaded file ***')
             else:
-                print('*** Replacing loaded Geant4 detector parameters ***')
-                kabamland.g4_detector_parameters = g4_detector_parameters
+                print('*** No Geant4 detector parameters found at all ***')
+
+            if detector_material is not None:
+                print('*** Using Geant4 detector material specified' +
+                      (' - replacement' if kabamland.detector_material is not None else '') + ' ***')
+                kabamland.detector_material = detector_material
+            elif kabamland.detector_material is not None:
+                print('*** Using Geant4 detector material found in loaded file ***')
+            else:
+                print('*** No Geant4 detector material found at all ***')
+
     except IOError as error:
         print("** Building detector configuration: " + config)
         kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)

@@ -18,7 +18,7 @@ from DetectorResponse import DetectorResponse
 def norm(x):
     "Returns the norm of the vector `x`."
     return np.sqrt((x*x).sum(-1))
-        
+
 # Original is in chroma.transform
 #@jit(nopython=True)   # Can't use nopython because of asarray and newaxis
 def normalize(x):
@@ -35,46 +35,6 @@ def my_dot(array1, array2):
         result[i] = dot(array1[i], array2)
         i += 1
     return result
-
-#@jit(nopython=True)
-def find_photons_for_pmt(photons_beg_pos, photons_end_pos, detected, end_direction_array, n_det, max_storage):
-    #print("---Start gather photons----")
-    beginning_photons = photons_beg_pos[detected] # Include reflected photons
-    ending_photons = photons_end_pos[detected]
-    #length = np.shape(ending_photons)[0]
-    length = len(ending_photons)    # Will this always work - numba seems not to be able to deal with shape()
-
-    # Inline this to enable numba:
-    #end_dir = normalize(ending_photons-beginning_photons)
-    #print(end_dir)
-    #print('-----')
-    
-    delta_photons = ending_photons-beginning_photons
-    #x = np.atleast_2d(delta_photons)    # np.asarray(ending_photons-beginning_photons, dtype=np.float))
-    #end_dir_unsqueezed = x/norm(x)[:,np.newaxis]
-    #end_dir = end_dir_unsqueezed.squeeze()
-
-    # A little faster - but np.newaxis don't work under numba 
-    norms = np.sqrt((delta_photons*delta_photons).sum(-1))
-    end_dir = delta_photons / norms[:,np.newaxis]
-
-    # this works, but its slower...
-    #end_dir = np.empty((length,3))
-    #for i in range(len(delta_photons)):
-    #    boo = delta_photons[i]
-    #    end_dir[i] = boo / np.sqrt((boo*boo).sum(-1))
-
-    # if end_direction_array is None:
-    #     end_direction_array = end_dir
-    # else:
-    #     end_direction_array = np.vstack((end_direction_array, end_dir))
-    #end_direction_array.append(end_dir)
-    if n_det+length > max_storage:
-        print("Too many photons to store in memory; not reading any further events.")
-        return None
-    end_direction_array[n_det:(n_det+length),:] = end_dir
-    #print("---Done with gather photons----")
-    return ending_photons, length
 
 # XXXX took off the dtypes in both array creations - first was dndarray, and second was int - to make numba satisfied - its never satisfoed!!!!
 #@jit(nopython=True)
@@ -151,10 +111,53 @@ class DetectorResponseGAKW(DetectorResponse):
         if infile is not None:
             self.read_from_ROOT(infile)
 
+    # KW: moved this back in for Jacopo's cal changes because need self
+    #@jit(nopython=True)
+    def find_photons_for_pmt(self, photons_beg_pos, photons_end_pos, detected, end_direction_array, n_det, max_storage):
+        #print("---Start gather photons----")
+        beginning_photons = photons_beg_pos[detected] # Include reflected photons
+        ending_photons = photons_end_pos[detected]
+        #length = np.shape(ending_photons)[0]
+        length = len(ending_photons)    # Will this always work - numba seems not to be able to deal with shape()
+
+        # Inline this to enable numba:
+        #end_dir = normalize(ending_photons-beginning_photons)
+        #print(end_dir)
+        #print('-----')
+
+        delta_photons = ending_photons-beginning_photons
+        #x = np.atleast_2d(delta_photons)    # np.asarray(ending_photons-beginning_photons, dtype=np.float))
+        #end_dir_unsqueezed = x/norm(x)[:,np.newaxis]
+        #end_dir = end_dir_unsqueezed.squeeze()
+
+        # A little faster - but np.newaxis don't work under numba 
+        ## KW to check ## norms = np.sqrt((delta_photons*delta_photons).sum(-1))
+        ## KW to check ## end_dir = delta_photons / norms[:,np.newaxis]
+        pmt_b = self.find_pmt_bin_array(ending_photons)   # This line is now duplicative
+        end_point = self.lens_centers[pmt_b/self.n_pmts_per_surf]
+        end_dir = normalize(end_point-beginning_photons)
+
+        # this works, but its slower...
+        #end_dir = np.empty((length,3))
+        #for i in range(len(delta_photons)):
+        #    boo = delta_photons[i]
+        #    end_dir[i] = boo / np.sqrt((boo*boo).sum(-1))
+
+        # if end_direction_array is None:
+        #     end_direction_array = end_dir
+        # else:
+        #     end_direction_array = np.vstack((end_direction_array, end_dir))
+        #end_direction_array.append(end_dir)
+        if n_det+length > max_storage:
+            print("Too many photons to store in memory; not reading any further events.")
+            return None
+        end_direction_array[n_det:(n_det+length),:] = end_dir
+        #print("---Done with gather photons----")
+        return ending_photons, length
 
     # Merge this back in XXXXXXXXXXXX
     # Also deal with the logging
-    def find_photons_for_pmt(self, ev, pmt_bins, end_direction_array, n_det, max_storage):
+    def find_photons_for_pmt_top(self, ev, pmt_bins, end_direction_array, n_det, max_storage):
         detected = (ev.photons_end.flags & (0x1 <<2)).astype(bool)
         reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
         reflected_specular = (ev.photons_end.flags & (0x1 <<6)).astype(bool)
@@ -162,8 +165,8 @@ class DetectorResponseGAKW(DetectorResponse):
         #logger.info("Total reflected: " + str(sum(reflected_diffuse*1)+sum(reflected_specular*1)))
         good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
         #logger.info("Total detected and not reflected: " + str(sum(good_photons*1)))
-    
-        ending_photons, length = find_photons_for_pmt(ev.photons_beg.pos, ev.photons_end.pos, detected, end_direction_array, n_det, max_storage)
+
+        ending_photons, length = self.find_photons_for_pmt(ev.photons_beg.pos, ev.photons_end.pos, detected, end_direction_array, n_det, max_storage)
         pmt_b = self.find_pmt_bin_array(ending_photons)
         # if pmt_bins is None:
         #     pmt_bins = pmt_b
@@ -233,7 +236,7 @@ class DetectorResponseGAKW(DetectorResponse):
                     logger.info("Event " + str(loops) + " of " + str(nevents))
                     logger.handlers[0].flush()
 
-                length = self.find_photons_for_pmt(ev, pmt_bins, end_direction_array, n_det, max_storage)
+                length = self.find_photons_for_pmt_top(ev, pmt_bins, end_direction_array, n_det, max_storage)
                 if length is None:
                     break
 
@@ -247,7 +250,7 @@ class DetectorResponseGAKW(DetectorResponse):
             end_direction_array.resize((n_det,3))
             logger.info("Time: " + str(time.time()-start_time))
             pmt_bins.resize(n_det)
-                
+
             pmt_hits = {'pmt_bins': pmt_bins, 'end_direction_array': end_direction_array}
             with open(directory+pickle_name, 'wb') as outf:
                 pickle.dump(pmt_hits, outf)
@@ -328,26 +331,26 @@ class DetectorResponseGAKW(DetectorResponse):
 					#plt.xlabel('Angular Separation to Mean Angle')
 					#plt.ylabel('Counts per solid angle')
 					#plt.title('Angles Histogram for PMT ' + str(i))
-					
+
 					fig3 = plt.figure(figsize=(7.8, 6))
 					plt.hist(orthogonal_complements, bins=20)
 					plt.xlabel('Normalized Distance to Mean Angle')
 					plt.ylabel('Counts per bin')
 					plt.title('Distances Histogram for PMT ' + str(i))					
-					
+
 					fig4 = plt.figure(figsize=(7.8, 6))
 					plt.hist(u_proj, bins=20)
 					plt.xlabel('U Distance to Mean Angle')
 					plt.ylabel('Counts per bin')
 					plt.title('U Distances Histogram for PMT ' + str(i))
-					
+
 					fig5 = plt.figure(figsize=(7.8, 6))
 					plt.hist(v_proj, bins=20)
 					plt.xlabel('V Distance to Mean Angle')
 					plt.ylabel('Counts per bin')
 					plt.title('V Distances Histogram for PMT ' + str(i))
 					plt.show()
-					
+
 					#print "Average projected variance: ", variance
 					#print "Variance of projected 2D norms: ", np.var(orthogonal_complements, ddof=1)
 					draw_pmt_ind = raw_input("Enter index of next PMT to draw; will stop drawing if not a valid PMT index.\n")
@@ -356,7 +359,7 @@ class DetectorResponseGAKW(DetectorResponse):
                 pass
             except TypeError:
                 pass
-            
+
             total_means[i] = mean_angle
             total_variances[i] = variance
             total_u_minus_v[i] = np.abs(uvvar)
@@ -378,7 +381,7 @@ class DetectorResponseGAKW(DetectorResponse):
         print "PMTs w/ < n_min hits: " + str(len(np.where(amount_of_hits < n_min)[0])*1.0/self.npmt_bins)
         print "PMTs w/ < 100 hits: " + str(len(np.where(amount_of_hits < 100)[0])*1.0/self.npmt_bins)
         print "Mean U-V variance (abs): " + str(np.mean(total_u_minus_v))
-         
+
         # Store final calibrated values
         self.means = -total_means.astype(np.float32).T
         self.sigmas = np.sqrt(total_variances.astype(np.float32))
@@ -410,7 +413,7 @@ class DetectorResponseGAKW(DetectorResponse):
             length = np.shape(ending_photons)[0]
             end_direction_array = normalize(ending_photons-beginning_photons)
             pmt_bins = self.find_pmt_bin_array(ending_photons)
-            
+
             for i in range(self.npmt_bins):
                 if i % 10000 == 0:
                     print str(i) + ' out of ' + str(self.npmt_bins) + ' PMTs'
@@ -438,7 +441,7 @@ class DetectorResponseGAKW(DetectorResponse):
 
          #combining all of the variances and mean_angles with the weightings for each event in order to create a single value for each pmt for the entire simulation. Masking the amount_of_hits first so that we don't divide by 0 when averaging for pmts that recieve no hits: CURRENTLY WE ARE SKIPPING EVERY PMT THAT ONLY HAS UP TO NEVENTS HITS: I.E. THE TOTAL DEGREE OF FREEDOM IN THE DIVISION FOR THE VARIANCE AVERAGING.
          bad_pmts = np.where(np.sum(amount_of_hits, axis=0) <= nevents)[0]
-         
+
          # temporary, for debugging:
          n_hits = np.sum(amount_of_hits, axis=0)
          print n_hits
@@ -453,8 +456,8 @@ class DetectorResponseGAKW(DetectorResponse):
 
          masked_total_means = np.ma.masked_array(total_means, m_means)
          masked_total_variances = np.ma.masked_array(total_variances, m_variances)
-        
-         
+
+
          reshaped_weightings = np.reshape(np.repeat(amount_of_hits, 3), (nevents, self.npmt_bins, 3))
          averaged_means = np.ma.average(masked_total_means, axis=0, weights=reshaped_weightings)
          averaged_variances = np.ma.average(masked_total_variances, axis=0, weights=amount_of_hits - 1)
@@ -466,7 +469,7 @@ class DetectorResponseGAKW(DetectorResponse):
          #turning type: MaskedArray into type: npArray so that it can be written.
          self.means = -np.array(averaged_means.astype(np.float32)).T
          self.sigmas = np.sqrt(np.array(averaged_variances.astype(np.float32)))
-                
+
     def write_to_ROOT(self, filename):
         # Write the mean angles and sigmas to a ROOT file
         writer = GaussAngleRootWriter(filename)

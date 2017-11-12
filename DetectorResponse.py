@@ -323,7 +323,7 @@ class DetectorResponse(object):
             return bin_array.astype(int)
             
         else:
-            print("Curved surface detector was selected.")
+            #print("Curved surface detector was selected.")
             closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array)
 	    bin_array = self.scaled_pmt_arr_surf(closest_triangle_index)
             #curved_surface_index = [int(x / self.n_triangles_per_surf) for x in closest_triangle_index]
@@ -359,6 +359,8 @@ class DetectorResponse(object):
         query_results = self.triangle_centers_tree.query(pos_array,distance_upper_bound = max_dist)
         closest_triangle_index = query_results[1].tolist()
         closest_triangle_dist = query_results[0].tolist()
+        # print('Triangle index: ' + str(closest_triangle_index))
+        # print('Triangle distance: ' + str(closest_triangle_dist))
         #print max(closest_triangle_dist)
         
         #fig = plt.figure(figsize=(15, 10))

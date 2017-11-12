@@ -13,6 +13,7 @@ import time as time
 from DetectorResponse import DetectorResponse
 from DetectorResponsePDF import DetectorResponsePDF
 from DetectorResponseGAKW import DetectorResponseGAKW
+from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 from Tracks import Tracks, Vertex
 
 
@@ -645,6 +646,7 @@ class EventAnalyzer(object):
 		pass
 	else:
 		event_pmt_bin_array = self.QE(event_pmt_bin_array,qe)
+        # print('PMT bins: ' + str(event_pmt_bin_array))
         event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T
         
         event_lens_bin_array = np.array(event_pmt_bin_array/self.det_res.n_pmts_per_surf)
@@ -652,7 +654,7 @@ class EventAnalyzer(object):
         
         # If detector is not calibrated or not of the GaussAngle subclass, use actual photon angles
         # plus Gaussian noise (two different models, depending on if lens_dia is given)
-        if not (self.det_res.is_calibrated and isinstance(self.det_res,DetectorResponseGAKW)):
+        if not (self.det_res.is_calibrated and (isinstance(self.det_res,DetectorResponseGAKW) or isinstance(self.det_res,DetectorResponseGaussAngle))):
             # If lens_dia is not given, only include angular noise of sig_cone
             sigmas = np.zeros(length)
             if lens_dia is None:
@@ -697,7 +699,8 @@ class EventAnalyzer(object):
             
             ang_noise = np.random.normal(scale=sig_th,size=np.shape(end_direction_array))#np.zeros(np.shape(end_direction_array))#
             means = normalize((-end_direction_array+ang_noise).T).T
-            return Tracks(hit_pos, means, sigmas)
+            tracks = Tracks(hit_pos, means, sigmas)
+            return tracks
         else: # Detector is calibrated, use response to generate tracks
             tracks = Tracks(event_lens_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = self.det_res.lens_rad)  
             #tracks = Tracks(event_pmt_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = 0.0000001)   

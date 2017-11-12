@@ -20,9 +20,18 @@ with open(args.pickle_file, 'rb') as f:
         except TypeError:
             pass     # object is not iterable, just ignore this if fails as its only applicable to DMR
 
+        # Special cases for chroma
+        try:
+            print('Detector parameters: ' + str(data.g4_detector_parameters.__dict__))
+            print('Material: ' + str(data.detector_material.__dict__))
+            # if 'g4_detector_parameters' in data:    # Never true - not sure why
+        except TypeError: # not sure if this will be the right exception
+            pass     # object is not iterable, just ignore this if fails
+
         try:
             pprint.pprint(data.__dict__)
         except AttributeError:  # We had this as TypeError - but that may have been speculative for DMR
+            print('Not a dict')
             pprint.pprint(data)
     else:
         print("No data in file: " + args.pickle_file)

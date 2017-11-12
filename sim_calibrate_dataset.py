@@ -4,16 +4,20 @@ import argparse
 
 import kabamland2 as kb
 import detectoranalysis as da
+import paths
+import g4_sim
+import detectorconfig
+import lensmaterials
 
 from logger_lfd import logger
 
-import paths
 
 parser = argparse.ArgumentParser()
 parser.add_argument('cfg', help='configuration')
+# parser.add_argument('s_d', help='Seed radius range in meters (e.g. "34"')
 args = parser.parse_args()
 cfg = args.cfg
-s_d='01'  # Seed radius range in meters
+# s_d = args.s_d  # Seed radius range in meters
 
 def save_config_file(cfg, file_name, dict):
         config_path = paths.get_data_file_path(cfg)
@@ -40,7 +44,7 @@ if not os.path.isfile(paths.get_calibration_file_name(cfg)):   # This is not a g
                          datadir=paths.detector_calibration_path)
         #os.remove(photons_file)
         logger.info("==== Calibration complete ====")
-'''
+
 if True:
         all_config_info = {'configuration': detectorconfig.configdict[cfg].__dict__}
         all_config_info['scintillator'] = lensmaterials.create_scintillation_material().__dict__
@@ -52,7 +56,11 @@ if True:
 
         # Write both files for now to support Jacopo's test setup
         save_config_file(cfg, 'conf.pkl', detectorconfig.configdict[cfg].__dict__)
-'''
+
 logger.info('==== Simulation part ====')
-os.system('python g4_sim.py e- %s %s'%(s_d,cfg))
-os.system('python g4_sim.py gamma %s %s'%(s_d,cfg))
+for dist_range in ['01','34']:
+        g4_sim.run_simulation(cfg, 'e-', dist_range)
+        g4_sim.run_simulation(cfg, 'gamma', dist_range)
+
+#os.system('python g4_sim.py e- %s %s'%(s_d,cfg))
+#os.system('python g4_sim.py gamma %s %s'%(s_d,cfg))

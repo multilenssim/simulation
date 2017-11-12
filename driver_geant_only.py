@@ -19,6 +19,7 @@ import Geant4		# Only needed to turn logging on
 from Geant4.hepunit import *
 
 import lensmaterials
+import count_processes
 
 def _print_bins(bins, label):
     print(label + ' counts:')
@@ -76,7 +77,7 @@ def fire_electrons_and_gammas():
 	if len(sys.argv) > 1:
 		x_position = float(sys.argv[1])
 
-	g4_params = G4DetectorParameters(world_material='G4_AIR', orb_radius=2.02)
+	g4_params = G4DetectorParameters(world_material='G4_AIR', orb_radius=7.)
 	gen = g4gen.G4Generator(scintillator, g4_detector_parameters=g4_params)
 	momentum = (1, 0, 0)
 
@@ -108,7 +109,7 @@ def fire_electrons_and_gammas():
 	track_counts = {}
 	vertex_positions = {}
 
-	run_count = 20
+	run_count = 10
 	for particle in particles:
 		counts[particle] = {}
 		scint_counts[particle] = {}
@@ -132,18 +133,9 @@ def fire_electrons_and_gammas():
 				output = g4.generate(particle, position, momentum, scintillator, gen, energy=2.)
 
 				track_tree = gen.track_tree
-				track_count = len(track_tree) - 1
-				track_counts[particle][counter] = track_count
-				if particle == 'e-' and track_count != 1:
-					print
-					print("e- with " +  str(track_count) + " tracks:")
-					pprint.pprint(track_tree)
-					print
-				if particle == 'gamma' and ((track_count < 18) or (track_count > 32)):
-					print
-					print("gamma with " +  str(track_count) + " tracks:")
-					pprint.pprint(track_tree)
-					print
+                                count_processes.display_track_tree(gen.track_tree, particle)
+                                track_count = len(track_tree) - 1
+                                track_counts[particle][counter] = track_count
 
 				max_distance = 0.
 				center_location_track_number = 1 if particle == 'e-' else 2		# Note: this is tricky - be careful
@@ -151,39 +143,28 @@ def fire_electrons_and_gammas():
 				for key, entry in track_tree.iteritems():
 					if 'position' in entry:
 						position = entry['position']
+                                                '''   XX Looks like the type of 'position' may have change from an x,y,z to a (1,2,3) tuple
 						distance_from_center = math.sqrt(math.pow((position.x - center_location.x),2) +
 														 math.pow((position.y - center_location.y),2) +
 														 math.pow((position.z - center_location.z),2))
 						if distance_from_center > max_distance:
 							max_distance = distance_from_center
+                                                '''
 				vertex_positions[particle][counter] = max_distance
 
 				counts[particle][x].append(len(output.pos))
 
-				type_bins = np.bincount(output.process_types)
-				# Count subtypes
-				subtype_bins = np.bincount(output.process_subtypes)
-				# Magic numbers.  For subtype definitions, see:
-				#    http://geant4.web.cern.ch/geant4/collaboration/working_groups/electromagnetic/
-				scint_count = 0
-				if (len(subtype_bins)) >= 22:
-					scint_count = subtype_bins[22]
-				scint_counts[particle][x].append(scint_count)
+			        scint_count, cherenkov_count = count_processes.count_processes(output)
+                                scint_counts[particle][x].append(scint_count)
+                                cherenkov_counts[particle][x].append(cherenkov_count)
+                                if counts[particle][x][-1] != scint_counts[particle][x][-1] + cherenkov_counts[particle][x][-1]:
+                                    print("===>>> Uh oh: counts don't add up: ", particle, x, counts[particle][x], scint_counts[particle][x], cherenkov_counts[particle][x]);
 
-				cherenkov_count = 0
-				if (len(subtype_bins)) >= 21:
-					cherenkov_count = subtype_bins[21]
-				cherenkov_counts[particle][x].append(cherenkov_count)
-				if counts[particle][x][-1] != scint_counts[particle][x][-1] + cherenkov_counts[particle][x][-1]:
-					print("===>>> Uh oh: counts don't add up: ", particle, x, counts[particle][x], scint_counts[particle][x], cherenkov_counts[particle][x]);
-				'''
-				print("Process types: ", pprint.pformat(type_bins))
-				print("Process subtypes: ", pprint.pformat(subtype_bins))
-				_print_bins(type_bins, 'Process type')
-				_print_bins(subtype_bins, 'Process subtype')
-				'''
 				g4 = None
+	print
+	print("G4 state: ", Geant4.gStateManager.GetCurrentState())
 
+def plot():
 	# the histogram of the data
 	# See: https://matplotlib.org/devdocs/gallery/pyplots/pyplot_text.html#sphx-glr-gallery-pyplots-pyplot-text-py
 	# n, bins, patches = plt.hist(track_counts['e-']) # , 50, normed=1, facecolor='g', alpha=0.75)
@@ -267,8 +248,6 @@ def fire_electrons_and_gammas():
 	# This is how to reset the seed between runs
 	#Geant4.HepRandom.setTheSeed(9876)
 
-	print
-	print("G4 state: ", Geant4.gStateManager.GetCurrentState())
 
 	# I think we need to reset in between - one seems to affect the other???  And if reverse the order...
 	# But cant just regenerate the detector: Geant4 kernel is not PreInit state : Method ignored.
@@ -311,6 +290,7 @@ def fire_electrons_and_gammas():
 	gen2 = g4gen.G4Generator(scintillator)
 	out_ph1 = g4.generate('e-', (0. * m, 0., 0.), momentum, scintillator, gen2, energy=2.)		# NOTE the energy here.  for testing !!!!!
 	'''
+
 def fire_neutrons():
 	scintillator = lensmaterials.create_scintillation_material()
 
@@ -371,5 +351,5 @@ if __name__ == '__main__':
 	#NISTManager->ListMaterials("all");
 	##########
 
-	#fire_electrons_and_gammas()
-	fire_neutrons()
+	fire_electrons_and_gammas()
+	#fire_neutrons()

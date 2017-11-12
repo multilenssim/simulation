@@ -7,6 +7,8 @@ import lensmaterials as lm
 import kabamland2 as kbl
 
 import numpy as np
+from pprint import pprint
+
 from Geant4.hepunit import *
 
 import paths
@@ -51,7 +53,7 @@ def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 def sim_setup(config,in_file, useGeant4=False):
 	g4_detector_parameters = G4DetectorParameters(orb_radius=7., world_material='G4_Galactic') if useGeant4 else None
 	kabamland = kbl.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
-	sim = Simulation(kabamland,geant4_processes= 4 if useGeant4 else 0)
+	sim = Simulation(kabamland,geant4_processes=4 if useGeant4 else 0)   # Move g4 processes from 4 to 1 for big simulation runs - and back to 4
 	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)
 	analyzer = EventAnalyzer(det_res)
 	return sim, analyzer
@@ -61,22 +63,25 @@ def run_simulation(file, sim, events, analyzer, first=False):
 	arr = []
 	for ev in sim.simulate(events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 		tracks = analyzer.generate_tracks(ev,qe=(1./3.))
+                print("Track count: " + str(len(tracks)))
 		#pprint(vars(ev))
+		#pprint(vars(tracks))
                 '''
 		print('Firing particle name/photon count/track count/location/direction: \t' +  # Add energy
-                      'photons' + # ev.primary_vertex.particle_name + '\t' +
+                      'photons' + '\t' + # ev.primary_vertex.particle_name + '\t' +
                       str(len(ev.photons_beg)) + '\t' +
 		      str(len(tracks)) + '\t' +
-	              str(ev.primary_vertex.pos) + '\t' +
-                      str(ev.primary_vertex.dir) + '\t')
+	              #str(ev.primary_vertex.pos) + '\t' +
+                      #str(ev.primary_vertex.dir) + '\t'
+                      '')
 		print('Photons begin count, track count:\t' + str(len(ev.photons_beg)) + '\t' + str(len(tracks)))
 		'''
-		if first:
+                if first:
 			coord = file.create_dataset('coord', maxshape=(2,None,3), data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
 			uncert = file.create_dataset('sigma', maxshape=(None,), data=tracks.sigmas,chunks=True)
 			arr.append(tracks.sigmas.shape[0])
 			file.create_dataset('r_lens',data=tracks.lens_rad)
-		else:
+                else:
 			coord = file['coord']
 			uncert = file['sigma']
 			coord.resize(coord.shape[1]+tracks.means.shape[1], axis=1)
@@ -165,12 +170,12 @@ if __name__ == '__main__':
 		print 'distance '+str(int(dst/10))+' done'
 
 
-    '''
+        '''
 	print('Firing ' + str(energy) + ' MeV e-''s')
 	fire_particles('e-', sample, energy*MeV, sim, analyzer)
 	print('Firing ' + str(energy) + ' MeV gammas')
 	fire_particles('gamma', sample, energy*MeV, sim, analyzer)
-    '''
+        '''
 	'''
 	bkg_dist_hist(sample,16000,sim,analyzer)
 	print 's-site done'

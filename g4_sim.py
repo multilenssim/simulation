@@ -1,17 +1,19 @@
-from mpl_toolkits.mplot3d import Axes3D
 from chroma.generator import vertex
-import matplotlib.pyplot as plt
 import h5py,time,argparse
 import nog4_sim as setup
 
 import numpy as np
+import os
 
 import paths
 
 def gen_ev(sample,cfg,particle,energy,i_r,o_r):
 	seed_loc = 'r%i-%i'%(i_r,o_r)
-	fname = paths.get_data_file_path(cfg)+seed_loc+particle+'_sim.h5'
-	sim,analyzer = setup.sim_setup(cfg, paths.get_calibration_file_name(cfg))
+        data_file_dir = paths.get_data_file_path(cfg)
+        if not os.path.exists(data_file_dir):
+	        os.makedirs(data_file_dir)
+        fname = data_file_dir+seed_loc+'_'+str(energy)+particle+'_'+'sim.h5'
+	sim,analyzer = setup.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True)
 	print 'configuration loaded'
 	location = setup.sph_scatter(sample,i_r*1000,o_r*1000)
 	arr_tr, arr_depo = [],[]
@@ -40,17 +42,17 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r):
 		f.create_dataset('idx_tr',data=arr_tr)
 		f.create_dataset('idx_depo',data=arr_depo)
 
+def run_simulation(cfg, particle, dist_range):
+        sample = 500
+        energy = 2
+        start_time = time.time()
+        gen_ev(sample, cfg, particle, energy, int(dist_range[0]), int(dist_range[1]))
+        print time.time() - start_time
+
 if __name__=='__main__':
-	parser = argparse.ArgumentParser()
-	parser.add_argument('particle', help='particle to simulate')
-	parser.add_argument('s_d', help='seed location')
-	parser.add_argument('cfg', help='detector configuration')
-	args = parser.parse_args()
-	sample = 500
-	particle = args.particle
-	cfg = args.cfg
-	s_d = args.s_d
-	energy = 2
-	start_time = time.time()
-	gen_ev(sample,cfg,particle,energy,int(s_d[0]),int(s_d[1]))
-	print time.time()-start_time
+        parser = argparse.ArgumentParser()
+        parser.add_argument('particle', help='particle to simulate')
+        parser.add_argument('s_d', help='seed location')
+        parser.add_argument('cfg', help='detector configuration')
+        args = parser.parse_args()
+        run_simulation(args.cfg, args.particle, args.s_d)
