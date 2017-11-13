@@ -50,10 +50,10 @@ def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 		events.append(event)
 	return events
 
-def sim_setup(config,in_file, useGeant4=False):
+def sim_setup(config,in_file, useGeant4=False, cuda_device=None):
 	g4_detector_parameters = G4DetectorParameters(orb_radius=7., world_material='G4_Galactic') if useGeant4 else None
 	kabamland = kbl.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
-	sim = Simulation(kabamland,geant4_processes=4 if useGeant4 else 0)   # Move g4 processes from 4 to 1 for big simulation runs - and back to 4
+	sim = Simulation(kabamland,geant4_processes=4 if useGeant4 else 0, cuda_device=cuda_device)   # Move g4 processes from 4 to 1 for big simulation runs - and back to 4
 	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)
 	analyzer = EventAnalyzer(det_res)
 	return sim, analyzer
