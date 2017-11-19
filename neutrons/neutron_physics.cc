@@ -13,6 +13,7 @@
 
 NeutronPhysicsList::NeutronPhysicsList():  G4VModularPhysicsList()
 {
+    std::cout << "=============== NeutronPhysicsList() ==============" << std::endl;
     // default cut value  (1.0mm)
     defaultCutValue = 1.0*CLHEP::mm;
 
@@ -23,6 +24,7 @@ NeutronPhysicsList::NeutronPhysicsList():  G4VModularPhysicsList()
     //RegisterPhysics( opticalPhysics );
 
     /* Turn on neutron physics */
+    /*
     //For example  elastic scattering below 20 MeV
     G4HadronElasticProcess* theNeutronElasticProcess = new G4HadronElasticProcess();
     // Cross Section Data set
@@ -32,45 +34,51 @@ NeutronPhysicsList::NeutronPhysicsList():  G4VModularPhysicsList()
     G4NeutronHPElastic* theNeutronElasticModel = new G4NeutronHPElastic();
     theNeutronElasticProcess->RegisterMe(theNeutronElasticModel);
     std::cout << "Process created, registering it" << std::endl;
-
+*/
     G4ProcessManager* pmanager = G4Neutron::Neutron()->GetProcessManager();
-    if (pmanager == NULL) {
+ /*
+   if (pmanager == NULL) {
         std::cout << "Neutron process manager is null" << std::endl;
          pmanager = new G4ProcessManager(G4Neutron::Neutron());
-         G4Neutron::Neutron()->SetProcessManager(pmanager);  // XX This may be rediundant
+         G4Neutron::Neutron()->SetProcessManager(pmanager);  // XX This may be redundant
+         // XX Just add the process right here??
     }
-    std::cout << "Think we have neutrons: " << pmanager << std::endl;
+    */
     //pmanager->AddDiscreteProcess( theNeutronElasticProcess );
 
     pmanager = G4Neutron::Neutron()->GetProcessManager();
     std::cout << "== Neutron process manager ==" << std::endl;
-    pmanager->DumpInfo();
+    // XXXXXXXX pmanager->DumpInfo();
     std::cout << "=============================" << std::endl;
+
 
     auto /*G4PTblDicIterator*/ *theParticleIterator = GetParticleIterator();
     theParticleIterator->reset();
     while( (*theParticleIterator)() ){
+    /*
         G4ParticleDefinition* particle = theParticleIterator->value();
         G4ProcessManager* pmanager = particle->GetProcessManager();
-        std::cout << "We have a pmanager: " << pmanager << std::endl;
-
         G4String particleName = particle->GetParticleName();
-        std::cout << "Particle name: " << particleName << std::endl;
+
+        std::cout << "We have a pmanager: " << pmanager << " for: " << particleName << std::endl;
         if (theNeutronElasticProcess->IsApplicable(*particle)) {
             std::cout << "Elastic process is applicable to: " << particleName << std::endl;
             if (particleName == "neutron") {
+                std::cout << "Adding it" << std::endl;
                 theNeutronElasticProcess->DumpPhysicsTable(*particle);
-                pmanager->AddProcess(theNeutronElasticProcess);
+                // XXXXXXXXXXXXXXXXXXXXX pmanager->AddProcess(theNeutronElasticProcess);
                 //pmanager->SetProcessOrderingToLast(theNeutronElasticProcess, idxAtRest);
                 //pmanager->SetProcessOrderingToLast(theNeutronElasticProcess, idxPostStep);
-                pmanager->DumpInfo();
-                break;
+                // XXXXXXXXXXX pmanager->DumpInfo();
+                // break;
             }
         }
+        */
     }
     pmanager = G4Neutron::Neutron()->GetProcessManager();
     std::cout << "== Neutron process manager ==" << std::endl;
-    pmanager->DumpInfo();
+    // XXXXXXXXXXXXXX pmanager->DumpInfo();
+    std::cout << "=============================" << std::endl;
     std::cout << "=============================" << std::endl;
 }
 
@@ -89,12 +97,38 @@ void NeutronPhysicsList::SetCuts(){
   SetCutsWithDefault();
 }
 
+void NeutronPhysicsList::AddHadronElasticProcess()
+{
+    /* Turn on neutron physics */    // XXXXXXX This is now done twice???
+    //For example  elastic scattering below 20 MeV
+    G4HadronElasticProcess* theNeutronElasticProcess = new G4HadronElasticProcess();
+    // Cross Section Data set
+    G4NeutronHPElasticData* theHPElasticData = new G4NeutronHPElasticData();
+    theNeutronElasticProcess->AddDataSet( theHPElasticData );
+    // Model
+    G4NeutronHPElastic* theNeutronElasticModel = new G4NeutronHPElastic();
+    theNeutronElasticProcess->RegisterMe(theNeutronElasticModel);
+    std::cout << "Process created, registering it" << std::endl;
+
+    G4ProcessManager* pmanager = G4Neutron::Neutron()->GetProcessManager();
+    if (pmanager == NULL) {
+        std::cout << "Neutron process manager is null" << std::endl;
+         pmanager = new G4ProcessManager(G4Neutron::Neutron());
+         G4Neutron::Neutron()->SetProcessManager(pmanager);  // XX This may be redundant
+         // XX Just add the process right here??
+    }
+    pmanager->AddProcess(theNeutronElasticProcess);
+    pmanager = G4Neutron::Neutron()->GetProcessManager();
+    std::cout << "== Neutron process manager ==" << std::endl;
+    pmanager->DumpInfo();
+}
 
 void export_NeutronPhysics()
 {
   class_<NeutronPhysicsList, NeutronPhysicsList*, bases<G4VModularPhysicsList>, boost::noncopyable > ("NeutronPhysicsList", "Neutron physics list")
-    .def(init<>());
-
+    .def(init<>())
+    .def("AddHadronElasticProcess", &NeutronPhysicsList::AddHadronElasticProcess)
+    ;
 }
 
 BOOST_PYTHON_MODULE(neutron_physics)

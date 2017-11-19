@@ -8,6 +8,7 @@ class NeutronPhysicsList: public G4VModularPhysicsList
 public:
   NeutronPhysicsList();
   virtual ~NeutronPhysicsList();
+  virtual void AddHadronElasticProcess();
   virtual void SetCuts();
 };
 

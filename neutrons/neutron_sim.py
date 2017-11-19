@@ -155,7 +155,7 @@ class G4Generator(object):
     def generate_photons(self, vertices):
         photons = None
         try:
-            # print("Vertex count: " + str(len(vertices)))
+            print("Vertex count: " + str(len(vertices)))
             for vertex in vertices:
                 self.particle_gun.SetParticleByName(vertex.particle_name)
                 # mass = G4ParticleTable.GetParticleTable().FindParticle(vertex.particle_name).GetPDGMass()
@@ -331,10 +331,12 @@ if __name__=='__main__':
 
     g4gen = G4Generator("G4_Pb") # Note - this initializes Geant4 (as a sort of ugly side effect)
 
-
-    print('||||||||||||||||||||||||||||||||||||')
+    physics_list.AddHadronElasticProcess()
 
     Geant4.gApplyUICommand("/PhysicsList/RegisterPhysics G4EmStandardPhysics")
+
+    print('|||||||||||||||||| Find neutron in particle list ||||||||||||||||||')
+
 
     boo = gParticleTable
     #boo.DumpTable()
@@ -349,7 +351,7 @@ if __name__=='__main__':
             pm = particle.GetProcessManager()
             print('===>>> Neutron process manager <<<===')
             pm.DumpInfo()
-    print('||||||||||||||||||||||||||||||||||||')
+    print('|||||||||||||||||| Dump process table ||||||||||||||||||')
 
     goo = gProcessTable
     for i in inspect.getmembers(goo):
@@ -376,15 +378,13 @@ if __name__=='__main__':
 
     momentum = (1, 0, 0)
     position = (0, 0, 0)
-    amount = 1000
-    energy = 0.2*MeV
+    amount = 10
+    energy = 2*MeV
 
     # See kabamland2
     vertex = Vertex('neutron', position, momentum, energy)
-    gun = particle_gun(['neutron'] * amount, constant(position), isotropic(),
-                              flat(float(energy) * 0.99, float(energy) * 1.01))
-
-
     output = g4gen.generate_photons([vertex])
-    #output = g4gen.generate_photons(gun)
+
+    # gun = particle_gun(['neutron'] * amount, constant(position), isotropic(), flat(float(energy) * 0.99, float(energy) * 1.01))
+    # output = g4gen.generate_photons(gun)
     #for ev in sim.simulate(gun, keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100):

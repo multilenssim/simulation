@@ -2,6 +2,8 @@ from chroma.generator import vertex
 import h5py,time,argparse
 import nog4_sim as setup
 
+import pycuda.driver as cuda
+
 import numpy as np
 import os
 import sys
@@ -13,11 +15,11 @@ from multiprocessing import Pool, TimeoutError
 import multiprocessing          # Just for CPU count
 
 def cuda_stat():
-        cuda.init()
-        ndevices = cuda.Device.count()
-        print('CUDA/GPU device count: ' + str(ndevices))
-        # Can we assume that they are in linear order??
-        return ndevices
+    cuda.init()
+    ndevices = cuda.Device.count()
+    print('CUDA/GPU device count: ' + str(ndevices))
+    # Can we assume that they are in linear order??
+    return ndevices
 
 def gen_ev(sample,cfg,particle,energy,i_r,o_r, cuda_device=None):
 	seed_loc = 'r%i-%i'%(i_r,o_r)
