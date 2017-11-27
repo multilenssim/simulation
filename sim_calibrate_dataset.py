@@ -1,8 +1,8 @@
 import os, itertools
 
-l_base = [1,2,4,6,8,10]
-EPDR = [10,8]
-configs = ['cfSam1_K%i_%i'%(k[0],k[1]) for k in list(itertools.product(l_base,EPDR))[:-1]]
+l_base = [1,8]
+EPDR = [8]
+configs = ['cfSam1_K%i_%i'%(k[0],k[1]) for k in list(itertools.product(l_base,EPDR))]
 
 for cfg in configs:
 	print '----------------------------------------------------------------%s----------------------------------------------------------------'%cfg
