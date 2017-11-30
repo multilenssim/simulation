@@ -9,7 +9,9 @@ import kabamland2 as kbl
 import numpy as np
 
 
-def fixed_dist(sample,radius,rads=None):
+import paths
+
+def fixed_dist(sample, radius, in_shell, out_shell, rads=None):
 	loc1 = sph_scatter(sample,in_shell,out_shell)
 	loc2 = sph_scatter(sample,in_shell,out_shell)
 	if rads == None:
@@ -45,10 +47,11 @@ def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 	    events.append(event)
 	return events
 
-def sim_setup(config,in_file):
-	kabamland = kbl.load_or_build_detector(config)
-	sim = Simulation(kabamland,geant4_processes=1)
-	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)	
+def sim_setup(config,in_file, useGeant4=False):
+	g4_detector_parameters = G4DetectorParameters(orb_radius=7., world_material='G4_Galactic') if useGeant4 else None
+	kabamland = kbl.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+	sim = Simulation(kabamland,geant4_processes = 4 if useGeant4 else 0)
+	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)
 	analyzer = EventAnalyzer(det_res)
 	return sim, analyzer
 
@@ -115,10 +118,10 @@ if __name__ == '__main__':
 	seed_loc = args.sl
 	in_shell = int(seed_loc[1])*1000
 	out_shell = int(seed_loc[3])*1000
-	ptf = '/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data/'
-	path = ptf+seed_loc
+
+	data_file_dir = paths.get_data_file_path(cfg)
 	start_time = time.time()
-	sim,analyzer = sim_setup(cfg,'/home/miladmalek/TestData/detresang-'+cfg+'_1DVariance_100million.root')
+	sim,analyzer = sim_setup(cfg,paths.get_calibration_file_name(cfg))
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
 	bkg_dist_hist(sample,16000,sim,analyzer)
 	print 's-site done'

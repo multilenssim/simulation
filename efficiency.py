@@ -218,9 +218,8 @@ if __name__ == '__main__':
     repetition = 100
     n_pos = 50
     set_style()
-    datadir = '/home/miladmalek/TestData/'    
     for detfile in design:
-    	rootdir = '/home/jacopodalmasson/Desktop/dev/'+detfile+'/pos_res-eff/'
+        rootdir = paths.data_files_path+'dev/'+detfile+'/pos_res-eff/'
 	if not os.path.exists(rootdir):
 		os.makedirs(rootdir)
 	fname = detfile + suffix		

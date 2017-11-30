@@ -6,7 +6,7 @@ import nog4_sim as setup
 import numpy as np
 
 def sim_ev(cfg,particle,lg,energy):
-	sim,analyzer = setup.sim_setup(cfg,'/home/miladmalek/TestData/detresang-'+cfg+'_1DVariance_100million.root')
+	sim,analyzer = setup.sim_setup(cfg,cfg,paths.get_calibration_file_name(cfg))
 	print 'Configuration loaded'
 	gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(energy*0.999, energy*1.001))
 	for ev in sim.simulate(gun,keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100):
