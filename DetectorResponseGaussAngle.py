@@ -72,7 +72,9 @@ class DetectorResponseGaussAngle(DetectorResponse):
              beginning_photons = ev.photons_beg.pos[detected] # Include reflected photons
              ending_photons = ev.photons_end.pos[detected]
              length = np.shape(ending_photons)[0]
-             end_dir = normalize(ending_photons-beginning_photons)
+	     pmt_b = self.find_pmt_bin_array(ending_photons)
+	     end_point = self.lens_centers[pmt_b/self.n_pmts_per_surf] 
+             end_dir = normalize(end_point-beginning_photons)
              # if end_direction_array is None:
              #     end_direction_array = end_dir
              # else:
@@ -82,7 +84,6 @@ class DetectorResponseGaussAngle(DetectorResponse):
                  logger.error("Too many photons to store in memory; not reading any further events.")
                  break
              end_direction_array[n_det:(n_det+length),:] = end_dir
-             pmt_b = self.find_pmt_bin_array(ending_photons)
              # if pmt_bins is None:
              #     pmt_bins = pmt_b
              # else:

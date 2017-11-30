@@ -19,10 +19,11 @@ import kabamland2 as kbl
 from array import array
 import detectorconfig
 import numpy as np
+import nog4_sim
 
 import paths
     
-def eff_test(config, detres=None, detbins=10, sig_pos=0.01, n_ph_sim=[6600], repetition=10, max_rad=6600, n_pos=10, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.05, chiC=3., temps=[256, 0.25], tol=0.1, debug=False):
+def eff_test(config, detres=None, detbins=10, sig_pos=0.01, n_ph_sim=[0], repetition=10, max_rad=6600, n_pos=10, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.05, chiC=3., temps=[256, 0.25], tol=0.1, debug=False):
 		###############################################
 		
         run = array('i', [0])	# repetition
@@ -58,15 +59,12 @@ def eff_test(config, detres=None, detbins=10, sig_pos=0.01, n_ph_sim=[6600], rep
         ttree.Branch("multiplicity", multiplicity, "multiplicity/I")	
        
 		# Build detector 
-        kabamland = Detector(lm.get_scintillation_material())
-        kbl.build_kabamland(kabamland, config)
-        kabamland.flatten()
-        kabamland.bvh = load_bvh(kabamland)
         #view(kabamland)
         #quit()
 
-        sim = Simulation(kabamland,geant4_processes=0)
         print "Simulation started."
+
+		sim, analyzer = nog4_sim.sim_setup(config, detres)   # KW: where did this line come from?  It seems to do nothing
 
         if detres is None:
             det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins)
@@ -74,7 +72,7 @@ def eff_test(config, detres=None, detbins=10, sig_pos=0.01, n_ph_sim=[6600], rep
             det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins, infile=detres)
         analyzer = EventAnalyzer(det_res)
         
-        # Previous definition of rads 
+        # Previous definition of rads
         #rads = [max_rad*float(ii+1)/n_pos for ii in range(n_pos)]
         
         # Get radius for equal volumes within the detector up to the maximum radius max_rad 
@@ -171,14 +169,14 @@ def plot_double_yaxis(recon, n_ph_sim, n_pos, max_rad):
 		# Create double y-axis plot with position resolution shown on the left side in blue and the light collection efficiency on the right side in red 
 		# Create axis object for plotting
 	ax1 = plt.gca()
-	plt.suptitle(detfile,fontsize=20)
-	ax2 = ax1.twinx()
+	#plt.suptitle(detfile,fontsize=20)
+	#ax2 = ax1.twinx()
 	ax1.set_xlabel('Radius [cm]')
-	ax1.set_ylabel('Position Resolution [mm]', color='blue')
-	ax2.set_ylabel('Light Collection Efficiency', color='red')
+	ax1.set_ylabel('Position Resolution [mm]')#, color='blue')
+	#ax2.set_ylabel('Light Collection Efficiency', color='red')
 	ax1.set_xlim(-10, max_rad*1.02/10)
-	ax1.set_ylim(0, 480)
-	ax2.set_ylim(0, 1)
+	ax1.set_ylim(0, 510)
+	#ax2.set_ylim(0, 1)
         
 	for zz, amount in enumerate(n_ph_sim):
 		for ii in range(n_pos+1):
@@ -186,12 +184,10 @@ def plot_double_yaxis(recon, n_ph_sim, n_pos, max_rad):
 			distance_mean = np.mean(distance[:])
 			ax1.scatter(recon[zz,0,ii,0], distance_mean, color="blue")
 			ax1.errorbar(recon[zz,0,ii,0], distance_mean, yerr=np.std(distance[:]), linestyle="None", color="blue")
-
-	for zz, amount in enumerate(n_ph_sim):
-		for ii in range(n_pos+1):
-			ax2.scatter(recon[zz,0,ii,0],np.mean(recon[zz,:,ii,2]/float(amount)), color="red")
-			ax2.errorbar(recon[zz,0,ii,0], np.mean(recon[zz,:,ii,2]/float(amount)), yerr=np.std(recon[zz,:,ii,2]/float(amount)), linestyle="None", color="red")
-        
+	#for zz, amount in enumerate(n_ph_sim):
+	#	for ii in range(n_pos+1):
+	#		ax2.scatter(recon[zz,0,ii,0],np.mean(recon[zz,:,ii,2]/float(amount)), color="red")
+	#		ax2.errorbar(recon[zz,0,ii,0], np.mean(recon[zz,:,ii,2]/float(amount)), yerr=np.std(recon[zz,:,ii,2]/float(amount)), linestyle="None", color="red")
 		plt.show()
 		
         
@@ -225,7 +221,8 @@ if __name__ == '__main__':
     args = parser.parse_args() 
     print "Efficiency test started"
     design = [args.cfg]
-    energy = [6600]
+    suffix = '_1DVariance'
+    energy = [5333]
     repetition = 100
     n_pos = 50
     set_style()
@@ -235,7 +232,7 @@ if __name__ == '__main__':
 		os.makedirs(rootdir)
 	print "Lens design used:	", detfile 
 	if args.run == 'compute':
-		eff_test(detfile, detres=paths.get_calibration_file_name(args.cfg), detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
+		eff_test(detfile, detres=datadir+'detresang-'+fname+'_100million.root', detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
 	elif args.run == 'plot':
 		filename = 'rep-'+str(repetition)+'_npos-'+str(n_pos)
 		get_eff_from_root(filename=filename , n_ph_sim=energy, repetition=repetition, n_pos=n_pos)

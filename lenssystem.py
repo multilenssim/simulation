@@ -123,11 +123,10 @@ def asphere_lens(rad, t, c1, k1, d1, e1, f1, c2, k2, d2, e2, f2, nsteps=128):
     # Center at X=0, Y=0; rotated about x-axis, Y=0 plane is edge of first surface
     ymax_1 = asphere_func(rad, c1, k1, d1, e1, f1)
     ymax_2 = asphere_func(rad, c2, k2, d2, e2, f2)
-    
     if t < ymax_1 - ymax_2: # Avoid situations where the two lens faces overlap each other
         #print ymax_1, ymax_2, ymax_1-ymax_2, t
         t = ymax_1 - ymax_2
-    
+ 
     x1 = np.linspace(0., rad, nsteps/2) # Space out points linearly in x
     x2 = np.linspace(rad, 0., nsteps/2)
     

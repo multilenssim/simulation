@@ -55,21 +55,22 @@ configdict['cfSam1_2'] = DetectorConfig(10000.0, 4, 0, 0, 1.0, lens_system_name=
 configdict['cfSam1_3'] = DetectorConfig(10000.0, 9, 0, 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=12) # Should have ~100k pixels, 45 lens systems/face, 20 faces
 configdict['cfSam1_4'] = DetectorConfig(10000.0, 10, 0, 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=12) # Should have ~100k pixels, 55 lens systems/face, 20 faces
 configdict['cfSam1_5'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=11, b_pixel=5) #93800plx, 10 system/face, l_radius: 105cm np
+
 configdict['cfSam1_K4_10'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=13, b_pixel=4) #107600plx, 10 system/face, l_radius: 105cm np
 configdict['cfSam1_K2_10'] = DetectorConfig(10000.0, 2, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=22, b_pixel=4) #99420plx, 3 system/face, l_radius: 183cm np
 configdict['cfSam1_K6_10'] = DetectorConfig(10000.0, 6, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=9, b_pixel=4) #99960plx, 21 system/face, l_radius: 74cm np
 configdict['cfSam1_K1_10'] = DetectorConfig(10000.0, 1, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=37, b_pixel=4) #97620plx, 1 system/face, l_radius: 289cm np
 configdict['cfSam1_K8_10'] = DetectorConfig(10000.0, 8, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=7, b_pixel=4) #95760plx, 1 system/face, l_radius: 57cm np
 configdict['cfSam1_K10_10'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=6, b_pixel=4) #101200plx, 55 system/face, l_radius: 46cm np
+configdict['cfSam1_K10_8'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=6, b_pixel=4) #101200plx, 55 system/face, l_radius: 46cm np
 configdict['cfSam1_K2_8'] = DetectorConfig(10000.0, 2, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=22, b_pixel=4)
 configdict['cfSam1_K6_8'] = DetectorConfig(10000.0, 6, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=9, b_pixel=4)
 configdict['cfSam1_K8_8'] = DetectorConfig(10000.0, 8, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=7, b_pixel=4)
-configdict['cfSam1_K10_8'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=6, b_pixel=4) #101200plx, 55 system/face, l_radius: 46cm np
-
 configdict['cfSam1_K4_8'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=13, b_pixel=4)
-
 configdict['cfSam1_K12_10'] = DetectorConfig(10000.0, 12, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=5, b_pixel=4) #92040plx, 78 system/face, l_radius: 36cm np
 configdict['cfSam1_K12_8'] = DetectorConfig(10000.0, 12, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=5, b_pixel=4) #92040plx, 78 system/face, l_radius: 36cm np
+configdict['cfSam1_K4_5'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.5, light_confinement=True, nsteps=13, b_pixel=4)
+configdict['cfSam1_K1_8'] = DetectorConfig(10000.0, 1, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=37, b_pixel=4)
 
 configdict['cfSam1_k1_10'] = DetectorConfig(10000.0, 1, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=13, b_pixel=4) #10760plx, 1 system/face, l_radius: 289cm np
 configdict['cfSam1_k2_10'] = DetectorConfig(10000.0, 2, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=8, b_pixel=4) #10980plx, 3 system/face, l_radius: 183cm np

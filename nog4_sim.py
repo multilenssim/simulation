@@ -131,8 +131,9 @@ def myhack():
 def fire_particles(particle_name,sample,energy,sim,analyzer,sigma=0.01):
 	arr = []
 	first = True
-	location = sph_scatter(sample)
-	fname = particle_name+'.h5'
+	# KW? fname = particle_name+'.h5'
+	location = sph_scatter(sample,in_shell,out_shell)
+	fname = 's-site.h5'
 	with h5py.File(path+fname,'w') as f:
 		for lg in location:     # x in np.linspace(0., 1000., num=20):
 			#lg = [7000.,0,0]
