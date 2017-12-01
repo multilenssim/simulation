@@ -1,12 +1,13 @@
 from mpl_toolkits.mplot3d import Axes3D
-from chroma.generator import vertex
+#from chroma.generator import vertex
 import matplotlib.pyplot as plt
 import h5py,time,argparse
 import nog4_sim as setup
 import numpy as np
+import paths
 
 def sim_ev(cfg,particle,lg,energy):
-	sim,analyzer = setup.sim_setup(cfg,'/home/miladmalek/TestData/detresang-'+cfg+'_1DVariance_100million.root')
+	sim,analyzer = setup.sim_setup(cfg, get_calibration_file_name(cfg))
 	print 'Configuration loaded'
 	gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(energy*0.999, energy*1.001))
 	for ev in sim.simulate(gun,keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100):
@@ -68,7 +69,8 @@ def track_dist(ofst,drct,sgm,dim_len=0):
 		arr_dist.extend(dist)
 		arr_sgm.extend(sigmas)
 		arr_pos.extend(recon_pos)
-	if ofst.shape[0] & 0x1: pass						#condition removed if degeneracy is kept
+	if ofst.shape[0] & 0x1:
+		pass						#condition removed if degeneracy is kept
 	else:
 		dist,sigmas,recon_pos = roll_funct(ofst,drct,sgm,half,half=True)
 		arr_dist.extend(dist)
@@ -77,25 +79,44 @@ def track_dist(ofst,drct,sgm,dim_len=0):
 	return np.asarray(arr_dist),(np.asarray(arr_sgm)+dim_len),np.asarray(arr_pos)
 
 
-cfg = 'cfSam1_K4_8'
-particle = 'gamma'
-lg = [0,0,0]
-energy = 15.0
-vtx,trx = sim_ev(cfg,particle,lg,energy)
-print 'Simulation done, starting reconstruction'
-dist,err,rcn_pos = track_dist(trx.hit_pos.T,trx.means.T,trx.sigmas,trx.lens_rad)
-mask_bool = (dist!=0) & (dist<1) & (np.linalg.norm(rcn_pos,axis=1)<5000)# & (err<2000)
-#mask_bool = np.ones(len(err),dtype=bool)
-c_rcn_pos = rcn_pos[mask_bool]
-c_err = err[mask_bool]
-c_dist = dist[mask_bool]
-plt.hist(c_err,bins=100)
-plt.show()
-plt.hist(c_dist,bins=100)
-plt.show()
-print rcn_pos.shape,c_rcn_pos.shape
-fig = plt.figure()
-ax = fig.gca(projection='3d')
-ax.plot(c_rcn_pos[:,0],c_rcn_pos[:,1],c_rcn_pos[:,2],'.', markersize=0.5)
-ax.plot(vtx[:,0],vtx[:,1],vtx[:,2],'.')
-plt.show()
+if __name__=='__main__':
+	parser = argparse.ArgumentParser()
+	parser.add_argument('cfg', help='detector configuration')	# Only need one or the other argument
+	parser.add_argument('hdf5', help='HDF5 file')
+	args = parser.parse_args()
+	if args.hdf5 is None:
+		cfg = args.cfg
+		particle = 'gamma'
+		lg = [0,0,0]
+		energy = 15.0
+		vtx,trx = sim_ev(cfg,particle,lg,energy)
+		print 'Simulation done, starting reconstruction'
+		dist,err,rcn_pos = track_dist(trx.hit_pos.T,trx.means.T,trx.sigmas,trx.lens_rad)
+		mask_bool = (dist!=0) & (dist<1) & (np.linalg.norm(rcn_pos,axis=1)<5000)# & (err<2000)
+		#mask_bool = np.ones(len(err),dtype=bool)
+		c_rcn_pos = rcn_pos[mask_bool]
+		c_err = err[mask_bool]
+		c_dist = dist[mask_bool]
+	else:
+		with h5py.File(args.hdf5, 'r') as f:
+			ks_par = []
+			i_idx = 0
+			ix = 0  # Just assume one event
+			f_idx = f['idx_tr'][ix]
+			hit_pos = f['coord'][0, i_idx:f_idx, :]
+			means = f['coord'][1, i_idx:f_idx, :]
+			sigmas = f['sigma'][i_idx:f_idx]
+			dist, err, rcn_pos = track_dist(hit_pos, means, sigmas, f['r_lens'][()])
+			c_rcn_pos = rcn_pos
+			c_err = err
+			c_dist = dist
+	plt.hist(c_err,bins=100)
+	plt.show()
+	plt.hist(c_dist,bins=100)
+	plt.show()
+	print rcn_pos.shape,c_rcn_pos.shape
+	fig = plt.figure()
+	ax = fig.gca(projection='3d')
+	ax.plot(c_rcn_pos[:,0],c_rcn_pos[:,1],c_rcn_pos[:,2],'.', markersize=0.5)
+	ax.plot(vtx[:,0],vtx[:,1],vtx[:,2],'.')
+	plt.show()
