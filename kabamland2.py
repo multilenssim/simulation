@@ -735,18 +735,6 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 			f.write_event(ev)
 	f.close()
 
-@contextmanager
-def opened_w_error(filename, mode="r"):
-    try:
-        f = open(filename, mode)
-    except IOError, err:
-        yield None, err
-    else:
-        try:
-            yield f, None
-        finally:
-            f.close()
-
 def load_or_build_detector(config):
         filename = 'pickled_detectors/'+config+'.pickle'
         with opened_w_error(filename,'rb') as (pickle_file, error):
@@ -767,7 +755,6 @@ def load_or_build_detector(config):
                                 else:
                                         pickle.dump(kabamland, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
         return kabamland
-
 
 if __name__ == '__main__':
 

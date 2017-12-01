@@ -1,6 +1,6 @@
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 from EventAnalyzer import EventAnalyzer
-from chroma.detector import Detector
+from chroma.detector import Detector, G4DetectorParameters
 from chroma.loader import load_bvh
 from chroma.sim import Simulation
 import time, h5py, os, argparse
