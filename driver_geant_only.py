@@ -17,6 +17,7 @@ import math
 
 import Geant4		# Only needed to turn logging on
 from Geant4.hepunit import *
+from Geant4 import *
 
 import lensmaterials
 import count_processes
@@ -63,7 +64,7 @@ def compute_stats(data, x_distances):
     '''
     return average, error
 
-def fire_electrons_and_gammas():
+def fire_particles(particles, run_count, energy):
     scintillator = lensmaterials.create_scintillation_material()
 
     x_position = None
@@ -91,10 +92,17 @@ def fire_electrons_and_gammas():
     g4 = None
     '''
 
+    for particle in gParticleTable.GetParticleList():
+        particle.DumpTable()    # This duplicates the DumpTable() above
+        if particle.GetParticleName() in particles:
+            # particle.DumpTable()
+            pm = particle.GetProcessManager()
+            print('===>>> Particle process manager: ' +  str(particle.GetParticleName()) + ' <<<===')
+            pm.DumpInfo()
+
+
     e_x_distances = [0.] # np.linspace(6.97, 7.04, 29)    # (6.97, 7.04, 29)		# (6.99, 7.001, 12)
     gamma_x_distances = [0.] # np.linspace(5.5, 7.20, 35)    # (5.5, 7.20, 35)					# (5.8, 7.05, 26)
-
-    particles = ['e-', 'gamma'] # ['gamma','e-']
 
     counts = {}
     scint_counts = {}
@@ -102,7 +110,6 @@ def fire_electrons_and_gammas():
     track_counts = {}
     vertex_positions = {}
 
-    run_count = 10
     for particle in particles:
         counts[particle] = {}
         scint_counts[particle] = {}
@@ -123,27 +130,30 @@ def fire_electrons_and_gammas():
                 position = (x * m, 0., 0.)
                 # gen = g4gen.G4Generator(scint)
                 g4 = G4Generator()		# Should not be necessary
-                output = g4.generate(particle, position, momentum, scintillator, gen, energy=2.)
+                output = g4.generate(particle, position, momentum, scintillator, gen, energy=energy)
 
                 track_tree = gen.track_tree
-                count_processes.display_track_tree(gen.track_tree, particle)
-                track_count = len(track_tree) - 1
-                track_counts[particle][counter] = track_count
+                if track_tree is not None:
+                    count_processes.display_track_tree(gen.track_tree, particle)
+                    track_count = len(track_tree) - 1
+                    track_counts[particle][counter] = track_count
 
-                max_distance = 0.
-                center_location_track_number = 1 if particle == 'e-' else 2		# Note: this is tricky - be careful
-                center_location = track_tree[center_location_track_number]['position']
-                for key, entry in track_tree.iteritems():
-                    if 'position' in entry:
-                        position = entry['position']
-                        '''   XX Looks like the type of 'position' may have change from an x,y,z to a (1,2,3) tuple
-                        distance_from_center = math.sqrt(math.pow((position.x - center_location.x),2) +
-                                                         math.pow((position.y - center_location.y),2) +
-                                                         math.pow((position.z - center_location.z),2))
-                        if distance_from_center > max_distance:
-                            max_distance = distance_from_center
+                    max_distance = 0.
+                    # XX center_location_track_number = 1 if particle == 'e-' else 2		# Note: this is tricky - be careful
+                    # XX center_location = track_tree[center_location_track_number]['position']
+                    for key, entry in track_tree.iteritems():
+                        print('Key: ' + str(key))
+                        print('Entry: ' + str(entry))
+                        if 'position' in entry:
+                            position = entry['position']
+                            '''   XX Looks like the type of 'position' may have change from an x,y,z to a (1,2,3) tuple
+                            distance_from_center = math.sqrt(math.pow((position.x - center_location.x),2) +
+                                                             math.pow((position.y - center_location.y),2) +
+                                                             math.pow((position.z - center_location.z),2))
+                            if distance_from_center > max_distance:
+                                max_distance = distance_from_center
                         '''
-                vertex_positions[particle][counter] = max_distance
+                    vertex_positions[particle][counter] = max_distance
 
                 counts[particle][x].append(len(output.pos))
 
@@ -344,5 +354,7 @@ if __name__ == '__main__':
     #NISTManager->ListMaterials("all");
     ##########
 
-    fire_electrons_and_gammas()
+    # fire_particles(['mu-'], 1, 4.*100.)   # ['mu-','mu+'], 2, 4.*100.)   # mu+ is the anti-particle (but I think it has negative charge)
+    fire_particles(['mu-','mu+'], 2, 1.*1000.)   # mu+ is the anti-particle (but I think it has negative charge)
+    #fire_particles(['e-','gamma'], 2, 2.)
     #fire_neutrons()
