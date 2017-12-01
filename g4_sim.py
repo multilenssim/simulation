@@ -3,12 +3,16 @@ from chroma.generator import vertex
 import matplotlib.pyplot as plt
 import h5py,time,argparse
 import nog4_sim as setup
+import os
 
-
+import paths
 def gen_ev(sample,cfg,particle,energy,i_r,o_r):
 	seed_loc = 'r%i-%i'%(i_r,o_r)
-	fname = '/home/jacopodalmasson/Desktop/dev/'+cfg+'/raw_data/'+seed_loc+'_'+str(energy)+particle+'_sim.h5'
-	sim,analyzer = setup.sim_setup(cfg,'/home/miladmalek/TestData/detresang-'+cfg+'_1DVariance_100million.root')
+	data_file_dir = paths.get_data_file_path(cfg)
+	if not os.path.exists(data_file_dir):
+		os.makedirs(data_file_dir)
+        fname = data_file_dir+seed_loc+'_'+str(energy)+particle+'_'+'sim.h5'
+	sim,analyzer = setup.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True)
 	print 'configuration loaded'
 	location = setup.sph_scatter(sample,i_r*1000,o_r*1000)
 	arr_tr, arr_depo = [],[]

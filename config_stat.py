@@ -2,6 +2,8 @@ import DetectorResponseGaussAngle as dr
 import matplotlib.pyplot as plt
 import numpy as np
 
+import paths
+
 def normalize(arr, ax):
 	return np.einsum('ij,i->ij',arr,1/np.linalg.norm(arr,axis=ax))
 
@@ -10,7 +12,7 @@ if __name__ == '__main__':
 		arr = []
 		cfg = 'cfSam1_%s'%s
 		print cfg
-		in_file = '/home/miladmalek/TestData/detresang-'+cfg+'_1DVariance_100million.root'
+		in_file = paths.get_calibration_file_name(cfg)
 		det_res = dr.DetectorResponseGaussAngle(cfg,10,10,10,in_file)
 		n_lens = det_res.n_lens_sys
 		n_pmts_per_surf = det_res.n_pmts_per_surf
