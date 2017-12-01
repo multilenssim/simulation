@@ -19,6 +19,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.tri import Triangulation
+import os
+
 import pickle
 import paths
 
@@ -735,26 +737,47 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 			f.write_event(ev)
 	f.close()
 
-def load_or_build_detector(config):
-        filename = 'pickled_detectors/'+config+'.pickle'
-        with opened_w_error(filename,'rb') as (pickle_file, error):
-                if not error:   # Assume file not found
-                        print("Loading detector configuration: " + config)
-                        kabamland = pickle.load(pickle_file)
-                else:
-                        print("Building detector configuration: " + config)
-                        kabamland = Detector(lm.get_scintillation_material())
-                        kabamland.orb_radius = 6.5
-                        build_kabamland(kabamland, config)
-                        kabamland.flatten()
-                        kabamland.bvh = load_bvh(kabamland)
-                        # Compute the filename once
-                        with opened_w_error(filename,'wb') as (pickle_file, error):
-                                if error:
-                                        print("Error writing pickle file: " + filename)
-                                else:
-                                        pickle.dump(kabamland, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
-        return kabamland
+def load_or_build_detector(config, detector_material, g4_detector_parameters):
+    filename = paths.detector_pickled_path + config + '.pickle'
+    if not os.path.exists(paths.detector_pickled_path):
+        os.makedirs(paths.detector_pickled_path)
+    # How to ensure the material and detector parameters are correct??
+    try:
+        with open(filename,'rb') as pickle_file:
+            print("** Loading detector configuration: " + config)
+            kabamland = pickle.load(pickle_file)
+
+            pickle_has_g4_dp = hasattr(kabamland, 'g4_detector_parameters') and kabamland.g4_detector_parameters is not None
+            pickle_has_g4_dm = hasattr(kabamland, 'detector_material') and kabamland.detector_material is not None
+            if g4_detector_parameters is not None:
+                print('*** Using Geant4 detector parameters specified' +
+                      (' - replacement' if pickle_has_g4_dp else '') + ' ***')
+                kabamland.g4_detector_parameters = g4_detector_parameters
+            elif pickle_has_g4_dp:
+                print('*** Using Geant4 detector parameters found in loaded file ***')
+            else:
+                print('*** No Geant4 detector parameters found at all ***')
+
+            if detector_material is not None:
+                print('*** Using Geant4 detector material specified' +
+                      (' - replacement' if pickle_has_g4_dm else '') + ' ***')
+                kabamland.detector_material = detector_material
+            elif pickle_has_g4_dm:
+                print('*** Using Geant4 detector material found in loaded file ***')
+            else:
+                print('*** No Geant4 detector material found at all ***')
+    except IOError as error:
+        print("** Building detector configuration: " + config)
+        kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+        build_kabamland(kabamland, config)
+        kabamland.flatten()
+        kabamland.bvh = load_bvh(kabamland)
+        try:
+            with open(filename,'wb') as pickle_file:
+                pickle.dump(kabamland, pickle_file)
+        except IOError as error:
+            print("Error writing pickle file: " + filename)
+    return kabamland
 
 if __name__ == '__main__':
 
