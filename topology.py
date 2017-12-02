@@ -2,12 +2,16 @@ from mpl_toolkits.mplot3d import Axes3D
 #from chroma.generator import vertex
 import matplotlib.pyplot as plt
 import h5py,time,argparse
-import nog4_sim as setup
+#import nog4_sim as setup
 import numpy as np
 import paths
+from logger_lfd import logger
+
+import multiprocessing
+from multiprocessing import Pool
 
 def sim_ev(cfg,particle,lg,energy):
-	sim,analyzer = setup.sim_setup(cfg, get_calibration_file_name(cfg))
+	sim,analyzer = setup.sim_setup(cfg, paths.get_calibration_file_name(cfg))
 	print 'Configuration loaded'
 	gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(energy*0.999, energy*1.001))
 	for ev in sim.simulate(gun,keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100):
@@ -64,11 +68,13 @@ def roll_funct(ofst,drct,sgm,i,half=False):
 def track_dist(ofst,drct,sgm,dim_len=0):
 	half = ofst.shape[0]/2
 	arr_dist, arr_sgm, arr_pos = [], [], []
+	count = (ofst.shape[0]-1)/2+1
 	for i in range(1,(ofst.shape[0]-1)/2+1):
 		dist,sigmas,recon_pos = roll_funct(ofst,drct,sgm,i,half=False)
 		arr_dist.extend(dist)
 		arr_sgm.extend(sigmas)
 		arr_pos.extend(recon_pos)
+		logger.info('Count ' + str(i) + ' of ' + str(count))
 	if ofst.shape[0] & 0x1:
 		pass						#condition removed if degeneracy is kept
 	else:
@@ -78,6 +84,40 @@ def track_dist(ofst,drct,sgm,dim_len=0):
 		arr_pos.extend(recon_pos)
 	return np.asarray(arr_dist),(np.asarray(arr_sgm)+dim_len),np.asarray(arr_pos)
 
+def track_dist_threaded(ofst,drct,sgm=False,outlier=False,dim_len=0):
+	half = ofst.shape[0]/2
+	arr_dist, arr_sgm,plot_test = [], [], []
+
+	pool = Pool(multiprocessing.cpu_count())
+	results = []
+	count = (ofst.shape[0]-1)/2+1
+	for i in range(1,(ofst.shape[0]-1)/2+1):
+		logger.info('Count ' + str(i) + ' of ' + str(count))
+		result = pool.apply_async(roll_funct, (ofst,drct,sgm,i)) # ,half=False,outlier=outlier))
+		results.append(result)
+	childs = multiprocessing.active_children()
+	print('Child count: ' + str(len(childs)))
+	pool.close()
+	childs = multiprocessing.active_children()
+	print('Child count: ' + str(len(childs)))
+	pool.join()
+	childs = multiprocessing.active_children()
+	print('Child count: ' + str(len(childs)))
+	for result in results:
+		result_value = result.get()
+		arr_dist.extend(result_value[0])
+		arr_sgm.extend(result_value[1])
+
+	if ofst.shape[0] & 0x1:
+		pass						#condition removed if degeneracy is kept
+	else:
+		dist,sigmas = roll_funct(ofst,drct,sgm,half,half=False,outlier=outlier)
+		arr_dist.extend(dist)
+		arr_sgm.extend(sigmas)
+	if any(sgm):
+		return arr_dist,(np.asarray(arr_sgm)+dim_len)
+	else:
+		return arr_dist
 
 if __name__=='__main__':
 	parser = argparse.ArgumentParser()
@@ -106,7 +146,7 @@ if __name__=='__main__':
 			hit_pos = f['coord'][0, i_idx:f_idx, :]
 			means = f['coord'][1, i_idx:f_idx, :]
 			sigmas = f['sigma'][i_idx:f_idx]
-			dist, err, rcn_pos = track_dist(hit_pos, means, sigmas, f['r_lens'][()])
+			dist, err, rcn_pos = track_dist_threaded(hit_pos, means, sigmas, f['r_lens'][()])
 			c_rcn_pos = rcn_pos
 			c_err = err
 			c_dist = dist
