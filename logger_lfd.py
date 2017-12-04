@@ -1,5 +1,4 @@
 import logging
-from chroma.log import logger as chroma_logger
 
 logging.basicConfig(format='[%(asctime)s] logging.BASIC_FORMAT', datefmt='%a, %d %b %Y %H:%M:%S') # Avoid "no handlers could be found" warnings
 logger = logging.getLogger('LFD')
@@ -17,4 +16,5 @@ logger.propagate = False
 
 logger.setLevel(logging.DEBUG)
 
-chroma_logger.setLevel(logging.DEBUG)
+#from chroma.log import logger as chroma_logger
+#chroma_logger.setLevel(logging.DEBUG)

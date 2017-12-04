@@ -7,6 +7,7 @@ import numpy as np
 import paths
 from logger_lfd import logger
 
+import gc
 import multiprocessing
 from multiprocessing import Pool
 
@@ -63,6 +64,7 @@ def roll_funct(ofst,drct,sgm,i,half=False):
 	sigmas = np.linalg.norm(np.einsum('ij,ij->ij',sm,multp),axis=1)
 	poc = off_stack + np.einsum('ijk,ij->ijk',drct_stack,multp)
 	dist = poc[:,0,:] - poc[:,1,:]
+	gc.collect()
 	return np.linalg.norm(dist,axis=1),sigmas,np.mean(poc,axis=1)
 
 def track_dist(ofst,drct,sgm,dim_len=0):
@@ -84,17 +86,38 @@ def track_dist(ofst,drct,sgm,dim_len=0):
 		arr_pos.extend(recon_pos)
 	return np.asarray(arr_dist),(np.asarray(arr_sgm)+dim_len),np.asarray(arr_pos)
 
+def track_dist_group(ofst,drct,sgm,start, end, dim_len=0):
+	half = ofst.shape[0]/2
+	arr_dist, arr_sgm, arr_pos = [], [], []
+	for i in range(start, end+1):
+		dist,sigmas,recon_pos = roll_funct(ofst,drct,sgm,i,half=False)
+		arr_dist.extend(dist)
+		arr_sgm.extend(sigmas)
+		arr_pos.extend(recon_pos)
+	if ofst.shape[0] & 0x1:
+		pass						#condition removed if degeneracy is kept
+	else:
+		dist,sigmas,recon_pos = roll_funct(ofst,drct,sgm,half,half=True)
+		arr_dist.extend(dist)
+		arr_sgm.extend(sigmas)
+		arr_pos.extend(recon_pos)
+	logger.info('Roll group range complete: ' + str(start) + ' ' + str(end))
+	return np.asarray(arr_dist),(np.asarray(arr_sgm)+dim_len),np.asarray(arr_pos)
+
 def track_dist_threaded(ofst,drct,sgm=False,outlier=False,dim_len=0):
 	half = ofst.shape[0]/2
-	arr_dist, arr_sgm,plot_test = [], [], []
+	arr_dist, arr_sgm, arr_pos = [], [], []
 
 	pool = Pool(multiprocessing.cpu_count())
 	results = []
-	count = (ofst.shape[0]-1)/2+1
-	for i in range(1,(ofst.shape[0]-1)/2+1):
-		logger.info('Count ' + str(i) + ' of ' + str(count))
+	#count = (ofst.shape[0]-1)/2+1
+	count = 50  # XXXXXX Artifical limitation
+	for i in range(1,count):
 		result = pool.apply_async(roll_funct, (ofst,drct,sgm,i)) # ,half=False,outlier=outlier))
 		results.append(result)
+		if i % 10000 == 0:
+			logger.info('Count ' + str(i) + ' of ' + str(count))
+	print('1 Result: ' + str(results[0]))
 	childs = multiprocessing.active_children()
 	print('Child count: ' + str(len(childs)))
 	pool.close()
@@ -107,17 +130,16 @@ def track_dist_threaded(ofst,drct,sgm=False,outlier=False,dim_len=0):
 		result_value = result.get()
 		arr_dist.extend(result_value[0])
 		arr_sgm.extend(result_value[1])
+		arr_pos.extend(result_value[2])
 
 	if ofst.shape[0] & 0x1:
 		pass						#condition removed if degeneracy is kept
 	else:
-		dist,sigmas = roll_funct(ofst,drct,sgm,half,half=False,outlier=outlier)
+		dist,sigmas,recon_pos = roll_funct(ofst,drct,sgm,half,half=True)
 		arr_dist.extend(dist)
 		arr_sgm.extend(sigmas)
-	if any(sgm):
-		return arr_dist,(np.asarray(arr_sgm)+dim_len)
-	else:
-		return arr_dist
+		arr_pos.extend(recon_pos)
+	return np.asarray(arr_dist),(np.asarray(arr_sgm)+dim_len),np.asarray(arr_pos)
 
 if __name__=='__main__':
 	parser = argparse.ArgumentParser()
@@ -132,11 +154,6 @@ if __name__=='__main__':
 		vtx,trx = sim_ev(cfg,particle,lg,energy)
 		print 'Simulation done, starting reconstruction'
 		dist,err,rcn_pos = track_dist(trx.hit_pos.T,trx.means.T,trx.sigmas,trx.lens_rad)
-		mask_bool = (dist!=0) & (dist<1) & (np.linalg.norm(rcn_pos,axis=1)<5000)# & (err<2000)
-		#mask_bool = np.ones(len(err),dtype=bool)
-		c_rcn_pos = rcn_pos[mask_bool]
-		c_err = err[mask_bool]
-		c_dist = dist[mask_bool]
 	else:
 		with h5py.File(args.hdf5, 'r') as f:
 			ks_par = []
@@ -147,9 +164,11 @@ if __name__=='__main__':
 			means = f['coord'][1, i_idx:f_idx, :]
 			sigmas = f['sigma'][i_idx:f_idx]
 			dist, err, rcn_pos = track_dist_threaded(hit_pos, means, sigmas, f['r_lens'][()])
-			c_rcn_pos = rcn_pos
-			c_err = err
-			c_dist = dist
+	mask_bool = (dist != 0) & (dist < 0.01) & (np.linalg.norm(rcn_pos, axis=1) < 5000)  # & (err<2000)
+	# mask_bool = np.ones(len(err),dtype=bool)
+	c_rcn_pos = rcn_pos[mask_bool]
+	c_err = err[mask_bool]
+	c_dist = dist[mask_bool]
 	plt.hist(c_err,bins=100)
 	plt.show()
 	plt.hist(c_dist,bins=100)
@@ -158,5 +177,6 @@ if __name__=='__main__':
 	fig = plt.figure()
 	ax = fig.gca(projection='3d')
 	ax.plot(c_rcn_pos[:,0],c_rcn_pos[:,1],c_rcn_pos[:,2],'.', markersize=0.5)
-	ax.plot(vtx[:,0],vtx[:,1],vtx[:,2],'.')
+	if args.hdf5 is None:
+		ax.plot(vtx[:,0],vtx[:,1],vtx[:,2],'.')
 	plt.show()
