@@ -86,7 +86,12 @@ def track_dist(ofst,drct,sgm,dim_len=0):
 		arr_pos.extend(recon_pos)
 	return np.asarray(arr_dist),(np.asarray(arr_sgm)+dim_len),np.asarray(arr_pos)
 
+def cut(dist, err, pos, dist_cut, pos_cut):
+	mask_bool = (dist != 0) & (dist < dist_cut) & (np.linalg.norm(pos, axis=1) < pos_cut)  # & (err<2000)
+	return dist[mask_bool], err[mask_bool], pos[mask_bool]
+
 def track_dist_group(ofst,drct,sgm,start, end, dim_len=0):
+	logger.info('Roll group range: ' + str(start) + ' ' + str(end))
 	half = ofst.shape[0]/2
 	arr_dist, arr_sgm, arr_pos = [], [], []
 	for i in range(start, end+1):
@@ -102,7 +107,13 @@ def track_dist_group(ofst,drct,sgm,start, end, dim_len=0):
 		arr_sgm.extend(sigmas)
 		arr_pos.extend(recon_pos)
 	logger.info('Roll group range complete: ' + str(start) + ' ' + str(end))
-	return np.asarray(arr_dist),(np.asarray(arr_sgm)+dim_len),np.asarray(arr_pos)
+	logger.info('Total: ' + str(len(arr_dist)))
+	dist = np.asarray(arr_dist)
+	err = np.asarray(arr_sgm)+dim_len
+	rcn_pos = np.asarray(arr_pos)
+	return cut(dist, err, rcn_pos, 0.1, 5000)
+
+	#return np.asarray(arr_dist),(np.asarray(arr_sgm)+dim_len),np.asarray(arr_pos)
 
 def track_dist_threaded(ofst,drct,sgm=False,outlier=False,dim_len=0):
 	half = ofst.shape[0]/2
@@ -110,27 +121,52 @@ def track_dist_threaded(ofst,drct,sgm=False,outlier=False,dim_len=0):
 
 	pool = Pool(multiprocessing.cpu_count())
 	results = []
-	#count = (ofst.shape[0]-1)/2+1
-	count = 50  # XXXXXX Artifical limitation
-	for i in range(1,count):
-		result = pool.apply_async(roll_funct, (ofst,drct,sgm,i)) # ,half=False,outlier=outlier))
+	count = (ofst.shape[0]-1)/2+1
+	photons_per_chunk = 8		# Artificial limitation
+	chunks = 10
+	chunk_step = count // chunks
+	tail_chunk_size = count % chunks
+	# Lot's of hacking around in here - need to test..  and clean up
+	print('Total rolls: ' + str(count))
+	print('Chunks and chunk size: ' + str(chunks) + ' ' + str(chunk_step))
+	print('Tail chunk size: ' + str(tail_chunk_size))
+	for i in range(1, count, chunk_step):
+		range_end = i+photons_per_chunk
+		if range_end > count:		# Will this miss the last one?
+			result = pool.apply_async(track_dist_group, (ofst, drct, sgm, i, count))
+		else:
+			result = pool.apply_async(track_dist_group, (ofst, drct, sgm, i, range_end))
+
+		#result = pool.apply_async(roll_funct, (ofst,drct,sgm,i)) # ,half=False,outlier=outlier))
 		results.append(result)
-		if i % 10000 == 0:
+		if i % 100 == 0:
 			logger.info('Count ' + str(i) + ' of ' + str(count))
-	print('1 Result: ' + str(results[0]))
+		logger.info('1 Result: ' + str(results[0]))
 	childs = multiprocessing.active_children()
-	print('Child count: ' + str(len(childs)))
+	logger.info('Child count: ' + str(len(childs)))
 	pool.close()
 	childs = multiprocessing.active_children()
-	print('Child count: ' + str(len(childs)))
+	logger.info('Child count: ' + str(len(childs)))
 	pool.join()
 	childs = multiprocessing.active_children()
-	print('Child count: ' + str(len(childs)))
+	logger.info('Child count: ' + str(len(childs)))
+	logger.info('Collecting results...')
 	for result in results:
 		result_value = result.get()
-		arr_dist.extend(result_value[0])
-		arr_sgm.extend(result_value[1])
-		arr_pos.extend(result_value[2])
+		c_dist = result_value[0]
+		c_err = result_value[1]
+		c_rcn_pos = result_value[2]
+		#c_dist, c_err, c_rcn_pos = cut(dist, err, rcn_pos, 0.1, 5000)
+		'''
+		mask_bool = (dist != 0) & (dist < 0.01) & (np.linalg.norm(rcn_pos, axis=1) < 5000)  # & (err<2000)
+		# mask_bool = np.ones(len(err),dtype=bool)
+		c_dist = dist[mask_bool]
+		c_err = err[mask_bool]
+		c_rcn_pos = rcn_pos[mask_bool]
+		'''
+		arr_dist.extend(c_dist)
+		arr_sgm.extend(c_err)
+		arr_pos.extend(c_rcn_pos)
 
 	if ofst.shape[0] & 0x1:
 		pass						#condition removed if degeneracy is kept
@@ -152,7 +188,7 @@ if __name__=='__main__':
 		lg = [0,0,0]
 		energy = 15.0
 		vtx,trx = sim_ev(cfg,particle,lg,energy)
-		print 'Simulation done, starting reconstruction'
+		logger.info('Simulation done, starting reconstruction')
 		dist,err,rcn_pos = track_dist(trx.hit_pos.T,trx.means.T,trx.sigmas,trx.lens_rad)
 	else:
 		with h5py.File(args.hdf5, 'r') as f:
@@ -164,16 +200,31 @@ if __name__=='__main__':
 			means = f['coord'][1, i_idx:f_idx, :]
 			sigmas = f['sigma'][i_idx:f_idx]
 			dist, err, rcn_pos = track_dist_threaded(hit_pos, means, sigmas, f['r_lens'][()])
+			logger.info('Distances computted.  Cutting...')
+	'''
 	mask_bool = (dist != 0) & (dist < 0.01) & (np.linalg.norm(rcn_pos, axis=1) < 5000)  # & (err<2000)
 	# mask_bool = np.ones(len(err),dtype=bool)
 	c_rcn_pos = rcn_pos[mask_bool]
 	c_err = err[mask_bool]
 	c_dist = dist[mask_bool]
+	logger.info('Result & cut sizes: ' + str(len(rcn_pos)) + ' ' + str(len(c_rcn_pos)))
+	'''
+	c_rcn_pos = rcn_pos		# Pre-cut - so just copy them
+	c_err = err
+	c_dist = dist
+	logger.info('Result size: ' + str(len(rcn_pos)))
+	logger.info('Saving...')
+	with h5py.File('image-'+args.cfg+'.h5','w') as f:
+		en_depo = f.create_dataset('pos', data=rcn_pos, chunks=True)
+		coord = f.create_dataset('dist', data=dist, chunks=True)
+		uncert = f.create_dataset('sigma', data=err, chunks=True)
+
+	logger.info('Plotting...')
 	plt.hist(c_err,bins=100)
 	plt.show()
 	plt.hist(c_dist,bins=100)
 	plt.show()
-	print rcn_pos.shape,c_rcn_pos.shape
+	# print rcn_pos.shape,c_rcn_pos.shape
 	fig = plt.figure()
 	ax = fig.gca(projection='3d')
 	ax.plot(c_rcn_pos[:,0],c_rcn_pos[:,1],c_rcn_pos[:,2],'.', markersize=0.5)
