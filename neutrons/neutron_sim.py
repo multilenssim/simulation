@@ -72,8 +72,9 @@ class G4Generator(object):
                 self.world.CreateBoxVolume(self.scintillaton_material, g4_detector_parameters.box_size * m,
                                            g4_detector_parameters.box_size * m, g4_detector_parameters.box_size * m)
 
-
         self.world.PlaceIt(G4ThreeVector(0, 0, 0))
+
+        # gRunManager.SetUserInitialization(self.world)   # ????
 
         '''
         self.event_action = g4_user_actions.ChromaEventAction()
@@ -326,12 +327,13 @@ if __name__=='__main__':
     Geant4.gApplyUICommand("/event/verbose 2")
     Geant4.gApplyUICommand("/tracking/verbose 2")
 
+    # set physics list
     physics_list = neutron_physics.NeutronPhysicsList()
+    physics_list.AddHadronElasticProcess()
+    #physics_list = QGSP_BERT_HP()  # This is from EXO200
     gRunManager.SetUserInitialization(physics_list)
 
     g4gen = G4Generator("G4_Pb") # Note - this initializes Geant4 (as a sort of ugly side effect)
-
-    physics_list.AddHadronElasticProcess()
 
     Geant4.gApplyUICommand("/PhysicsList/RegisterPhysics G4EmStandardPhysics")
 
