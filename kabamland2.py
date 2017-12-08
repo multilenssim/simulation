@@ -23,12 +23,18 @@ from Geant4.hepunit import *
 
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.tri import Triangulation
+import os
+
 import pickle
+<<<<<<< HEAD
 import os
 import pprint
 
 import paths
 from logger_lfd import logger
+=======
+import paths
+>>>>>>> origin/master
 
 inputn = 16.0
 def lens(diameter, thickness, nsteps=inputn):
@@ -788,24 +794,25 @@ def load_or_build_detector(config, detector_material, g4_detector_parameters):
             print("** Loading detector configuration: " + config)
             kabamland = pickle.load(pickle_file)
 
+            pickle_has_g4_dp = hasattr(kabamland, 'g4_detector_parameters') and kabamland.g4_detector_parameters is not None
+            pickle_has_g4_dm = hasattr(kabamland, 'detector_material') and kabamland.detector_material is not None
             if g4_detector_parameters is not None:
                 print('*** Using Geant4 detector parameters specified' +
-                      (' - replacement' if kabamland.g4_detector_parameters is not None else '') + ' ***')
+                      (' - replacement' if pickle_has_g4_dp else '') + ' ***')
                 kabamland.g4_detector_parameters = g4_detector_parameters
-            elif kabamland.g4_detector_parameters is not None:
+            elif pickle_has_g4_dp:
                 print('*** Using Geant4 detector parameters found in loaded file ***')
             else:
                 print('*** No Geant4 detector parameters found at all ***')
 
             if detector_material is not None:
                 print('*** Using Geant4 detector material specified' +
-                      (' - replacement' if kabamland.detector_material is not None else '') + ' ***')
+                      (' - replacement' if pickle_has_g4_dm else '') + ' ***')
                 kabamland.detector_material = detector_material
-            elif kabamland.detector_material is not None:
+            elif pickle_has_g4_dm:
                 print('*** Using Geant4 detector material found in loaded file ***')
             else:
                 print('*** No Geant4 detector material found at all ***')
-
     except IOError as error:
         print("** Building detector configuration: " + config)
         kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
@@ -819,10 +826,9 @@ def load_or_build_detector(config, detector_material, g4_detector_parameters):
             print("Error writing pickle file: " + filename)
     return kabamland
 
-
 if __name__ == '__main__':
 
-	datadir = "/home/miladmalek/TestData/"
+	datadir = paths.data_files_path
 	#config = detectorconfig.configdict['cfJiani3_8']
 	#plot_mesh_object(curved_surface2(2, diameter=2.5, nsteps=6,base_pxl=2))
 	full_detector_simulation(100, 'cfSam1_11', 'sim-cfSam1_10_100.root')

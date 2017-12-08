@@ -1,6 +1,7 @@
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 from EventAnalyzer import EventAnalyzer
 from chroma.detector import Detector, G4DetectorParameters
+from chroma.loader import load_bvh
 from chroma.sim import Simulation
 import time, h5py, os, argparse
 import lensmaterials as lm
@@ -156,9 +157,10 @@ if __name__ == '__main__':
 	distance = np.linspace(20,450,6)
 	cfg = args.cfg
 	seed_loc = args.sl
-	in_shell = int(seed_loc[0])*1000
-	out_shell = int(seed_loc[1])*1000
+	in_shell = int(seed_loc[1])*1000
+	out_shell = int(seed_loc[3])*1000
 	print('Seed locations: ' + str(in_shell) + ' ' + str(out_shell))
+
 	data_file_dir = paths.get_data_file_path(cfg)
 	start_time = time.time()
 	sim,analyzer = sim_setup(cfg,paths.get_calibration_file_name(cfg))

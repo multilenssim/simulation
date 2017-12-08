@@ -1,6 +1,7 @@
 from chroma.generator import vertex
 import h5py,time,argparse
 import nog4_sim as setup
+import os
 
 import pycuda.driver as cuda
 
