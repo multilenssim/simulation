@@ -10,6 +10,7 @@ else:
     detector_calibration_path = '/chroma-data/configurations/'  # Path for the calibration files
     data_files_path = '/chroma-data/simulations/'               # Path for the simulation data files
 
+
 def get_calibration_file_name_without_path(config):
     return 'detresang-'+config+'_1DVariance_100million.root'
 

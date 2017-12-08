@@ -1,5 +1,6 @@
 from Geant4 import *
 
+import ../lensmaterial.py
 
 class MyDetectorConstruction(G4VUserDetectorConstruction):
     "My Detector Construction"
@@ -11,13 +12,13 @@ class MyDetectorConstruction(G4VUserDetectorConstruction):
         self.logical = {}
         self.physical = {}
 
-        self.create_world(side=4000,
+        self.create_world(side=20000,
                           material="G4_AIR")
 
         self.create_orb(name="scintillator",
-                             radius=200,
-                             translation=[0, 0, 900],
-                             material="G4_Galactic",
+                             radius=7000,
+                             translation=[0, 0, 0],
+                             material="G4_WATER",
                              colour=[1., 1., 1., 0.1],
                              mother='world')
         '''
@@ -125,7 +126,7 @@ class MyDetectorConstruction(G4VUserDetectorConstruction):
         visual = G4VisAttributes(G4Color(*kwargs['colour']))
         mother = self.physical[kwargs['mother']]
 
-        self.solid[name] = G4Orb(name, 0., radius)
+        self.solid[name] = G4Orb(name, radius)
 
         self.logical[name] = G4LogicalVolume(self.solid[name],
                                              material,
@@ -231,10 +232,10 @@ class MyPrimaryGeneratorAction(G4VUserPrimaryGeneratorAction):
         neutron = particle_table.FindParticle(G4String("neutron"))
 
         beam = G4ParticleGun()
-        beam.SetParticleEnergy(6 * MeV)
+        beam.SetParticleEnergy(2 * MeV)
         beam.SetParticleMomentumDirection(G4ThreeVector(0, 0, -1))
         beam.SetParticleDefinition(neutron)
-        beam.SetParticlePosition(G4ThreeVector(0, 0, 1005))
+        beam.SetParticlePosition(G4ThreeVector(0, 0, 100))
 
         self.particleGun = beam
 
