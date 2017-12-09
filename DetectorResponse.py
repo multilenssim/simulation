@@ -105,7 +105,11 @@ class DetectorResponse(object):
         print "Base class DetectorResponse has no specific calibration method - instantiate as a subclass."
         
     def angles_response(self, config, simname, nolens=False, rmax_frac=1.0):
-        #takes a simulation file and creates an array of angles that photons hit the pmts at. (replace lenses with disk pmts for the simulation to see what angles light hits the lenses at. Light needs to land on an icosahedron face plane so use disks instead of just changing the surface of the lens to detecting.) ev.photons_end.dir[detected] is always 0s as of now because we aren't saving directions in event or simulation files. 
+        #takes a simulation file and creates an array of angles that photons hit the pmts at.
+        # (replace lenses with disk pmts for the simulation to see what angles light hits the lenses at.
+        # Light needs to land on an icosahedron face plane so use disks instead of just changing the surface of the lens to detecting.)
+        # ev.photons_end.dir[detected] is always 0s as of now because we aren't saving directions in event or simulation files.
+
         #If nolens is True, assumes a "perfectres" type detector, with no lenses instead of lenses replaced with PMTs.
         #Restricts starting photons to be w/in rmax_frac*inscribed_radius of the center.
         reader = ShortRootReader(simname)

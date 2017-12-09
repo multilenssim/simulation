@@ -75,7 +75,7 @@ def jacopos_version():
     for cfg in configs:
         print '----------------------------------------------------------------%s----------------------------------------------------------------' % cfg
         for s_d in ['01', '34']:
-            if os.path.exists('/home/jacopodalmasson/Desktop/dev/' + cfg + '/raw_data'):
+            if os.path.exists(paths.get_data_file_path(cfg)):
                 print 'simulation part'
                 os.system('python g4_sim.py e- %s %s' % (s_d, cfg))
                 os.system('python g4_sim.py gamma %s %s' % (s_d, cfg))

@@ -140,7 +140,10 @@ def fire_particles(particle_name,sample,energy,sim,analyzer,sigma=0.01):
 			#lg = [7000.,0,0]
 			# direction = [-1,0,0]
 			# Direction original code is: vertex.isotropic()
-			gun = vertex.particle_gun([particle_name], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.99, float(energy) * 1.01))
+			gun = vertex.particle_gun([particle_name],
+						  vertex.constant(lg),
+						  vertex.isotropic(),
+						  vertex.flat(float(energy) * 0.99, float(energy) * 1.01))
 			# gun = vertex.particle_gun([particle_name], vertex.constant(lg), myhack(), vertex.flat(float(energy) * 0.99, float(energy) * 1.01))
 			arr.extend(run_simulation(f, sim, gun, analyzer, first))
 			first = False

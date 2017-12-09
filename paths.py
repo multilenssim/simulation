@@ -19,5 +19,3 @@ def get_calibration_file_name(config):
 
 def get_data_file_path(config):
     return data_files_path+config+'/raw_data/'
-
-    

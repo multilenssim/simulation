@@ -26,15 +26,11 @@ from matplotlib.tri import Triangulation
 import os
 
 import pickle
-<<<<<<< HEAD
 import os
 import pprint
 
 import paths
 from logger_lfd import logger
-=======
-import paths
->>>>>>> origin/master
 
 inputn = 16.0
 def lens(diameter, thickness, nsteps=inputn):

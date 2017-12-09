@@ -303,21 +303,23 @@ def fire_neutrons():
         x_position = float(sys.argv[1])
 
     g4_params = G4DetectorParameters(world_material='G4_AIR', orb_radius=10.)
-    gen = g4gen.G4Generator(scintillator, g4_detector_parameters=g4_params)
+    gen = g4gen.G4Generator(scintillator, g4_detector_parameters=g4_params) # , physics_list=QGSP_BERT_HP())
     momentum = (-1, 0, 0)
-    position = (12., 0., 0.)
+    position = (1., 0., 0.)
     # gen = g4gen.G4Generator(scint)
     g4 = G4Generator()  # Should not be necessary
     output = g4.generate("neutron", position, momentum, scintillator, gen, energy=2.)
     track_tree = gen.track_tree
     pprint.pprint(track_tree)
+    pprint.pprint(output.__dict__)
+    print('Photon count: ' + str(len(output.dir)))
 
 if __name__ == '__main__':
-    '''
+
     Geant4.gApplyUICommand("/run/verbose 2")
     Geant4.gApplyUICommand("/event/verbose 2")
     Geant4.gApplyUICommand("/tracking/verbose 2")
-    '''
+
 
     ev_dict = os.environ
     pprint.pprint(ev_dict)
@@ -355,6 +357,6 @@ if __name__ == '__main__':
     ##########
 
     # fire_particles(['mu-'], 1, 4.*100.)   # ['mu-','mu+'], 2, 4.*100.)   # mu+ is the anti-particle (but I think it has negative charge)
-    fire_particles(['mu-','mu+'], 2, 1.*1000.)   # mu+ is the anti-particle (but I think it has negative charge)
+    # fire_particles(['mu-','mu+'], 2, 1.*1000.)   # mu+ is the anti-particle (but I think it has negative charge)
     #fire_particles(['e-','gamma'], 2, 2.)
-    #fire_neutrons()
+    fire_neutrons()
