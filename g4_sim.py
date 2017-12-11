@@ -24,9 +24,9 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r):
 				vert = ev.photons_beg.pos
 				tracks = analyzer.generate_tracks(ev,qe=(1./3.))
 			if first:
-				en_depo = f.create_dataset('en_depo',data=vert,chunks=True)
-				coord = f.create_dataset('coord',data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
-				uncert = f.create_dataset('sigma',data=tracks.sigmas,chunks=True)
+				en_depo = f.create_dataset('en_depo',maxshape=(None,3),data=vert,chunks=True)
+				coord = f.create_dataset('coord',maxshape=(2,None,3),data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
+				uncert = f.create_dataset('sigma',maxshape=(None,),data=tracks.sigmas,chunks=True)
 				f.create_dataset('r_lens',data=tracks.lens_rad)
 			else:
 				en_depo.resize(en_depo.shape[0]+vert.shape[0], axis=0)
