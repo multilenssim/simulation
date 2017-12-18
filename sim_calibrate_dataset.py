@@ -31,7 +31,7 @@ photons_file = 'sim-'+cfg+'_100million.root'
 if not os.path.isfile(paths.get_calibration_file_name(cfg)):   # This is not a great structure as other configuration data may change in addition to the detector config
         logger.info('Failed to find: ' + paths.get_calibration_file_name(cfg))
         # We should really date stamp the directory containing the output and configuration files
-	logger.info('==== Setting up the detector ====')
+        logger.info('==== Setting up the detector ====')
         if not os.path.exists(paths.detector_calibration_path + photons_file):
                 logger.info('==== Building detector and simulating photons ====')
                 kb.full_detector_simulation(100000, cfg, photons_file, datadir=paths.detector_calibration_path)

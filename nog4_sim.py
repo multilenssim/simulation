@@ -1,6 +1,6 @@
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
-from EventAnalyzer import EventAnalyzer
 from chroma.detector import Detector, G4DetectorParameters
+from EventAnalyzer import EventAnalyzer
 from chroma.loader import load_bvh
 from chroma.sim import Simulation
 import time, h5py, os, argparse
@@ -62,67 +62,27 @@ def sim_setup(config,in_file, useGeant4=False, cuda_device=None):
 # Runs the simulation and writes the HDF5 file (except the index)
 def run_simulation(file, sim, events, analyzer, first=False):
 	arr = []
-	for ev in sim.simulate(events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
-		tracks = analyzer.generate_tracks(ev,qe=(1./3.))
-                print("Track count: " + str(len(tracks)))
-		#pprint(vars(ev))
-		#pprint(vars(tracks))
-                '''
-		print('Firing particle name/photon count/track count/location/direction: \t' +  # Add energy
-                      'photons' + '\t' + # ev.primary_vertex.particle_name + '\t' +
-                      str(len(ev.photons_beg)) + '\t' +
-		      str(len(tracks)) + '\t' +
-	              #str(ev.primary_vertex.pos) + '\t' +
-                      #str(ev.primary_vertex.dir) + '\t'
-                      '')
-		print('Photons begin count, track count:\t' + str(len(ev.photons_beg)) + '\t' + str(len(tracks)))
-		'''
-                if first:
-			coord = file.create_dataset('coord', maxshape=(2,None,3), data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
-			uncert = file.create_dataset('sigma', maxshape=(None,), data=tracks.sigmas,chunks=True)
-			arr.append(tracks.sigmas.shape[0])
-			file.create_dataset('r_lens',data=tracks.lens_rad)
-                else:
-			coord = file['coord']
-			uncert = file['sigma']
-			coord.resize(coord.shape[1]+tracks.means.shape[1], axis=1)
-			coord[:,-tracks.means.shape[1]:,:] = [tracks.hit_pos.T, tracks.means.T]
-			uncert.resize(uncert.shape[0]+tracks.sigmas.shape[0], axis=0)
-			uncert[-tracks.sigmas.shape[0]:] = tracks.sigmas
-			arr.append(uncert.shape[0])
-	return arr
-
-def fire_photons_single_site(sample,amount,sim,analyzer,in_shell,out_shell,sigma=0.01):
-        arr = []
-        first = True
-        location = sph_scatter(sample,in_shell,out_shell)
-        fname = seed_loc+'s-site.h5'
-        if not os.path.exists(data_file_dir):
-                os.makedirs(data_file_dir)
-        file_path = data_file_dir+fname
-        with h5py.File(file_path,'w') as f:
-                for lg in location:
-                        gun = kbl.gaussian_sphere(lg, sigma, amount)
-                        arr.extend(run_simulation(f, sim, gun, analyzer, first))
-                        first = False
-                f.create_dataset('idx',data=arr)
-
-def fire_photons_double_site(sample,amount,sim,analyzer,in_shell,out_shell,dist,sigma=0.01):
-        arr = []
-        first = True
-        locs1, locs2, rad = fixed_dist(sample,5000,in_shell,out_shell,rads=dist)
-        fname = seed_loc+'d-site'+str(int(dist/10))+'cm.h5'
-        if not os.path.exists(data_file_dir):
-                os.makedirs(data_file_dir)
-        file_path = data_file_dir+fname
-        with h5py.File(file_path,'w') as f:
-                for lc1,lc2 in zip(locs1,locs2):
-                        gun = create_double_source_events(lc1, lc2, sigma, amount/2, amount/2)
-                        arr.extend(run_simulation(f, sim, gun, analyzer, first))
-                        first = False
-                f.create_dataset('idx',data=arr)
-
-from chroma.sample import uniform_sphere
+	i = 0
+	locs1, locs2, rad = fixed_dist(sample,5000,rads=dist)
+	fname = 'd-site'+str(int(dist/10))+'cm.h5'
+	with h5py.File(path+fname,'w') as f:
+		for lc1,lc2 in zip(locs1,locs2):
+			sim_events = create_double_source_events(lc1, lc2, sigma, amount/2, amount/2)
+			for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
+				tracks = analyzer.generate_tracks(ev,qe=(1./3.))
+				if i == 0:
+					coord = f.create_dataset('coord', maxshape=(2,None,3), data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
+					uncert = f.create_dataset('sigma', maxshape=(None,), data=tracks.sigmas,chunks=True)
+					arr.append(tracks.sigmas.shape[0])
+					f.create_dataset('r_lens',data=tracks.lens_rad)
+				else:
+					coord.resize(coord.shape[1]+tracks.means.shape[1], axis=1)
+					coord[:,-tracks.means.shape[1]:,:] = [tracks.hit_pos.T, tracks.means.T]
+					uncert.resize(uncert.shape[0]+tracks.sigmas.shape[0], axis=0)
+					uncert[-tracks.sigmas.shape[0]:] = tracks.sigmas
+					arr.append(uncert.shape[0])
+			i =+ 1
+		f.create_dataset('idx',data=arr)
 
 def myhack():
     while True:
@@ -136,17 +96,22 @@ def fire_particles(particle_name,sample,energy,sim,analyzer,sigma=0.01):
 	location = sph_scatter(sample,in_shell,out_shell)
 	fname = 's-site.h5'
 	with h5py.File(path+fname,'w') as f:
-		for lg in location:     # x in np.linspace(0., 1000., num=20):
-			#lg = [7000.,0,0]
-			# direction = [-1,0,0]
-			# Direction original code is: vertex.isotropic()
-			gun = vertex.particle_gun([particle_name],
-						  vertex.constant(lg),
-						  vertex.isotropic(),
-						  vertex.flat(float(energy) * 0.99, float(energy) * 1.01))
-			# gun = vertex.particle_gun([particle_name], vertex.constant(lg), myhack(), vertex.flat(float(energy) * 0.99, float(energy) * 1.01))
-			arr.extend(run_simulation(f, sim, gun, analyzer, first))
-			first = False
+		for lg in location:
+			sim_event = kbl.gaussian_sphere(lg, sigma, amount)
+			for ev in sim.simulate(sim_event, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
+				tracks = analyzer.generate_tracks(ev,qe=(1./3.))
+				if i == 0:
+					coord = f.create_dataset('coord', maxshape=(2,None,3), data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
+					uncert = f.create_dataset('sigma', maxshape=(None,), data=tracks.sigmas,chunks=True)
+					arr.append(tracks.sigmas.shape[0])
+					f.create_dataset('r_lens',data=tracks.lens_rad)
+				else:
+					coord.resize(coord.shape[1]+tracks.means.shape[1], axis=1)
+					coord[:,-tracks.means.shape[1]:,:] = [tracks.hit_pos.T, tracks.means.T]
+					uncert.resize(uncert.shape[0]+tracks.sigmas.shape[0], axis=0)
+					uncert[-tracks.sigmas.shape[0]:] = tracks.sigmas
+					arr.append(uncert.shape[0])
+			i =+ 1
 		f.create_dataset('idx',data=arr)
 
 energy = 1.

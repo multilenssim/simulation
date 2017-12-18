@@ -32,7 +32,7 @@ import kabamland2 as kb
 def build_kabamland(kabamland, configname):
     # focal_length sets dist between lens plane and PMT plane (or back of curved detecting surface);
     #(need not equal true lens focal length)
-    config = detectorconfig.configdict[configname]
+    config = detectorconfig.configdict(configname)
 	
     _, lens = kb.get_lens_triangle_centers(config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
     surf = mh.rotate(kb.curved_surface2(config.detector_r, diameter=2*kb.find_max_radius(config.edge_length, config.base), nsteps=9), make_rotation_matrix(-np.pi/2, (1,0,0)))

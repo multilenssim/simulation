@@ -1,16 +1,18 @@
 from lenssystem import get_system_measurements, get_half_EPD
+from paths import detector_pickled_path
 import numpy as np
+import pickle
 
 class DetectorConfig(object):
-    def __init__ (self, edge_length, base, pmtxbins, pmtybins, diameter_ratio, thickness_ratio=0.25, blockers=True, blocker_thickness_ratio=1.0/1000, lens_system_name=None, EPD_ratio=1.0, focal_length=1.0, light_confinement=False, nsteps=10,b_pixel=4):
-        # Two configurations are considered here: one with a single planar detecting surface for each
-        # icosahedral side (detector_r=0.) and one with curved detecting surfaces behind each lens system,
-        # with the parameters of the lens system defined in lenssystem.py for any given name. 
+    def __init__ (self, sph_rad, n_lens, max_radius, vtx, pmtxbins, pmtybins, diameter_ratio, thickness_ratio=0.25, blockers=True, blocker_thickness_ratio=1.0/1000, lens_system_name=None, EPD_ratio=1.0, focal_length=1.0, light_confinement=False, nsteps=10,b_pixel=4):
+        # Spherical geometry the focal surface is considered curve (planar surface not considered).
+        # The parameters of the lens system defined in lenssystem.py for any given name. 
         # Note that focal_length can only be explicitly set for planar detectors (otherwise lenssystem
         # parameters override it).
+	# The attributes' names are the same of the icosahedron to have the scripts compatible
 	self.EPD_ratio = EPD_ratio
-        self.edge_length = edge_length # Length of an icosahedral edge for the lens plane
-        self.base = base # Number of lens systems at the base of each lens plane triangle
+        self.edge_length = sph_rad # Radius of the detector
+        self.base = n_lens # Total number of lenses
         self.pmtxbins = pmtxbins # If planar detector, bins in x for each plane; if curved, does nothing
         self.pmtybins = pmtybins
         # For planar detector, diameter_ratio is the ratio of lens system diameter that for max packing 
@@ -22,8 +24,6 @@ class DetectorConfig(object):
         self.blockers = blockers # Toggles blocking surfaces at the lens plane between lenses
         self.blocker_thickness_ratio = blocker_thickness_ratio # Sets thickness of blockers; should have no effect
         self.lens_system_name = lens_system_name
-        #max_radius = find_max_radius(edge_length, base)
-        max_radius = edge_length/(2*(base+np.sqrt(3)-1))
         if lens_system_name:
             # Get focal length and radius of curvature of detecting surfaces; detecting surface will
             # extend to the maximum allowable radius, but its radius of curvature (and all other lens
@@ -37,6 +37,7 @@ class DetectorConfig(object):
         self.light_confinement = light_confinement
         self.nsteps = nsteps # number of steps to generate curved detecting surface - sets number of PMTs
 	self.b_pixel = b_pixel # number of pixels in the first ring (active only with NEW PIXELIZATION)
+	self.vtx = vtx
 
 # All configpc diameters given are for kabamlandpc packing (different for kabamland2) 
 # Up to configpc4, focal_length=diameter
@@ -44,7 +45,11 @@ class DetectorConfig(object):
 # The other configpc cases do not set focal_length or light_confinement here due to historical reasons;
 # filenames using them should specify both of these parameters; future runs should just create new configs
 
-
+def get_dict_param(conf_fl,conf_name):
+	with open(conf_fl,'r') as f:
+		dtc = pickle.load(f)
+	return dtc[conf_name]
+'''
 # Newer configurations, including those with curved detecting surfaces and pre-made lens systems
 configdict = {'cfJiani3_2': DetectorConfig(10000.0, 6, 0, 0, 1.0, lens_system_name='Jiani3', light_confinement=True, nsteps=23)} # Should have ~100k pixels, 21 lens systems/face, 20 faces
 configdict['cfJiani3_4'] = DetectorConfig(10000.0, 4, 0, 0, 1.0, lens_system_name='Jiani3', light_confinement=True, nsteps=32) # Should have ~100k pixels, 10 lens systems/face, 20 faces
@@ -88,7 +93,7 @@ configdict['cfSam1_M20_8'] = DetectorConfig(10000.0, 20, 0 , 0, 1.0, lens_system
 configdict['cfSam1_M4_8'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=37, b_pixel=4) #976200plx, 10 system/face, l_radius: 1056cm np
 configdict['cfSam1_M10_10'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=17, b_pixel=4) #1056000 plx, 55 system/face, l_radius: 465 cm np
 configdict['cfSam1_M10_8'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=17, b_pixel=4) #1056000 plx, 55 system/face, l_radius: 465 cm np
-
+'''
 ''' Old configuration names - maintained here for reference so that we can rename the config files
 configdict['cfSam1_6'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=13, b_pixel=4) #107600plx, 10 system/face, l_radius: 105cm np
 configdict['cfSam1_7'] = DetectorConfig(10000.0, 2, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=22, b_pixel=4) #99420plx, 3 system/face, l_radius: 183cm np
@@ -106,10 +111,14 @@ configdict['cfSam1_18'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_na
 configdict['cfSam1_21'] = DetectorConfig(10000.0, 20, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=9, b_pixel=4) #~1 Million, 20 lens at base
 # Note that Sam1_22 corresponds to Sam1_19
 configdict['cfSam1_22'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=37, b_pixel=4) #976200plx, 10 system/face, l_radius: 1056cm np
-'''
+''''''
 configdict['cfSam1_19'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=37, b_pixel=4) #976200plx, 10 system/face, l_radius: 1056cm np
 configdict['cfSam1_20'] = DetectorConfig(10000.0, 20, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=9, b_pixel=4) #~1 Million, 20 lens at base
 configdict['cfSam1_23'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=17, b_pixel=4) #1056000 plx, 55 system/face, l_radius: 465 cm np
-'''
+''''''
 configdict['cfSam1_24'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=17, b_pixel=4) #1056000 plx, 55 system/face, l_radius: 465 cm np
 '''
+
+def configdict(conf_name):
+	fname  =  '%sconf_file.p'%detector_pickled_path
+	return DetectorConfig(get_dict_param(fname,conf_name)[0], get_dict_param(fname,conf_name)[1], get_dict_param(fname,conf_name)[2], get_dict_param(fname,conf_name)[3],0, 0, 1.0, lens_system_name='Sam1', EPD_ratio = get_dict_param(fname,conf_name)[4], light_confinement=True, nsteps=get_dict_param(fname,conf_name)[5],b_pixel=get_dict_param(fname,conf_name)[6])
