@@ -1,16 +1,18 @@
-from chroma.sim import Simulation
-from chroma import sample
-from chroma.generator import vertex
 from ShortIO.root_short import ShortRootWriter
-import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from chroma.detector import Detector
-import lensmaterials as lm
-import argparse, os
-import kabamland2 as kb
+from chroma.generator import vertex
+from chroma.sim import Simulation
+import matplotlib.pyplot as plt
 import detectoranalysis as da
+import lensmaterials as lm
+from chroma import sample
+import kabamland2 as kb
+import argparse, os
+import paths
 
-datadir = "/home/miladmalek/TestData/"
+
+datadir = paths.detector_calibration_path
 
 parser = argparse.ArgumentParser()
 parser.add_argument('cfg', help='configuration')

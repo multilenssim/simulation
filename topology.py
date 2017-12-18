@@ -4,9 +4,10 @@ import matplotlib.pyplot as plt
 import h5py,time,argparse
 import nog4_sim as setup
 import numpy as np
+import paths
 
 def sim_ev(cfg,particle,lg,energy):
-	sim,analyzer = setup.sim_setup(cfg,cfg,paths.get_calibration_file_name(cfg))
+	sim,analyzer = setup.sim_setup(cfg,paths.get_calibration_file_name(cfg),useGeant4=True)
 	print 'Configuration loaded'
 	gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(energy*0.999, energy*1.001))
 	for ev in sim.simulate(gun,keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100):
@@ -77,10 +78,10 @@ def track_dist(ofst,drct,sgm,dim_len=0):
 	return np.asarray(arr_dist),(np.asarray(arr_sgm)+dim_len),np.asarray(arr_pos)
 
 
-cfg = 'cfSam1_K4_8'
-particle = 'gamma'
+cfg = 'cfSam1_K200_8'
+particle = 'e-'
 lg = [0,0,0]
-energy = 15.0
+energy = 2.0
 vtx,trx = sim_ev(cfg,particle,lg,energy)
 print 'Simulation done, starting reconstruction'
 dist,err,rcn_pos = track_dist(trx.hit_pos.T,trx.means.T,trx.sigmas,trx.lens_rad)
@@ -89,13 +90,25 @@ mask_bool = (dist!=0) & (dist<1) & (np.linalg.norm(rcn_pos,axis=1)<5000)# & (err
 c_rcn_pos = rcn_pos[mask_bool]
 c_err = err[mask_bool]
 c_dist = dist[mask_bool]
-plt.hist(c_err,bins=100)
-plt.show()
-plt.hist(c_dist,bins=100)
+#plt.hist(c_err,bins=100)
+#plt.show()
+plt.hist(np.linalg.norm(c_rcn_pos,axis=1),bins=1000)
+plt.xlabel('radial position of the reconstructed mid-point (not r$^2$ normalized) [mm]')
 plt.show()
 print rcn_pos.shape,c_rcn_pos.shape
+a = float(raw_input())
+b = float(raw_input())
+c = float(raw_input())
+d = float(raw_input())
 fig = plt.figure()
 ax = fig.gca(projection='3d')
-ax.plot(c_rcn_pos[:,0],c_rcn_pos[:,1],c_rcn_pos[:,2],'.', markersize=0.5)
-ax.plot(vtx[:,0],vtx[:,1],vtx[:,2],'.')
+f_peak = (a<np.linalg.norm(c_rcn_pos,axis=1)) & (np.linalg.norm(c_rcn_pos,axis=1)<b)
+s_peak = (c<np.linalg.norm(c_rcn_pos,axis=1)) & (np.linalg.norm(c_rcn_pos,axis=1)<d)
+ax.plot(c_rcn_pos[f_peak,0],c_rcn_pos[f_peak,1],c_rcn_pos[f_peak,2],'.', color='red', markersize=0.5)
+ax.plot(c_rcn_pos[s_peak,0],c_rcn_pos[s_peak,1],c_rcn_pos[s_peak,2],'.', color='green', markersize=0.5)
+#ax.plot(c_rcn_pos[:,0],c_rcn_pos[:,1],c_rcn_pos[:,2],'.', markersize=0.5)
+ax.plot(vtx[:,0],vtx[:,1],vtx[:,2],'.',markersize=0.5)
+ax.set_xlim(-5000, 5000)
+ax.set_ylim(-5000, 5000)
+ax.set_zlim(-5000, 5000)
 plt.show()

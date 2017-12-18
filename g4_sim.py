@@ -1,11 +1,10 @@
 from mpl_toolkits.mplot3d import Axes3D
 from chroma.generator import vertex
 import matplotlib.pyplot as plt
-import h5py,time,argparse
+import h5py,time,argparse,os
 import nog4_sim as setup
-import os
-
 import paths
+
 def gen_ev(sample,cfg,particle,energy,i_r,o_r):
 	seed_loc = 'r%i-%i'%(i_r,o_r)
 	data_file_dir = paths.get_data_file_path(cfg)

@@ -1,14 +1,12 @@
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
-from EventAnalyzer import EventAnalyzer
 from chroma.detector import Detector, G4DetectorParameters
+from EventAnalyzer import EventAnalyzer
 from chroma.loader import load_bvh
 from chroma.sim import Simulation
 import time, h5py, os, argparse
 import lensmaterials as lm
 import kabamland2 as kbl
 import numpy as np
-
-
 import paths
 
 def fixed_dist(sample, radius, in_shell, out_shell, rads=None):
