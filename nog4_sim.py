@@ -64,8 +64,8 @@ def fixed_dist_hist(dist,sample,amount,sim,analyzer,sigma=0.01):
 			for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 				tracks = analyzer.generate_tracks(ev,qe=(1./3.))
 				if i == 0:
-					coord = f.create_dataset('coord',data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
-					uncert = f.create_dataset('sigma',data=tracks.sigmas,chunks=True)
+					coord = f.create_dataset('coord', maxshape=(2,None,3), data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
+					uncert = f.create_dataset('sigma', maxshape=(None,), data=tracks.sigmas,chunks=True)
 					arr.append(tracks.sigmas.shape[0])
 					f.create_dataset('r_lens',data=tracks.lens_rad)
 				else:
@@ -89,8 +89,8 @@ def bkg_dist_hist(sample,amount,sim,analyzer,sigma=0.01):
 			for ev in sim.simulate(sim_event, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 				tracks = analyzer.generate_tracks(ev,qe=(1./3.))
 				if i == 0:
-					coord = f.create_dataset('coord',data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
-					uncert = f.create_dataset('sigma',data=tracks.sigmas,chunks=True)
+					coord = f.create_dataset('coord', maxshape=(2,None,3), data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
+					uncert = f.create_dataset('sigma', maxshape=(None,), data=tracks.sigmas,chunks=True)
 					arr.append(tracks.sigmas.shape[0])
 					f.create_dataset('r_lens',data=tracks.lens_rad)
 				else:
