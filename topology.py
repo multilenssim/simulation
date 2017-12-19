@@ -119,17 +119,20 @@ def track_dist_threaded(ofst,drct,sgm=False,outlier=False,dim_len=0):
 	half = ofst.shape[0]/2
 	arr_dist, arr_sgm, arr_pos = [], [], []
 
-	pool = Pool(multiprocessing.cpu_count())
+	pool = Pool(multiprocessing.cpu_count() / 2)
 	results = []
 	count = (ofst.shape[0]-1)/2+1
-	photons_per_chunk = 8		# Artificial limitation
-	chunks = 10
+	photons_per_chunk = 10		# Artificial limitation
+	chunks = 4000
 	chunk_step = count // chunks
 	tail_chunk_size = count % chunks
 	# Lot's of hacking around in here - need to test..  and clean up
-	print('Total rolls: ' + str(count))
-	print('Chunks and chunk size: ' + str(chunks) + ' ' + str(chunk_step))
-	print('Tail chunk size: ' + str(tail_chunk_size))
+	logger.info('Total rolls: ' + str(count))
+	logger.info('Chunks and chunk size: ' + str(chunks) + ' ' + str(chunk_step))
+	logger.info('Tail chunk size: ' + str(tail_chunk_size))
+        total_photons_paired = (chunks * photons_per_chunk) + tail_chunk_size
+	logger.info('Total photons selected and %: ' + str(total_photons_paired) + ' ' + str(float(total_photons_paired) / count))
+
 	for i in range(1, count, chunk_step):
 		range_end = i+photons_per_chunk
 		if range_end > count:		# Will this miss the last one?
@@ -218,7 +221,7 @@ if __name__=='__main__':
 		en_depo = f.create_dataset('pos', data=rcn_pos, chunks=True)
 		coord = f.create_dataset('dist', data=dist, chunks=True)
 		uncert = f.create_dataset('sigma', data=err, chunks=True)
-
+        '''
 	logger.info('Plotting...')
 	plt.hist(c_err,bins=100)
 	plt.show()
@@ -231,6 +234,7 @@ if __name__=='__main__':
 	if args.hdf5 is None:
 		ax.plot(vtx[:,0],vtx[:,1],vtx[:,2],'.')
 	plt.show()
+        '''
 
 def jacopos_stuff:
 	cfg = 'cfSam1_K200_8'

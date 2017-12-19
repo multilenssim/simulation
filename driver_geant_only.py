@@ -139,20 +139,18 @@ def fire_particles(particles, run_count, energy):
                     track_counts[particle][counter] = track_count
 
                     max_distance = 0.
-                    # XX center_location_track_number = 1 if particle == 'e-' else 2		# Note: this is tricky - be careful
-                    # XX center_location = track_tree[center_location_track_number]['position']
+                    center_location_track_number = 1 if particle == 'e-' else 2		# Note: this is tricky - be careful
+                    center_location = track_tree[center_location_track_number]['position']
                     for key, entry in track_tree.iteritems():
-                        print('Key: ' + str(key))
-                        print('Entry: ' + str(entry))
                         if 'position' in entry:
                             position = entry['position']
                             '''   XX Looks like the type of 'position' may have change from an x,y,z to a (1,2,3) tuple
                             distance_from_center = math.sqrt(math.pow((position.x - center_location.x),2) +
-                                                             math.pow((position.y - center_location.y),2) +
-                                                             math.pow((position.z - center_location.z),2))
+                                math.pow((position.y - center_location.y),2) +
+                                math.pow((position.z - center_location.z),2))
                             if distance_from_center > max_distance:
-                                max_distance = distance_from_center
-                        '''
+                            max_distance = distance_from_center
+                            '''
                     vertex_positions[particle][counter] = max_distance
 
                 counts[particle][x].append(len(output.pos))
