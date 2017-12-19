@@ -25,7 +25,7 @@ with open(args.pickle_file, 'rb') as f:
             print('Detector parameters: ' + str(data.g4_detector_parameters.__dict__))
             print('Material: ' + str(data.detector_material.__dict__))
             # if 'g4_detector_parameters' in data:    # Never true - not sure why
-        except TypeError: # not sure if this will be the right exception
+        except AttributeError:  # TypeError: # not sure if this will be the right exception
             pass     # object is not iterable, just ignore this if fails
 
         try:

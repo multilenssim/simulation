@@ -1,11 +1,49 @@
-from lenssystem import get_system_measurements,get_half_EPD
 from paths import detector_pickled_path
-from chroma.transform import normalize
 import itertools,argparse,math,pickle
 import scipy.spatial
 import numpy as np
 
+######## Copied in from lenssystem to avoid importing a WHOLE lot of chroma and Geant4
+import lensmaterials as lm      # After all this, lm brings in chroma
 
+class LensSys(object):
+    def __init__(self, sys_rad, focal_length, detector_r_curve, lens_rad, lensmat=lm.lensmat):
+        # Contains parameters common to all lens systems
+        self.sys_rad = sys_rad  # Radius of detecting surface
+        self.focal_length = focal_length  # Focal length (distance from center of first lens to center of detecting surface)
+        self.detector_r_curve = detector_r_curve  # Radius of curvature of detecting surface
+        self.lens_rad = lens_rad  # Radius of first lens in lens system
+        self.lensmat = lensmat  # Lens material
+
+lensdict = {'Jiani3': LensSys(sys_rad=643., focal_length=1074., detector_r_curve=943., lens_rad=488.)}
+lensdict['Sam1'] = LensSys(sys_rad=350., focal_length=737.4, detector_r_curve=480., lens_rad=350., lensmat=lm.lensmat_ohara)
+
+def get_lens_sys(lens_system_name):
+    if lens_system_name in lensdict:
+        return lensdict[lens_system_name]
+    else:
+        raise Exception('Lens system name '+str(lens_system_name)+' is not valid.')
+
+def get_scale_factor(lens_system_name, scale_rad):
+	# Returns the factor used to scale a given lens system of name lens_system_name
+    # Scaling will happen in such a way that all distances are set by the scale
+    # factor except for the detector size, which is fixed separately.
+    sys_rad = get_lens_sys(lens_system_name).sys_rad
+    return scale_rad/sys_rad
+
+def get_system_measurements(lens_system_name, scale_rad):
+    # Returns the focal length and detecting surface radius of curvature for
+    # a given lens system of name lens_system_name;
+    scale_factor = get_scale_factor(lens_system_name, scale_rad)
+    lens_sys = get_lens_sys(lens_system_name)
+    fl_unscaled = lens_sys.focal_length
+    det_r_unscaled = lens_sys.detector_r_curve
+    fl = fl_unscaled * scale_factor
+    det_r = det_r_unscaled * scale_factor
+
+    return fl, det_r
+    # det_diam < 2*det_r = 2*sys_det_r*scale_factor
+########
 
 def calc_steps(x_value,y_value,detector_r,n_lens_pixel):
         x_coord = np.asarray([x_value,np.roll(x_value,-1)]).T[:-1]
