@@ -1,16 +1,14 @@
-from chroma.transform import make_rotation_matrix, normalize
-from kabamland import find_inscribed_radius, find_focal_length, return_values
 from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader, AngleRootReader, AngleRootWriter
+from kabamland2 import get_curved_surf_triangle_centers, get_lens_triangle_centers
+from chroma.transform import make_rotation_matrix, normalize
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+import lensmaterials as lm
+from scipy import spatial 
 import detectorconfig
 import numpy as np
-import lensmaterials as lm
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import time
 
-from kabamland2 import get_curved_surf_triangle_centers, get_lens_triangle_centers, find_max_radius
-
-from scipy import spatial 
 
 class DetectorResponse(object):
     '''A DetectorResponse represents the information available to the detector
@@ -21,17 +19,17 @@ class DetectorResponse(object):
     its geometry is known.    
     '''
     def __init__(self, configname, detectorxbins=10, detectorybins=10, detectorzbins=10):
-        config = detectorconfig.configdict[configname]
-        self.configname = configname        # Adding this for intermediate calibration file writing
+        config = detectorconfig.configdict(configname)
+        self.configname = configname  # Adding this for intermediate calibration file writing
         self.is_calibrated = False
+	self.lns_rad = config.half_EPD/config.EPD_ratio
         self.detectorxbins = detectorxbins
         self.detectorybins = detectorybins
         self.detectorzbins = detectorzbins
-        self.edge_length, self.facecoords, self.direction, self.axis, self.angle, self.spin_angle = return_values(config.edge_length, config.base)
-        self.base = config.base
+        #self.edge_length, self.facecoords, self.direction, self.axis, self.angle, self.spin_angle = return_values(config.edge_length, config.base)
         self.pmtxbins = config.pmtxbins
         self.pmtybins = config.pmtybins
-        self.n_lens_sys = int(config.base*(config.base+1)/2.) # Number of lens systems per face
+        self.n_lens_sys = config.base # Number of lens systems per face
         self.detector_r = config.detector_r
         self.nsteps = config.nsteps
         #self.n_triangles_per_surf = int(2*self.nsteps*int((self.nsteps-2)/2.))
@@ -45,35 +43,32 @@ class DetectorResponse(object):
         self.diameter_ratio = config.diameter_ratio
         self.thickness_ratio = config.thickness_ratio
         ##changed
-        #self.pcdiameter = 2*config.diameter_ratio*find_max_radius(config.edge_length, config.base)
         self.focal_length = config.focal_length
 
-        #self.focal_length = find_focal_length(config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio)
         ##end changed
-        self.pmt_side_length = np.sqrt(3)*(3-np.sqrt(5))*self.focal_length + self.edge_length
-        self.inscribed_radius = find_inscribed_radius(self.edge_length)
-        self.rotation_matrices = self.build_rotation_matrices()
-        self.inverse_rotation_matrices = np.linalg.inv(self.rotation_matrices)
-        self.displacement_matrix = self.build_displacement_matrix()
-        self.inverse_rotated_displacement_matrix = self.build_inverse_rotated_displacement_matrix()
-        self.lens_inverse_rotated_displacement_matrix = self.build_lensplane_inverse_rotated_displacement_matrix()
+        #self.pmt_side_length = np.sqrt(3)*(3-np.sqrt(5))*self.focal_length
+        self.inscribed_radius = config.edge_length
+        #self.rotation_matrices = self.build_rotation_matrices()
+        #self.inverse_rotation_matrices = np.linalg.inv(self.rotation_matrices)
+        #self.displacement_matrix = self.build_displacement_matrix()
+        #self.inverse_rotated_displacement_matrix = self.build_inverse_rotated_displacement_matrix()
+        #self.lens_inverse_rotated_displacement_matrix = self.build_lensplane_inverse_rotated_displacement_matrix()
         #new properties for curved surface detectors
-        self.triangle_centers,self.n_triangles_per_surf,self.ring = get_curved_surf_triangle_centers(self.edge_length, config.base, self.detector_r, self.focal_length, self.nsteps, config.b_pixel)
+        self.triangle_centers,self.n_triangles_per_surf,self.ring = get_curved_surf_triangle_centers(config.vtx, self.lns_rad, self.detector_r, self.focal_length, self.nsteps, config.b_pixel)
         self.triangle_centers_tree = spatial.cKDTree(self.triangle_centers)
         self.n_pmts_per_surf = int(self.n_triangles_per_surf/2.)
         if not self.detector_r:
             self.npmt_bins = 20*self.pmtxbins*self.pmtybins
         else:
-            self.npmt_bins = 20*self.n_lens_sys*self.n_pmts_per_surf # One curved detecting surf for each lens system        
-        self.lens_centers, _ = get_lens_triangle_centers(config.edge_length, config.base, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
-        
+            self.npmt_bins = self.n_lens_sys*self.n_pmts_per_surf # One curved detecting surf for each lens system        
+        self.lens_centers = get_lens_triangle_centers(config.vtx, self.lns_rad, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
         self.lens_rad = config.half_EPD 
         
-        self.calc1 = self.pmtxbins/self.pmt_side_length
-        self.calc2 = self.pmtxbins/2.0
-        self.calc3 = 2*self.pmtybins/(np.sqrt(3)*self.pmt_side_length)
-        self.calc4 = self.pmtybins/3.0
-        self.calc5 = self.pmtxbins*self.pmtybins
+        #self.calc1 = self.pmtxbins/self.pmt_side_length
+        #self.calc2 = self.pmtxbins/2.0
+        #self.calc3 = 2*self.pmtybins/(np.sqrt(3)*self.pmt_side_length)
+        #self.calc4 = self.pmtybins/3.0
+        #self.calc5 = self.pmtxbins*self.pmtybins
         
     def build_rotation_matrices(self):
         rotation_matrices = np.empty((20, 3, 3))
@@ -105,7 +100,11 @@ class DetectorResponse(object):
         print "Base class DetectorResponse has no specific calibration method - instantiate as a subclass."
         
     def angles_response(self, config, simname, nolens=False, rmax_frac=1.0):
-        #takes a simulation file and creates an array of angles that photons hit the pmts at. (replace lenses with disk pmts for the simulation to see what angles light hits the lenses at. Light needs to land on an icosahedron face plane so use disks instead of just changing the surface of the lens to detecting.) ev.photons_end.dir[detected] is always 0s as of now because we aren't saving directions in event or simulation files. 
+        #takes a simulation file and creates an array of angles that photons hit the pmts at.
+        # (replace lenses with disk pmts for the simulation to see what angles light hits the lenses at.
+        # Light needs to land on an icosahedron face plane so use disks instead of just changing the surface of the lens to detecting.)
+        # ev.photons_end.dir[detected] is always 0s as of now because we aren't saving directions in event or simulation files.
+
         #If nolens is True, assumes a "perfectres" type detector, with no lenses instead of lenses replaced with PMTs.
         #Restricts starting photons to be w/in rmax_frac*inscribed_radius of the center.
         reader = ShortRootReader(simname)
@@ -353,7 +352,7 @@ class DetectorResponse(object):
     def find_closest_triangle_center(self, pos_array, max_dist = 1.):
         #print "Finding closest triangle centers..."
         if(max_dist == 1.):
-            max_dist = 1.1*2*np.pi*find_max_radius(self.edge_length, self.base)/self.nsteps # Circumference of detecting surface divided by number of steps, with 1.1x of wiggle room
+            max_dist = 1.1*2*np.pi*self.lns_rad/self.nsteps # Circumference of detecting surface divided by number of steps, with 1.1x of wiggle room
         #max_dist = 1
         #max_dist=1000
         query_results = self.triangle_centers_tree.query(pos_array,distance_upper_bound = max_dist)

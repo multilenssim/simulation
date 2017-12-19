@@ -31,7 +31,7 @@ photons_file = 'sim-'+cfg+'_100million.root'
 if not os.path.isfile(paths.get_calibration_file_name(cfg)):   # This is not a great structure as other configuration data may change in addition to the detector config
         logger.info('Failed to find: ' + paths.get_calibration_file_name(cfg))
         # We should really date stamp the directory containing the output and configuration files
-	logger.info('==== Setting up the detector ====')
+        logger.info('==== Setting up the detector ====')
         if not os.path.exists(paths.detector_calibration_path + photons_file):
                 logger.info('==== Building detector and simulating photons ====')
                 kb.full_detector_simulation(100000, cfg, photons_file, datadir=paths.detector_calibration_path)
@@ -75,7 +75,7 @@ def jacopos_version():
     for cfg in configs:
         print '----------------------------------------------------------------%s----------------------------------------------------------------' % cfg
         for s_d in ['01', '34']:
-            if os.path.exists('/home/jacopodalmasson/Desktop/dev/' + cfg + '/raw_data'):
+            if os.path.exists(paths.get_data_file_path(cfg)):
                 print 'simulation part'
                 os.system('python g4_sim.py e- %s %s' % (s_d, cfg))
                 os.system('python g4_sim.py gamma %s %s' % (s_d, cfg))

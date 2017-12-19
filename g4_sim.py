@@ -1,9 +1,9 @@
 from chroma.generator import vertex
+
 import h5py,time,argparse
 
 import pycuda.driver as cuda
 
-import numpy as np
 import os
 import sys
 
@@ -15,6 +15,7 @@ import time
 from multiprocessing import Pool, TimeoutError
 from multiprocessing.pool import ThreadPool
 import multiprocessing          # Just for CPU count
+
 
 def cuda_stat():
     cuda.init()

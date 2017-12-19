@@ -14,9 +14,11 @@ from kabamland2 import gaussian_sphere
 import detectorconfig as dc
 import nog4_sim as ng4s
 import right_amount
-import os
-
 import paths
+
+import os
+import numpy as np
+import argparse
 
 def surf(rad_ring,ring_par,width_ring):
 	patches = []	

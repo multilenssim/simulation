@@ -11,5 +11,5 @@ if __name__ == '__main__':
 	if not os.path.exists(ptf):
 		os.makedirs(ptf)
 	with open(ptf+'conf.pkl', 'w') as outf:
-		pickle.dump(detectorconfig.configdict[cfg].__dict__, outf)
+		pickle.dump(detectorconfig.configdict(cfg).__dict__, outf)
 	print 'configuration saved'
