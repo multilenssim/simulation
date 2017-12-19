@@ -35,6 +35,8 @@ def count_processes(output, print_counts=True):
 
 # Note: this is very specific to the analysis in driver_geant4_only
 def display_track_tree(track_tree, particle):
+    if track_tree is None:
+        return
     track_count = len(track_tree) - 1
     if particle == 'e-' and track_count != 1:
         print

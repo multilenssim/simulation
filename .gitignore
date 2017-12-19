@@ -2,3 +2,4 @@ pickled_detectors/
 dataset.sh
 kabamland_erlangen.py
 *.pyc
+*~
