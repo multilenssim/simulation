@@ -9,7 +9,8 @@ from chroma.event import Vertex
 from chroma.generator import g4gen
 from chroma.detector import G4DetectorParameters
 
-#import matplotlib.pyplot as plt
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import pprint
@@ -22,6 +23,7 @@ from Geant4 import *
 import lensmaterials
 import count_processes
 
+from mpl_toolkits.mplot3d import Axes3D
 
 class G4Generator:
     def generate(self, particle_name, position, direction, scintillator, generator, energy=2.):
@@ -292,6 +294,9 @@ def plot():
     out_ph1 = g4.generate('e-', (0. * m, 0., 0.), momentum, scintillator, gen2, energy=2.)		# NOTE the energy here.  for testing !!!!!
     '''
 
+def g4_position_to_list(pos):
+    return [pos.x, pos.y, pos.z]
+
 def fire_neutrons():
     scintillator = lensmaterials.create_scintillation_material()
 
@@ -312,12 +317,41 @@ def fire_neutrons():
     pprint.pprint(output.__dict__)
     print('Photon count: ' + str(len(output.dir)))
 
+    particles = {}
+    energies = {}
+    for key, value in track_tree.iteritems():
+        if 'particle' in value:
+            particle = value['particle']
+            if particle not in particles:
+                particles[particle] = []
+                energies[particle] = []
+            particles[particle].append(g4_position_to_list(value['position']))
+            energies[particle].append(100.*value['energy'])
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    #ax = fig.gca(projection='3d')
+
+    for key, value in particles.iteritems():
+        if key != 'e-':
+            the_array = np.array(value)
+            #ax.plot(the_array[:,0], the_array[:,1], the_array[:,2], '.', markersize=5.0)
+            ax.scatter(the_array[:,0], the_array[:,1], the_array[:,2], marker='o', s=energies[particle], label=key) #), markersize=5.0)
+
+
+    #if args.hdf5 is None:
+    #    ax.plot(vtx[:, 0], vtx[:, 1], vtx[:, 2], '.')
+    plt.legend(loc=2)   # See https://pythonspot.com/3d-scatterplot/
+    plt.show()
+
+
 if __name__ == '__main__':
 
+    '''
     Geant4.gApplyUICommand("/run/verbose 2")
     Geant4.gApplyUICommand("/event/verbose 2")
     Geant4.gApplyUICommand("/tracking/verbose 2")
-
+    '''
 
     ev_dict = os.environ
     pprint.pprint(ev_dict)
