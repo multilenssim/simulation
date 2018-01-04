@@ -221,7 +221,7 @@ if __name__=='__main__':
 		en_depo = f.create_dataset('pos', data=rcn_pos, chunks=True)
 		coord = f.create_dataset('dist', data=dist, chunks=True)
 		uncert = f.create_dataset('sigma', data=err, chunks=True)
-        '''
+	'''
 	logger.info('Plotting...')
 	plt.hist(c_err,bins=100)
 	plt.show()
@@ -234,7 +234,7 @@ if __name__=='__main__':
 	if args.hdf5 is None:
 		ax.plot(vtx[:,0],vtx[:,1],vtx[:,2],'.')
 	plt.show()
-        '''
+	'''
 
 def jacopos_stuff:
 	cfg = 'cfSam1_K200_8'

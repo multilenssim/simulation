@@ -1,6 +1,6 @@
 from Geant4 import *
 
-import ../lensmaterial.py
+#import lensmaterial.py
 
 class MyDetectorConstruction(G4VUserDetectorConstruction):
     "My Detector Construction"
@@ -234,7 +234,7 @@ class MyPrimaryGeneratorAction(G4VUserPrimaryGeneratorAction):
         beam = G4ParticleGun()
         beam.SetParticleEnergy(2 * MeV)
         beam.SetParticleMomentumDirection(G4ThreeVector(0, 0, -1))
-        beam.SetParticleDefinition(neutron)
+        beam.SetParticleDefinition(electron)
         beam.SetParticlePosition(G4ThreeVector(0, 0, 100))
 
         self.particleGun = beam
@@ -243,9 +243,12 @@ class MyPrimaryGeneratorAction(G4VUserPrimaryGeneratorAction):
         self.particleGun.GeneratePrimaryVertex(event)
 
 if __name__=='__main__':
+    '''
     gApplyUICommand("/run/verbose 2")
     gApplyUICommand("/event/verbose 2")
     gApplyUICommand("/tracking/verbose 2")
+    '''
+    gApplyUICommand("/control/macroPath /Users/kwells/Development/physics/simulation/neutrons")
 
     # set geometry
     detector = MyDetectorConstruction()
@@ -261,7 +264,13 @@ if __name__=='__main__':
     # Initialise
     gRunManager.Initialize()
 
-    #gUImanager.ExecuteMacroFile('macros/raytrace.mac')
+    print('Executing macros')
+    gUImanager.ExecuteMacroFile('raytrace.mac')
     gUImanager.ExecuteMacroFile('dawn.mac')
+    gApplyUICommand("/tracking/storeTrajectory 2")
+
+    gApplyUICommand("/vis/open VRML2FILE")
+
+    print('Turning on beam')
 
     gRunManager.BeamOn(50)

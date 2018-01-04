@@ -15,6 +15,7 @@ import numpy as np
 import sys
 import pprint
 import math
+import pickle
 
 import Geant4		# Only needed to turn logging on
 from Geant4.hepunit import *
@@ -66,7 +67,7 @@ def compute_stats(data, x_distances):
     '''
     return average, error
 
-def fire_particles(particles, run_count, energy):
+def fire_particles_old(particles, run_count, energy):
     scintillator = lensmaterials.create_scintillation_material()
 
     x_position = None
@@ -294,29 +295,7 @@ def plot():
     out_ph1 = g4.generate('e-', (0. * m, 0., 0.), momentum, scintillator, gen2, energy=2.)		# NOTE the energy here.  for testing !!!!!
     '''
 
-def g4_position_to_list(pos):
-    return [pos.x, pos.y, pos.z]
-
-def fire_neutrons():
-    scintillator = lensmaterials.create_scintillation_material()
-
-    # Use srgparse and make this common code
-    x_position = None
-    if len(sys.argv) > 1:
-        x_position = float(sys.argv[1])
-
-    g4_params = G4DetectorParameters(world_material='G4_AIR', orb_radius=10.)
-    gen = g4gen.G4Generator(scintillator, g4_detector_parameters=g4_params) # , physics_list=QGSP_BERT_HP())
-    momentum = (-1, 0, 0)
-    position = (1., 0., 0.)
-    # gen = g4gen.G4Generator(scint)
-    g4 = G4Generator()  # Should not be necessary
-    output = g4.generate("neutron", position, momentum, scintillator, gen, energy=2.)
-    track_tree = gen.track_tree
-    pprint.pprint(track_tree)
-    pprint.pprint(output.__dict__)
-    print('Photon count: ' + str(len(output.dir)))
-
+def plot_vertices(track_tree, title, with_electrons=True, file_name='vertex_plot.pickle'):
     particles = {}
     energies = {}
     for key, value in track_tree.iteritems():
@@ -325,7 +304,7 @@ def fire_neutrons():
             if particle not in particles:
                 particles[particle] = []
                 energies[particle] = []
-            particles[particle].append(g4_position_to_list(value['position']))
+            particles[particle].append(value['position'])       # Not sure if this will work??  Changed the Chroma track_tree API
             energies[particle].append(100.*value['energy'])
 
     fig = plt.figure()
@@ -333,16 +312,111 @@ def fire_neutrons():
     #ax = fig.gca(projection='3d')
 
     for key, value in particles.iteritems():
-        if key != 'e-':
+        if with_electrons or key != 'e-':
             the_array = np.array(value)
             #ax.plot(the_array[:,0], the_array[:,1], the_array[:,2], '.', markersize=5.0)
             ax.scatter(the_array[:,0], the_array[:,1], the_array[:,2], marker='o', s=energies[particle], label=key) #), markersize=5.0)
 
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title(title)
 
     #if args.hdf5 is None:
     #    ax.plot(vtx[:, 0], vtx[:, 1], vtx[:, 2], '.')
     plt.legend(loc=2)   # See https://pythonspot.com/3d-scatterplot/
+
+    # See: http://fredborg-braedstrup.dk/blog/2014/10/10/saving-mpl-figures-using-pickle
+    pickle.dump(fig, file(file_name, 'wb'))      # Shouldn't this be 'wb'?
     plt.show()
+
+# See: https://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
+def unit_vector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / np.linalg.norm(vector)
+
+def angle_between(v1, v2):
+    """ Returns the angle in radians between vectors 'v1' and 'v2'::
+
+            >>> angle_between((1, 0, 0), (0, 1, 0))
+            1.5707963267948966
+            >>> angle_between((1, 0, 0), (1, 0, 0))
+            0.0
+            >>> angle_between((1, 0, 0), (-1, 0, 0))
+            3.141592653589793
+    """
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+
+def make_vector(start, end):
+    return np.asarray(end) - np.asarray(start)
+
+def compute_scatter_angle(track_tree, total_photons, particle_num, energy):
+    neutron = None
+    first_proton = None
+    capture = None
+    for key, value in track_tree.iteritems():
+        if key == 1:
+            neutron = value
+        elif key == 2:
+            first_proton = value
+        elif ('process' in value and value['process'] == 'nCapture') and ('particle' in value and value['particle'] == 'gamma'):
+            capture = value
+    if first_proton is None:
+        print('======= No first photon found ========')
+        pprint.pprint(track_tree)
+        print('=======')
+    else:
+        neutron_start_position  = neutron['position']
+        first_proton_location   = first_proton['position']
+        capture_location        = capture['position']
+        initial_neutron_vector  = make_vector(neutron_start_position, first_proton_location)
+        neutron_recoil_vector   = make_vector(first_proton_location, capture_location)
+        energy_pct_in_first_photon = first_proton['child_processes']['Scintillation'] / (total_photons * 1.) if 'Scintillation' in first_proton['child_processes'] else 0
+
+        print('Particle #:\t' + str(particle_num) + '\tEnergy:\t' + str(energy) + '\tLocations:\t' + str(neutron_start_position) + '\t' +
+              str(first_proton_location) + '\t' +
+              str(capture_location) +
+              '\tRecoil angle:\t' + str(np.degrees(angle_between(initial_neutron_vector, neutron_recoil_vector))) +
+              '\tFirst proton energy %:\t' + '{:.1%}'.format(energy_pct_in_first_photon) +
+              '\tTotal photons:\t' + str(total_photons)
+        )
+        '''
+        print("========")
+        pprint.pprint(neutron)
+        pprint.pprint(first_proton)
+        pprint.pprint(capture)
+        print("========")
+        '''
+
+
+def fire_particles(particle, count, energy, position, momentum):
+    scintillator = lensmaterials.create_scintillation_material()
+
+    g4_params = G4DetectorParameters(world_material='G4_AIR', orb_radius=10.)
+    gen = g4gen.G4Generator(scintillator, g4_detector_parameters=g4_params) # , physics_list=QGSP_BERT_HP())
+    # gen = g4gen.G4Generator(scint)
+    g4 = G4Generator()  # Should not be necessary
+    photon_counts = []
+    title = str(energy) + ' MeV ' + particle
+    for i in range(count):
+        print('=== Firing ' + particle + ' # ' + str(i) + ' ===')
+        output = g4.generate(particle, position, momentum, scintillator, gen, energy=energy)
+        track_tree = gen.track_tree
+        # pprint.pprint(track_tree)
+        #pprint.pprint(output.__dict__)
+        photon_counts.append(len(output.dir))
+        # print('Photon count: ' + str(len(output.dir)))
+        # Geant4.HepRandom.setTheSeed(9876)
+        # print("Random seed: ", Geant4.HepRandom.getTheSeed()
+        #plot_vertices(track_tree, title, file_name='vertices'+'-'+particle+'-'+str(i)+'.pickle', with_electrons=False)
+        compute_scatter_angle(track_tree, len(output.dir), i , energy)
+    print(photon_counts)
+    print(np.average(photon_counts))
+    print(np.std(photon_counts))
+
+
 
 
 if __name__ == '__main__':
@@ -391,4 +465,4 @@ if __name__ == '__main__':
     # fire_particles(['mu-'], 1, 4.*100.)   # ['mu-','mu+'], 2, 4.*100.)   # mu+ is the anti-particle (but I think it has negative charge)
     # fire_particles(['mu-','mu+'], 2, 1.*1000.)   # mu+ is the anti-particle (but I think it has negative charge)
     #fire_particles(['e-','gamma'], 2, 2.)
-    fire_neutrons()
+    fire_particles('neutron', 10, 2., (0,0,0), (1,0,0))        # Can the momentum override the energy???
