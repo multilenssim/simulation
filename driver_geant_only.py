@@ -375,12 +375,11 @@ def compute_scatter_angle(track_tree, total_photons, particle_num, energy):
         neutron_recoil_vector   = make_vector(first_proton_location, capture_location)
         energy_pct_in_first_photon = first_proton['child_processes']['Scintillation'] / (total_photons * 1.) if 'Scintillation' in first_proton['child_processes'] else 0
 
-        print('Particle #:\t' + str(particle_num) + '\tEnergy:\t' + str(energy) + '\tLocations:\t' + str(neutron_start_position) + '\t' +
-              str(first_proton_location) + '\t' +
-              str(capture_location) +
-              '\tRecoil angle:\t' + str(np.degrees(angle_between(initial_neutron_vector, neutron_recoil_vector))) +
-              '\tFirst proton energy %:\t' + '{:.1%}'.format(energy_pct_in_first_photon) +
-              '\tTotal photons:\t' + str(total_photons)
+        print('Particle #:\t' + str(particle_num) + '\t' + str(energy) +
+              '\t' + str(neutron_start_position) + '\t' + str(first_proton_location) + '\t' + str(capture_location) +
+              '\t' + str(np.degrees(angle_between(initial_neutron_vector, neutron_recoil_vector))) +
+              '\t' + '{:.1%}'.format(energy_pct_in_first_photon) +
+              '\t' + str(total_photons)
         )
         '''
         print("========")
@@ -392,6 +391,8 @@ def compute_scatter_angle(track_tree, total_photons, particle_num, energy):
 
 
 def fire_particles(particle, count, energy, position, momentum):
+    print('\tParticle\t#\tEnergy\tLocations: neutron\tproton\tcapture\t' +
+          'Recoil angle' + '\tFirst proton energy %' + '\tTotal photons')
     scintillator = lensmaterials.create_scintillation_material()
 
     g4_params = G4DetectorParameters(world_material='G4_AIR', orb_radius=10.)
@@ -465,4 +466,5 @@ if __name__ == '__main__':
     # fire_particles(['mu-'], 1, 4.*100.)   # ['mu-','mu+'], 2, 4.*100.)   # mu+ is the anti-particle (but I think it has negative charge)
     # fire_particles(['mu-','mu+'], 2, 1.*1000.)   # mu+ is the anti-particle (but I think it has negative charge)
     #fire_particles(['e-','gamma'], 2, 2.)
-    fire_particles('neutron', 10, 2., (0,0,0), (1,0,0))        # Can the momentum override the energy???
+    for energy in [2.]: # ,20.,200.]:
+        fire_particles('neutron', 20, energy, (0,0,0), (1,0,0))        # Can the momentum override the energy???
