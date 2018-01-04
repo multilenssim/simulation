@@ -5,10 +5,9 @@ from kabamland2 import gaussian_sphere
 from chroma.generator import vertex
 import matplotlib.pyplot as plt
 import detectorconfig as dc
+import right_amount, paths
 import nog4_sim as gs
-import right_amount
 import numpy as np
-import paths
 import argparse
 
 def surf(rad_ring,ring_par,width_ring):
@@ -49,7 +48,7 @@ def rot_ax(vrs,arr):
 	return rtn
 
 def plot_heat(conf_par,heat,lns,l_rad):
-	max_rad = conf_par.edge_length/(2*(conf_par.base+np.sqrt(3)-1))
+	max_rad = conf_par.half_EPD/conf_par.EPD_ratio
 	ring_par = right_amount.curved_surface2(conf_par.detector_r,2*max_rad,conf_par.nsteps,conf_par.b_pixel)
 	rad_ring = ring_par[0][:,0]/ring_par[0][0,0]
 	width_ring = np.absolute(np.diff(rad_ring))
@@ -143,7 +142,7 @@ if __name__=='__main__':
 	parser.add_argument('cfg', help='provide configuration')
 	args = parser.parse_args()
 	cfg = args.cfg
-	conf_par = dc.configdict[cfg]
+	conf_par = dc.configdict(cfg)
 	sys_per_face = (conf_par.base*(conf_par.base+1))/2
 	sel_len = np.random.choice(sys_per_face,3,replace=False)
 	heat = []
