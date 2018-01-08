@@ -25,65 +25,65 @@ import paths
     
 def eff_test(config, detres=None, detbins=10, sig_pos=0.01, n_ph_sim=[0], repetition=10, max_rad=6600, n_pos=10, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.05, chiC=3., temps=[256, 0.25], tol=0.1, debug=False):
 		###############################################
-		
-        run = array('i', [0])	# repetition
 
-        pos = array('i', [0])	# n_pos: number of steps 
-        xpos_true = array('f', [0])
-        ypos_true = array('f', [0])
-        zpos_true = array('f', [0])
-        xpos = array('f', [0])
-        ypos = array('f', [0])
-        zpos = array('f', [0])
-        multiplicity = array('i', [0])
-        photon_sim = array('i', [0])
-        photon_true = array('i', [0])
-        dist_event = array('f', [0])
-        
-        ROOT.gROOT.Reset()
-        #f1 = ROOT.TFile(rootdir+str(now)+"_"+config+"_rep-"+str(repetition)+"_npos-"+str(n_pos)+".root", "RECREATE") 
-        f1 = ROOT.TFile(rootdir+'rep-'+str(repetition)+'_npos-'+str(n_pos)+'.root', 'RECREATE') 
-        ttree = ROOT.TTree("data","data")
-        
-        ttree.Branch("run", run, "run/I")
-        ttree.Branch("pos", pos, "pos/I")
-        ttree.Branch("xpos_true", xpos_true, "xpos_true/F")
-        ttree.Branch("ypos_true", ypos_true, "ypos_true/F")
-        ttree.Branch("zpos_true", zpos_true, "zpos_true/F")
-        ttree.Branch("xpos", xpos, "xpos/F")
-        ttree.Branch("ypos", ypos, "ypos/F")
-        ttree.Branch("zpos", zpos, "zpos/F")
-        ttree.Branch("dist_event", dist_event, "dist_event/F")
-        ttree.Branch("photon_sim", photon_sim, "photon_sim/I")	
-        ttree.Branch("photon_true", photon_true, "photon_true/I")	
-        ttree.Branch("multiplicity", multiplicity, "multiplicity/I")	
+		run = array('i', [0])	# repetition
+
+		pos = array('i', [0])	# n_pos: number of steps
+		xpos_true = array('f', [0])
+		ypos_true = array('f', [0])
+		zpos_true = array('f', [0])
+		xpos = array('f', [0])
+		ypos = array('f', [0])
+		zpos = array('f', [0])
+		multiplicity = array('i', [0])
+		photon_sim = array('i', [0])
+		photon_true = array('i', [0])
+		dist_event = array('f', [0])
+
+		ROOT.gROOT.Reset()
+		#f1 = ROOT.TFile(rootdir+str(now)+"_"+config+"_rep-"+str(repetition)+"_npos-"+str(n_pos)+".root", "RECREATE")
+		f1 = ROOT.TFile(rootdir+'rep-'+str(repetition)+'_npos-'+str(n_pos)+'.root', 'RECREATE')
+		ttree = ROOT.TTree("data","data")
+
+		ttree.Branch("run", run, "run/I")
+		ttree.Branch("pos", pos, "pos/I")
+		ttree.Branch("xpos_true", xpos_true, "xpos_true/F")
+		ttree.Branch("ypos_true", ypos_true, "ypos_true/F")
+		ttree.Branch("zpos_true", zpos_true, "zpos_true/F")
+		ttree.Branch("xpos", xpos, "xpos/F")
+		ttree.Branch("ypos", ypos, "ypos/F")
+		ttree.Branch("zpos", zpos, "zpos/F")
+		ttree.Branch("dist_event", dist_event, "dist_event/F")
+		ttree.Branch("photon_sim", photon_sim, "photon_sim/I")
+		ttree.Branch("photon_true", photon_true, "photon_true/I")
+		ttree.Branch("multiplicity", multiplicity, "multiplicity/I")
        
-		# Build detector 
+		# Build detector
         #view(kabamland)
         #quit()
 
-        print "Simulation started."
+		print('Simulation started.')
 
 		sim, analyzer = nog4_sim.sim_setup(config, detres)   # KW: where did this line come from?  It seems to do nothing
 
-        if detres is None:
-            det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins)
-        else:
-            det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins, infile=detres)
-        analyzer = EventAnalyzer(det_res)
+		if detres is None:
+			det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins)
+		else:
+			det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins, infile=detres)
+		analyzer = EventAnalyzer(det_res)
         
-        # Previous definition of rads
-        #rads = [max_rad*float(ii+1)/n_pos for ii in range(n_pos)]
-        
-        # Get radius for equal volumes within the detector up to the maximum radius max_rad 
-        #rads = radius_equal_vol(max_rad = max_rad, steps = n_pos)
-        
-        # Get equally seperated radii within the detector up to the maximum radius max_rad
-        rads = [ii*max_rad/n_pos for ii in range(n_pos+1)]
-        
-        recon = np.zeros((len(n_ph_sim), repetition, n_pos+1, 6))
+		# Previous definition of rads
+		#rads = [max_rad*float(ii+1)/n_pos for ii in range(n_pos)]
 
-        for ii, amount in enumerate(n_ph_sim):	
+		# Get radius for equal volumes within the detector up to the maximum radius max_rad
+		#rads = radius_equal_vol(max_rad = max_rad, steps = n_pos)
+
+		# Get equally seperated radii within the detector up to the maximum radius max_rad
+		rads = [ii*max_rad/n_pos for ii in range(n_pos+1)]
+
+		recon = np.zeros((len(n_ph_sim), repetition, n_pos+1, 6))
+
+		for ii, amount in enumerate(n_ph_sim):
 			for iy, rad in enumerate(rads):
 				print "Energy: " + str(amount) + ", radius: " + str(rad)
 					
@@ -146,12 +146,12 @@ def eff_test(config, detres=None, detbins=10, sig_pos=0.01, n_ph_sim=[0], repeti
 								#print run[0], pos[0], xpos_true[0], ypos_true[0], zpos_true[0], xpos[0], ypos[0], zpos[0], multiplicity[0], photon_sim[0], photon_true[0], dist_event[0]
 								#print iy, ind, r_recon, vtx_dist, float(n_ph_total)/float(amount), len(vtcs)
 								ttree.Fill()
-        f1.Write()
-        f1.Close()							
-        #plot_double_yaxis(recon, n_ph_sim, n_pos, max_rad)
+		f1.Write()
+		f1.Close()
+		#plot_double_yaxis(recon, n_ph_sim, n_pos, max_rad)
         
 def create_single_source_events(rad, sigma, amount, repetition):
-        # produces a list of photon objects on the surface of a spherical shell with a fixed radius 
+    # produces a list of photon objects on the surface of a spherical shell with a fixed radius
 	events = []
 	points = np.zeros((repetition, 3))
 	for x in range(repetition):
@@ -228,13 +228,13 @@ if __name__ == '__main__':
     set_style()
     for detfile in design:
         rootdir = paths.data_files_path+'dev/'+detfile+'/pos_res-eff/'
-	if not os.path.exists(rootdir):
-		os.makedirs(rootdir)
-	print "Lens design used:	", detfile 
-	if args.run == 'compute':
-		eff_test(detfile, detres=datadir+'detresang-'+fname+'_100million.root', detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
-	elif args.run == 'plot':
-		filename = 'rep-'+str(repetition)+'_npos-'+str(n_pos)
-		get_eff_from_root(filename=filename , n_ph_sim=energy, repetition=repetition, n_pos=n_pos)
+        if not os.path.exists(rootdir):
+            os.makedirs(rootdir)
+        print "Lens design used:	", detfile
+        if args.run == 'compute':
+            eff_test(detfile, detres=paths.get_calibration_file_name(detfile), detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
+        elif args.run == 'plot':
+            filename = 'rep-'+str(repetition)+'_npos-'+str(n_pos)
+            get_eff_from_root(filename=filename , n_ph_sim=energy, repetition=repetition, n_pos=n_pos)
     
     print "Simulation done."

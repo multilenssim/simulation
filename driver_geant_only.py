@@ -391,7 +391,7 @@ def compute_scatter_angle(track_tree, total_photons, particle_num, energy):
 
 
 def fire_particles(particle, count, energy, position, momentum):
-    print('\tParticle\t#\tEnergy\tLocations: neutron\tproton\tcapture\t' +
+    print('Particle\t#\tEnergy\tLocations: neutron\tproton\tcapture\t' +
           'Recoil angle' + '\tFirst proton energy %' + '\tTotal photons')
     scintillator = lensmaterials.create_scintillation_material()
 
@@ -405,7 +405,7 @@ def fire_particles(particle, count, energy, position, momentum):
         print('=== Firing ' + particle + ' # ' + str(i) + ' ===')
         output = g4.generate(particle, position, momentum, scintillator, gen, energy=energy)
         track_tree = gen.track_tree
-        # pprint.pprint(track_tree)
+        pprint.pprint(track_tree)
         #pprint.pprint(output.__dict__)
         photon_counts.append(len(output.dir))
         # print('Photon count: ' + str(len(output.dir)))
@@ -466,5 +466,5 @@ if __name__ == '__main__':
     # fire_particles(['mu-'], 1, 4.*100.)   # ['mu-','mu+'], 2, 4.*100.)   # mu+ is the anti-particle (but I think it has negative charge)
     # fire_particles(['mu-','mu+'], 2, 1.*1000.)   # mu+ is the anti-particle (but I think it has negative charge)
     #fire_particles(['e-','gamma'], 2, 2.)
-    for energy in [2.]: # ,20.,200.]:
-        fire_particles('neutron', 20, energy, (0,0,0), (1,0,0))        # Can the momentum override the energy???
+    for energy in [2.]:  # ,20.,200.]:
+        fire_particles('neutron', 1, energy, (0,0,0), (1,0,0))        # Can the momentum override the energy???

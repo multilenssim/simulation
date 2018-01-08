@@ -115,5 +115,15 @@ def create_scintillation_material():
 		_ls.set_scintillation_property('SLOWTIMECONSTANT', 10. * ns)
 		_ls.set_scintillation_property('YIELDRATIO', 1.0)  # Was 0.8 - I think this is all fast
 
+		# Required for scintillation yield per particle
+		#_ls.set_scintillation_property('ELECTRONSCINTILLATIONYIELD', 7000. / MeV)
+
+		electron_energy_scint = list([1. * MeV, 10. * MeV, 100. * MeV])
+		electron_yield = list([7000., 8000., 9000.])
+		_ls.set_scintillation_property('ELECTRONSCINTILLATIONYIELD', electron_energy_scint, electron_yield)
+		proton_energy_scint = list([0.5 * MeV, 1. * MeV, 5. * MeV, 10. * MeV, 20. * MeV, 50. * MeV, 100. * MeV])
+		proton_yield = list([2500., 3000., 4000., 4200., 4400., 6000., 10000.])
+		_ls.set_scintillation_property('PROTONSCINTILLATIONYIELD', proton_energy_scint , proton_yield)
+
 
 	return _ls
