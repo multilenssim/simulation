@@ -23,56 +23,6 @@ import nog4_sim
 
 import paths
 
-# This is the call from below:
-#	eff_test(detfile,
-# 		detres=paths.get_calibration_file_name(detfile),
-# 		detbins=10,
-# 		sig_pos=0.01,
-# 		n_ph_sim=energy,
-# 		repetition=repetition,
-# 		max_rad=6600,
-# 		n_pos=n_pos,
-# 		loc1=(0,0,0),
-# 		sig_cone=0.01,
-# 		lens_dia=None,
-# 		n_ph=0,
-# 		min_tracks=0.1,
-# 		chiC=1.5,
-# 		temps=[256, 0.25],
-# 		tol=0.1,
-# 		debug=False)
-
-def simulate_and_compute_AVF(config, detres=None):
-	sim, analyzer = nog4_sim.sim_setup(config, detres)  # KW: where did this line come from?  It seems to do nothing
-
-	detbins = 10
-
-	if detres is None:
-		det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins)
-	else:
-		det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins, infile=detres)
-
-	amount = 5333
-	sig_pos = 0.01
-	rad = 1.0		# Location of event - will be DEPRECATED
-
-	analyzer = EventAnalyzer(det_res)
-	events, points = create_single_source_events(rad, sig_pos, amount, repetition)
-
-	sig_cone = 0.01
-	lens_dia = None
-	n_ph = 0
-	min_tracks = 0.1
-	chiC = 1.5.
-	temps = [256, 0.25]
-	tol = 0.1
-	debug = True
-
-	for ind, ev in enumerate(sim.simulate(events, keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100)):
-		# Do AVF event reconstruction
-		vtcs = analyzer.analyze_one_event_AVF(ev, sig_cone, n_ph, min_tracks, chiC, temps, tol, debug, lens_dia)
-
-
 
 def eff_test(config,
 			 detres=None,
