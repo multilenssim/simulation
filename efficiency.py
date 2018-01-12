@@ -22,8 +22,75 @@ import numpy as np
 import nog4_sim
 
 import paths
-    
-def eff_test(config, detres=None, detbins=10, sig_pos=0.01, n_ph_sim=[0], repetition=10, max_rad=6600, n_pos=10, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.05, chiC=3., temps=[256, 0.25], tol=0.1, debug=False):
+
+# This is the call from below:
+#	eff_test(detfile,
+# 		detres=paths.get_calibration_file_name(detfile),
+# 		detbins=10,
+# 		sig_pos=0.01,
+# 		n_ph_sim=energy,
+# 		repetition=repetition,
+# 		max_rad=6600,
+# 		n_pos=n_pos,
+# 		loc1=(0,0,0),
+# 		sig_cone=0.01,
+# 		lens_dia=None,
+# 		n_ph=0,
+# 		min_tracks=0.1,
+# 		chiC=1.5,
+# 		temps=[256, 0.25],
+# 		tol=0.1,
+# 		debug=False)
+
+def simulate_and_compute_AVF(config, detres=None):
+	sim, analyzer = nog4_sim.sim_setup(config, detres)  # KW: where did this line come from?  It seems to do nothing
+
+	detbins = 10
+
+	if detres is None:
+		det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins)
+	else:
+		det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins, infile=detres)
+
+	amount = 5333
+	sig_pos = 0.01
+	rad = 1.0		# Location of event - will be DEPRECATED
+
+	analyzer = EventAnalyzer(det_res)
+	events, points = create_single_source_events(rad, sig_pos, amount, repetition)
+
+	sig_cone = 0.01
+	lens_dia = None
+	n_ph = 0
+	min_tracks = 0.1
+	chiC = 1.5.
+	temps = [256, 0.25]
+	tol = 0.1
+	debug = True
+
+	for ind, ev in enumerate(sim.simulate(events, keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100)):
+		# Do AVF event reconstruction
+		vtcs = analyzer.analyze_one_event_AVF(ev, sig_cone, n_ph, min_tracks, chiC, temps, tol, debug, lens_dia)
+
+
+
+def eff_test(config,
+			 detres=None,
+			 detbins=10,
+			 sig_pos=0.01,
+			 n_ph_sim=[0],
+			 repetition=10,
+			 max_rad=6600,
+			 n_pos=10,
+			 loc1=(0,0,0),
+			 sig_cone=0.01,
+			 lens_dia=None,
+			 n_ph=0,
+			 min_tracks=0.05,
+			 chiC=3.,
+			 temps=[256, 0.25],
+			 tol=0.1,
+			 debug=False):
 		###############################################
 
 		run = array('i', [0])	# repetition
@@ -98,8 +165,8 @@ def eff_test(config, detres=None, detbins=10, sig_pos=0.01, n_ph_sim=[0], repeti
 					doWeights = True 
 					
 					# Append results unless no vertices were found
-					if vtcs: 
-						
+					if vtcs:
+						print('AVF Vertices: ' + str(vtcs.pos))
 						photons = [vtx.n_ph for vtx in vtcs]
 						n_ph_total = np.sum(photons)
 						n_ph_max = np.max(photons)  
@@ -221,11 +288,15 @@ if __name__ == '__main__':
     args = parser.parse_args() 
     print "Efficiency test started"
     design = [args.cfg]
-    suffix = '_1DVariance'
+    # suffix = '_1DVariance'
     energy = [5333]
     repetition = 100
     n_pos = 50
     set_style()
+
+    simulate_and_compute_AVF(design[0], detres=None)
+
+    '''
     for detfile in design:
         rootdir = paths.data_files_path+'dev/'+detfile+'/pos_res-eff/'
         if not os.path.exists(rootdir):
@@ -236,5 +307,5 @@ if __name__ == '__main__':
         elif args.run == 'plot':
             filename = 'rep-'+str(repetition)+'_npos-'+str(n_pos)
             get_eff_from_root(filename=filename , n_ph_sim=energy, repetition=repetition, n_pos=n_pos)
-    
+    '''
     print "Simulation done."
