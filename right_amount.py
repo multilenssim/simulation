@@ -69,7 +69,7 @@ def acting_force(g,vtx):
 def calc_rad(vtx,rad_sp):
         geom_eff,i = 0,0
         while True:
-                g = 0.000004         #0.1 for lns = 20, 0.002 for lns = 200, 0.000004 for lns = 1300
+                g = 0.1         #0.1 for lns = 20, 0.002 for lns = 200, 0.000004 for lns = 1300
                 force = acting_force(g,vtx)
                 mod_vtx = np.einsum('ij,i->ij',(vtx + force),1.0/np.linalg.norm((vtx + force),axis=1))
                 rad = min(scipy.spatial.distance.pdist(mod_vtx))/2.0
