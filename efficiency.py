@@ -24,6 +24,30 @@ import nog4_sim
 import paths
 
 
+def plot_vertices(origin, vertices):  # track_tree, title, with_electrons=True, file_name='vertex_plot.pickle'):
+
+    vertices_np = np.asarray(vertices)
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    #ax = fig.gca(projection='3d')
+
+    ax.scatter(origin[0], origin[1], origin[2], marker='o', label='Event origin')  #, s=energies[particle], label=key) #), markersize=5.0)
+    ax.scatter(vertices_np[:,0], vertices_np[:,1], vertices_np[:,2], marker='o', label='AVF vertices')  #, s=energies[particle], label=key) #), markersize=5.0)
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title('AVF vertices')
+
+    #if args.hdf5 is None:
+    #    ax.plot(vtx[:, 0], vtx[:, 1], vtx[:, 2], '.')
+    plt.legend(loc=2)   # See https://pythonspot.com/3d-scatterplot/
+
+    # See: http://fredborg-braedstrup.dk/blog/2014/10/10/saving-mpl-figures-using-pickle
+    # pickle.dump(fig, file(file_name, 'wb'))      # Shouldn't this be 'wb'?
+    plt.show()
+
+
 def eff_test(config,
 			 detres=None,
 			 detbins=10,
@@ -100,6 +124,10 @@ def eff_test(config,
 
 		recon = np.zeros((len(n_ph_sim), repetition, n_pos+1, 6))
 
+                print('Outer loop count: ' + str(len(n_ph_sim)))
+                print('Inner loop count: ' + str(len(rads)))
+                print('Radii: ' + str(rads))
+                vertices = []
 		for ii, amount in enumerate(n_ph_sim):
 			for iy, rad in enumerate(rads):
 				print "Energy: " + str(amount) + ", radius: " + str(rad)
@@ -116,22 +144,22 @@ def eff_test(config,
 					
 					# Append results unless no vertices were found
 					if vtcs:
-						print('AVF Vertices: ' + str(vtcs.pos))
+                                                vertices.append([vtcs[0].pos[0], vtcs[0].pos[1], vtcs[0].pos[2]]) # UGLY!!!
 						photons = [vtx.n_ph for vtx in vtcs]
 						n_ph_total = np.sum(photons)
 						n_ph_max = np.max(photons)  
 						event_pos = points[ind,:]
-						
+                                                print('AVF event #: ' + str(ind))
 						if event_pos is not None:
 							min_errs = []
 							weights = []
 							for ii, vtx in enumerate(vtcs):
-								
+
 								#Skip vertex with smaller amount of photon tracks associated with 
 								if ii != np.argmax(n_ph_total):
 									print "Two vertices found! Smaller vertex with ", photons[ii],"photons out of ", n_ph_total
 									break
-									
+
 								# Skip vertices outside detector
 								if np.linalg.norm(vtx.pos) > det_res.inscribed_radius: 
 									break 
@@ -163,10 +191,12 @@ def eff_test(config,
 								#print run[0], pos[0], xpos_true[0], ypos_true[0], zpos_true[0], xpos[0], ypos[0], zpos[0], multiplicity[0], photon_sim[0], photon_true[0], dist_event[0]
 								#print iy, ind, r_recon, vtx_dist, float(n_ph_total)/float(amount), len(vtcs)
 								ttree.Fill()
+
+                                plot_vertices([rad,0,0], vertices)
 		f1.Write()
 		f1.Close()
 		#plot_double_yaxis(recon, n_ph_sim, n_pos, max_rad)
-        
+
 def create_single_source_events(rad, sigma, amount, repetition):
     # produces a list of photon objects on the surface of a spherical shell with a fixed radius
 	events = []
@@ -240,8 +270,8 @@ if __name__ == '__main__':
     design = [args.cfg]
     # suffix = '_1DVariance'
     energy = [5333]
-    repetition = 100
-    n_pos = 50
+    repetition = 50
+    n_pos = 1
     set_style()
 
     simulate_and_compute_AVF(design[0], detres=None)

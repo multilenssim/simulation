@@ -1,21 +1,16 @@
 from chroma.generator import vertex
 
 import h5py,time,argparse
-
-import pycuda.driver as cuda
-
 import os
 import sys
 
+import pycuda.driver as cuda
 import paths
 import nog4_sim
-
-import time
 
 from multiprocessing import Pool, TimeoutError
 from multiprocessing.pool import ThreadPool
 import multiprocessing          # Just for CPU count
-
 
 def cuda_stat():
     cuda.init()
@@ -32,12 +27,14 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r, cuda_device=None):
         fname = data_file_dir+seed_loc+'_'+str(energy)+particle+'_'+'sim.h5'
 	sim,analyzer = nog4_sim.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, cuda_device=cuda_device)
 	print('Configuration loaded: ' + cfg)
+        print('Particle: ' + particle)
         print('Energy: ' + str(energy))
+        print('Distance range: ' + str(i_r) + ' ' + str(o_r))
 	location = nog4_sim.sph_scatter(sample,i_r*1000,o_r*1000)
 	arr_tr, arr_depo = [],[]
 	with h5py.File(fname,'w') as f:
 	        first = True
-                print('Running locations: ' + str(len(location)))
+                print('Run count: ' + str(len(location)))
                 for lg in location:
                         start = time.time()
 			gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.999, float(energy) * 1.001))
@@ -63,10 +60,10 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r, cuda_device=None):
 		f.create_dataset('idx_tr',data=arr_tr)
 		f.create_dataset('idx_depo',data=arr_depo)
 
-def run_simulation(cfg, particle, dist_range):
-        run_simulation_with_device(cfg, particle, dist_range, None)
+def run_simulation(cfg, particle, dist_range, energy):
+        run_simulation_with_device(cfg, particle, dist_range, energy, None)
 
-def run_simulation_with_device(cfg, particle, dist_range, cuda_device):
+def run_simulation_with_device(cfg, particle, dist_range, energy, cuda_device):
         #sys.stdout = open(str(os.getpid()) + ".out", "a", buffering=0)
         #sys.stderr = open(str(os.getpid()) + "_error.out", "a", buffering=0)
         #print('Initializinging CUDA in subprocess')
@@ -77,7 +74,6 @@ def run_simulation_with_device(cfg, particle, dist_range, cuda_device):
                 print('Exception raised initializing CUDA in subproces: ' + str(e))
                 exit(-1)
         sample = 500
-        energy = 20.
         start_time = time.time()
         print('CUDA initialized')
         gen_ev(sample, cfg, particle, energy, int(dist_range[0]), int(dist_range[1]), cuda_device=None)
@@ -97,10 +93,11 @@ if __name__=='__main__':
         next_device = 0
 
         pool = Pool(multiprocessing.cpu_count())
+        energy = 20.
         for particle in ['neutron']: # ['e-']:  # ,'gamma']:
                 for dist_range in ['01']:  #,'34']:
                         #pool.apply_async(run_simulation_with_device, (args.cfg, particle, dist_range, next_device))
-                        run_simulation_with_device(args.cfg, particle, dist_range, next_device)
+                        run_simulation_with_device(args.cfg, particle, dist_range, energy, next_device)
                         next_device += 1
         time.sleep(4)  # Trying to catch errors
         pool.close()
