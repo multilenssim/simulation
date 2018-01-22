@@ -77,7 +77,6 @@ def AVF_analyze_event(analyzer, event):
     vtcs = analyzer.analyze_one_event_AVF(event, sig_cone, n_ph, min_tracks, chiC, temps, tol, debug, lens_dia)
     print('Vertices: ' + str(vtcs))
 
-
 def plot_vertices(track_tree, title, with_electrons=True, file_name='vertex_plot.pickle'):
     particles = {}
     energies = {}
@@ -175,6 +174,8 @@ def generate_events(sample, cfg, particle, energy, i_r, o_r):
             print('Event count: ' + str(events))
             for ev in events:
                 pprint.pprint(ev.photons_beg.track_tree)
+            print('Event count: ' + str(len(events)))
+            for ev in events:
                 vert = ev.photons_beg.pos
                 tracks = analyzer.generate_tracks(ev, qe=(1. / 3.))
                 write_h5_reverse_track_file_event(f, vert, tracks, first)

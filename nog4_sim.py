@@ -53,12 +53,12 @@ def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 
 
 def sim_setup(config,in_file, useGeant4=False, geant4_processes=4, seed=12345, cuda_device=None):
-        g4_detector_parameters = G4DetectorParameters(orb_radius=7., world_material='G4_Galactic') if useGeant4 else None
-        kabamland = kbl.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
-        sim = Simulation(kabamland, seed=seed, geant4_processes=geant4_processes if useGeant4 else 0, cuda_device=cuda_device)
-        det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)
-        analyzer = EventAnalyzer(det_res)
-        return sim, analyzer
+	g4_detector_parameters = G4DetectorParameters(orb_radius=7., world_material='G4_Galactic') if useGeant4 else None
+	kabamland = kbl.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+	sim = Simulation(kabamland, seed=seed, geant4_processes=geant4_processes if useGeant4 else 0, cuda_device=cuda_device)
+	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)
+	analyzer = EventAnalyzer(det_res)
+	return sim, analyzer
 
 # Runs the simulation and writes the HDF5 file (except the index)
 def run_simulation(file, sim, events, analyzer, first=False):
