@@ -1,5 +1,6 @@
 import pickle
-#import matplotlib.pyplot as plt
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import h5py
 import time
@@ -8,13 +9,13 @@ import pprint
 import argparse
 import pprint
 
-import paths
-import nog4_sim
-from DetectorResponseGaussAngle import DetectorResponseGaussAngle
-from EventAnalyzer import EventAnalyzer
-
-from chroma.generator import vertex
 import Geant4
+from chroma.generator import vertex
+
+import paths
+from EventAnalyzer import EventAnalyzer
+from DetectorResponseGaussAngle import DetectorResponseGaussAngle
+import nog4_sim
 
 # This is the call from efficiency.py:
 #	eff_test(detfile,
@@ -76,9 +77,9 @@ def AVF_analyze_event(analyzer, event):
 
     vtcs = analyzer.analyze_one_event_AVF(event, sig_cone, n_ph, min_tracks, chiC, temps, tol, debug, lens_dia)
     print('Vertices: ' + str(vtcs))
+    return vtcs
 
-
-def plot_vertices(track_tree, title, with_electrons=True, file_name='vertex_plot.pickle'):
+def plot_vertices(track_tree, title, with_electrons=True, file_name='vertex_plot.pickle', reconstructed_vertices=None):
     particles = {}
     energies = {}
     for key, value in track_tree.iteritems():
@@ -99,6 +100,14 @@ def plot_vertices(track_tree, title, with_electrons=True, file_name='vertex_plot
             the_array = np.array(value)
             #ax.plot(the_array[:,0], the_array[:,1], the_array[:,2], '.', markersize=5.0)
             ax.scatter(the_array[:,0], the_array[:,1], the_array[:,2], marker='o', s=energies[particle], label=key) #), markersize=5.0)
+    if reconstructed_vertices is not None:
+        vertex_positions = []
+        for v in reconstructed_vertices:
+            print(v.pos)
+            vertex_positions.append(np.asarray(v.pos))
+        vp = np.asarray(vertex_positions)
+        print('AVF positions: ' + str(vp))
+        ax.scatter(vp[:,0], vp[:,1], vp[:,2], marker=(6,1,0), s=100., color='gray', label='AVF') #), markersize=5.0)
 
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
@@ -164,6 +173,8 @@ def generate_events(sample, cfg, particle, energy, i_r, o_r):
     print("Random seed: ", Geant4.HepRandom.getTheSeed())
 
     location = nog4_sim.sph_scatter(sample, i_r * 1000, o_r * 1000)
+    print('Loc: ' + str(location))
+    location = [(0,0,0)]
     with h5py.File(fname, 'w') as f:
         first = True
         print('Running locations: ' + str(len(location)))
@@ -179,7 +190,8 @@ def generate_events(sample, cfg, particle, energy, i_r, o_r):
                 tracks = analyzer.generate_tracks(ev, qe=(1. / 3.))
                 write_h5_reverse_track_file_event(f, vert, tracks, first)
 
-                AVF_analyze_event(analyzer, ev)
+                vertices = AVF_analyze_event(analyzer, ev)
+                plot_vertices(ev.photons_beg.track_tree, 'AVF plot', reconstructed_vertices=vertices)
                 first = False
 
             print ('Time: ' + str(time.time() - start) + '\tPhotons detected: ' + str(tracks.sigmas.shape[0]))
@@ -194,7 +206,8 @@ if __name__=='__main__':
     #for particle in ['neutron']: # ['e-']:  # ,'gamma']:
     #for dist_range in ['01']:  #,'34']:
     sample = 1
-    energy = 5.
+    #energy = 50.
     start_time = time.time()
     print('CUDA initialized')
-    generate_events(sample, args.cfg, args.particle, energy, int(args.s_d[0]), int(args.s_d[1]))
+    for energy in [2,20,100]:
+        generate_events(sample, args.cfg, args.particle, energy, int(args.s_d[0]), int(args.s_d[1]))
