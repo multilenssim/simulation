@@ -7,6 +7,7 @@ import sys
 import pycuda.driver as cuda
 import paths
 import nog4_sim
+from drivers import utilities
 
 from multiprocessing import Pool, TimeoutError
 from multiprocessing.pool import ThreadPool
@@ -24,20 +25,26 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r, cuda_device=None):
         data_file_dir = paths.get_data_file_path(cfg)
         if not os.path.exists(data_file_dir):
 	        os.makedirs(data_file_dir)
-        fname = data_file_dir+seed_loc+'_'+str(energy)+particle+'_'+'sim.h5'
-	sim,analyzer = nog4_sim.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, cuda_device=cuda_device)
+        fname_base = data_file_dir+seed_loc+'_'+str(energy)+particle+'_'+'sim'
+        fname = fname_base+'.h5'
+	sim,analyzer = nog4_sim.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, geant4_processes=1, cuda_device=cuda_device)
 	print('Configuration loaded: ' + cfg)
         print('Particle: ' + particle)
         print('Energy: ' + str(energy))
         print('Distance range: ' + str(i_r) + ' ' + str(o_r))
 	location = nog4_sim.sph_scatter(sample,i_r*1000,o_r*1000)
 	arr_tr, arr_depo = [],[]
+        i = 0
 	with h5py.File(fname,'w') as f:
 	        first = True
                 print('Run count: ' + str(len(location)))
                 for lg in location:
                         start = time.time()
-			gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.999, float(energy) * 1.001))
+                        position = vertex.constant(lg)
+                        momentum = vertex.isotropic()
+                        energy_random = vertex.flat(float(energy) * 0.999, float(energy) * 1.001)
+			gun = vertex.particle_gun([particle], position, momentum, energy_random)
+                        # Appears that we assume only one event (i.e. only fire one particle)
 			for ev in sim.simulate(gun,keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100):
 				vert = ev.photons_beg.pos
 				tracks = analyzer.generate_tracks(ev,qe=(1./3.))
@@ -57,6 +64,10 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r, cuda_device=None):
 			arr_tr.append(uncert.shape[0])
                         print ('Time: ' + str(time.time() - start) + '\tPhotons detected: ' + str(tracks.sigmas.shape[0])) 
 			first = False
+                        #gun_specs = utilities.build_gun_specs(particle, position, momentum, energy_random)
+                        gun_specs = utilities.build_gun_specs(particle, None, None, None)
+                        utilities.write_deep_dish_file(fname_base+'_'+str(i)+'.h5', cfg, gun_specs, ev.photons_beg.track_tree, tracks, ev.photons_beg)
+                        i += 1
 		f.create_dataset('idx_tr',data=arr_tr)
 		f.create_dataset('idx_depo',data=arr_depo)
 
@@ -73,7 +84,7 @@ def run_simulation_with_device(cfg, particle, dist_range, energy, cuda_device):
         except Exception as e:
                 print('Exception raised initializing CUDA in subproces: ' + str(e))
                 exit(-1)
-        sample = 500
+        sample = 5
         start_time = time.time()
         print('CUDA initialized')
         gen_ev(sample, cfg, particle, energy, int(dist_range[0]), int(dist_range[1]), cuda_device=None)
@@ -93,7 +104,7 @@ if __name__=='__main__':
         next_device = 0
 
         pool = Pool(multiprocessing.cpu_count())
-        energy = 20.
+        energy = 2.
         for particle in ['neutron']: # ['e-']:  # ,'gamma']:
                 for dist_range in ['01']:  #,'34']:
                         #pool.apply_async(run_simulation_with_device, (args.cfg, particle, dist_range, next_device))

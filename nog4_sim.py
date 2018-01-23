@@ -1,8 +1,10 @@
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
-from chroma.detector import Detector, G4DetectorParameters
 from EventAnalyzer import EventAnalyzer
+
+from chroma.detector import Detector, G4DetectorParameters
 from chroma.loader import load_bvh
 from chroma.sim import Simulation
+
 import time, h5py, os, argparse
 import lensmaterials as lm
 import kabamland2 as kbl
@@ -90,18 +92,21 @@ def myhack():
         yield uniform_sphere()
         #yield [-1,0,0]
 
-def fire_particles(particle_name,sample,energy,sim,analyzer,sigma=0.01):
+# Generate photons from a set of random locations within a spherical shell
+def fire(sample,energy,sim,analyzer,path,amount,sigma=0.01):
 	arr = []
 	first = True
 	# KW? fname = particle_name+'.h5'
 	location = sph_scatter(sample,in_shell,out_shell)
 	fname = 's-site.h5'
-	with h5py.File(path+fname,'w') as f:
+        file_name = path+fname
+        print('Writing h5 file: ' + file_name)
+	with h5py.File(file_name,'w') as f:
 		for lg in location:
 			sim_event = kbl.gaussian_sphere(lg, sigma, amount)
 			for ev in sim.simulate(sim_event, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 				tracks = analyzer.generate_tracks(ev,qe=(1./3.))
-				if i == 0:
+				if first:
 					coord = f.create_dataset('coord', maxshape=(2,None,3), data=[tracks.hit_pos.T, tracks.means.T],chunks=True)
 					uncert = f.create_dataset('sigma', maxshape=(None,), data=tracks.sigmas,chunks=True)
 					arr.append(tracks.sigmas.shape[0])
@@ -112,7 +117,7 @@ def fire_particles(particle_name,sample,energy,sim,analyzer,sigma=0.01):
 					uncert.resize(uncert.shape[0]+tracks.sigmas.shape[0], axis=0)
 					uncert[-tracks.sigmas.shape[0]:] = tracks.sigmas
 					arr.append(uncert.shape[0])
-			i =+ 1
+			first = False
 		f.create_dataset('idx',data=arr)
 
 energy = 1.
@@ -134,20 +139,22 @@ if __name__ == '__main__':
 	start_time = time.time()
 	sim,analyzer = sim_setup(cfg,paths.get_calibration_file_name(cfg))
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
-	amount = 16000
+        path=paths.get_data_file_path(cfg)
+        amount = 1000 # 16000
+
+	'''
 	fire_photons_single_site(sample, amount, sim, analyzer, in_shell, out_shell)
 	print 's-site done'
 	for dst in distance:
 		fire_photons_double_site(sample,16000,sim,analyzer, in_shell, out_shell, dst)
 		print 'distance '+str(int(dst/10))+' done'
-
-
-	'''
-	print('Firing ' + str(energy) + ' MeV e-''s')
-	fire_particles('e-', sample, energy*MeV, sim, analyzer)
-	print('Firing ' + str(energy) + ' MeV gammas')
-	fire_particles('gamma', sample, energy*MeV, sim, analyzer)
         '''
+
+	print('Firing ' + str(energy) + ' MeV e-''s (not really - WTF)')
+	fire(sample, energy*MeV, sim, analyzer, path, amount)
+	print('Firing ' + str(energy) + ' MeV gammas (not really - WTF)')
+	fire(sample, energy*MeV, sim, analyzer, path, amount)
+
 	'''
 	bkg_dist_hist(sample,16000,sim,analyzer)
 	print 's-site done'

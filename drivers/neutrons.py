@@ -3,6 +3,7 @@ import time
 import os
 import argparse
 import pprint
+import numpy as np
 
 import Geant4
 from chroma.generator import vertex
@@ -99,10 +100,11 @@ def write_h5_reverse_track_file_event(h5file, vert, tracks, first):
 def generate_events(sample, cfg, particle, energy, i_r, o_r):
     # File pathing stuff should not be in here
     seed_loc = 'r%i-%i' % (i_r, o_r)
-    data_file_dir = paths.get_data_file_path(cfg)
+    data_file_dir = paths.get_data_file_path_no_raw(cfg)
     if not os.path.exists(data_file_dir):
         os.makedirs(data_file_dir)
-    fname = data_file_dir + seed_loc + '_' + str(energy) + particle + '_' + 'sim.h5'
+    fname_base = data_file_dir+seed_loc+'_'+str(energy)+'_'+particle+'_'+'sim'
+    fname = fname_base+'.h5'
 
     sim, analyzer = nog4_sim.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, geant4_processes=1)
 
@@ -113,28 +115,31 @@ def generate_events(sample, cfg, particle, energy, i_r, o_r):
     print("Random seed: ", Geant4.HepRandom.getTheSeed())
 
     location = nog4_sim.sph_scatter(sample, i_r * 1000, o_r * 1000)
-    print('Loc: ' + str(location))
+    #print('Loc: ' + str(location))
     location = [(0,0,0)]
+    i = 0
     with h5py.File(fname, 'w') as f:
         first = True
         print('Running locations: ' + str(len(location)))
-        for lg in location:
+        for i in range(sample): # lg in location:
+        #for lg in location:
+            lg = location[0]
             start = time.time()
-            gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(),
-                                  vertex.flat(float(energy) * 0.999, float(energy) * 1.001))
+            gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.constant(np.array([1,0,0])),   #isotropic(),
+                                  vertex.constant(energy))  #flat(float(energy) * 0.999, float(energy) * 1.001))
             events = sim.simulate(gun, keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100)
-            print('Event count: ' + str(events))
-            for ev in events:
-                pprint.pprint(ev.photons_beg.track_tree)
-            print('Event count: ' + str(len(events)))
             for ev in events:
                 vert = ev.photons_beg.pos
                 tracks = analyzer.generate_tracks(ev, qe=(1. / 3.))
                 write_h5_reverse_track_file_event(f, vert, tracks, first)
 
-                vertices = utilities.AVF_analyze_event(analyzer, ev)
-                utilities.plot_vertices(ev.photons_beg.track_tree, 'AVF plot', reconstructed_vertices=vertices)
+                #vertices = utilities.AVF_analyze_event(analyzer, ev)
+                #utilities.plot_vertices(ev.photons_beg.track_tree, 'AVF plot', reconstructed_vertices=vertices)
+                gun_specs = utilities.build_gun_specs(particle, lg, None, energy)
+                utilities.write_deep_dish_file(fname_base+'_'+str(i)+'.h5', cfg, gun_specs, ev.photons_beg.track_tree, tracks, ev.photons_beg)
+
                 first = False
+                i += 1
 
             print ('Time: ' + str(time.time() - start) + '\tPhotons detected: ' + str(tracks.sigmas.shape[0]))
 
@@ -147,9 +152,9 @@ if __name__=='__main__':
 
     #for particle in ['neutron']: # ['e-']:  # ,'gamma']:
     #for dist_range in ['01']:  #,'34']:
-    sample = 1
+    sample = 5
     #energy = 50.
     start_time = time.time()
     print('CUDA initialized')
-    for energy in [2,20,100]:
+    for energy in [2,10,50]:
         generate_events(sample, args.cfg, args.particle, energy, int(args.s_d[0]), int(args.s_d[1]))

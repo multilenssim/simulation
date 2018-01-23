@@ -5,6 +5,8 @@ import pickle
 import numpy as np
 import deepdish as dd
 
+import detectorconfig
+
 def plot_vertices(track_tree, title, with_electrons=True, file_name='vertex_plot.pickle', reconstructed_vertices=None):
     particles = {}
     energies = {}
@@ -63,10 +65,24 @@ def AVF_analyze_event(analyzer, event):
     print('Vertices: ' + str(vtcs))
     return vtcs
 
+def build_gun_specs(particle, position, momentum, energy):
+    gs = dict(particle=particle, position=position, momentum=momentum, energy=energy)
+    #gs = {'particle': particle, 'position': position, 'momentum': momentum, 'energy': energy}
+    return gs
+
 # Write a "deep dish" HDF5 file containing all of the data about this event
-def write_deep_dish_file(file_name, track_tree, gun_specs, config_name, output, other_data=None):
-    data = {'track_tree': track_tree, 'gun': gun_specs, 'config': config_name}
-    data['photon_positions'] = output.pos
-    if other_data is not None:
-        data['other_data'] = other_data
+# Need to add: config name, matrials config
+def write_deep_dish_file(file_name, config_name, gun_specs, track_tree, tracks, photons=None):
+    data = {'track_tree': track_tree, 'gun': gun_specs, 'config_name': config_name}
+    #data['photon_positions'] = output.pos
+    if config_name is not None:
+        data['config'] = detectorconfig.configdict(config_name)
+    if photons is not None:
+        data['photons'] = photons
+    data['tracks'] = tracks
+    data['hit_pos'] = tracks.hit_pos
+    data['means'] = tracks.means
+    data['sigmas'] = tracks.sigmas
+    print('Gun type: ' + str(type(gun_specs)))
+    print('Writing deepdish file: ' + file_name)
     dd.io.save(file_name, data)

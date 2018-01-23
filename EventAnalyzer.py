@@ -322,17 +322,17 @@ class EventAnalyzer(object):
             
             if debug:
                 
-                self.plot_tracks(tracks,highlight_pt=v_pos_max)
+                #self.plot_tracks(tracks,highlight_pt=v_pos_max)
                 if doNLL:
 					plotpdf = 1./final_pdf # Take inverse if using NLL method (since values close to 0 are better)
                 else:
 					plotpdf = final_pdf
                 plotpdf = np.float32(plotpdf/float(np.sum(plotpdf))) #normalize, for plotting purposes
 
-                fig=self.det_res.plot_pdf(plotpdf, "Initial vtx position finding", bin_pos=bin_pos_array, show=False)
-                plt.show(fig)
-                ax = fig.gca()
-                ax.scatter(v_pos_max[0],v_pos_max[1],v_pos_max[2],color='green')
+                #fig=self.det_res.plot_pdf(plotpdf, "Initial vtx position finding", bin_pos=bin_pos_array, show=False)
+                #plt.show(fig)
+                #ax = fig.gca()
+                #ax.scatter(v_pos_max[0],v_pos_max[1],v_pos_max[2],color='green')
                 print "Initial vertex position: " + str(v_pos_max)
 
                 # codethis = raw_input('Do some code tweaks>')
@@ -412,7 +412,7 @@ class EventAnalyzer(object):
                         print "New wt0: " + str(wt0[:print_max])
                         print "Sig: " + str(sig0[:print_max])
                         #fig=self.det_res.plot_pdf(final_pdf, "Initial vtx position finding", bin_pos=bin_pos_array, show=False)
-                        self.plot_tracks(tracks,r0,v_pos)
+                        #self.plot_tracks(tracks,r0,v_pos)
                         # ax = fig.gca()
                         # ax.scatter(r0[0,:],r0[1,:],r0[2,:],color='red')
                         # print "Show new figure..."
@@ -497,8 +497,8 @@ class EventAnalyzer(object):
                     #print "Weight record: " + str(wt_rec)
                     print "Objective function record: " + str(obj_rec)
                     # Make plot of vtx pos vs iteration, weights and obj function vs iteration
-                    self.plot_tracks(tracks,path=np.array(v_pos_rec).T)
-                    self.plot_weights(np.array(wt_rec),obj=np.array(obj_rec))
+                    #self.plot_tracks(tracks,path=np.array(v_pos_rec).T)
+                    #self.plot_weights(np.array(wt_rec),obj=np.array(obj_rec))
                     #self.plot_weights(np.random.random_sample(np.shape(np.array(wt_rec))),obj=np.array(obj_rec))
                 # TODO: calculate error
                 # TODO: check that final associated tracks are at least min_tracks, else break
