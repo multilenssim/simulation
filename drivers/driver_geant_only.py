@@ -9,22 +9,18 @@ from chroma.event import Vertex
 from chroma.generator import g4gen
 from chroma.detector import G4DetectorParameters
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import pprint
-import math
-import pickle
 
 import Geant4		# Only needed to turn logging on
-from Geant4.hepunit import *
 from Geant4 import *
 
 import lensmaterials
 import count_processes
+from drivers import utilities
 
-from mpl_toolkits.mplot3d import Axes3D
 
 class G4Generator:
     def generate(self, particle_name, position, direction, scintillator, generator, energy=2.):
@@ -295,41 +291,6 @@ def plot():
     out_ph1 = g4.generate('e-', (0. * m, 0., 0.), momentum, scintillator, gen2, energy=2.)		# NOTE the energy here.  for testing !!!!!
     '''
 
-def plot_vertices(track_tree, title, with_electrons=True, file_name='vertex_plot.pickle'):
-    particles = {}
-    energies = {}
-    for key, value in track_tree.iteritems():
-        if 'particle' in value:
-            particle = value['particle']
-            if particle not in particles:
-                particles[particle] = []
-                energies[particle] = []
-            particles[particle].append(value['position'])       # Not sure if this will work??  Changed the Chroma track_tree API
-            energies[particle].append(100.*value['energy'])
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    #ax = fig.gca(projection='3d')
-
-    for key, value in particles.iteritems():
-        if with_electrons or key != 'e-':
-            the_array = np.array(value)
-            #ax.plot(the_array[:,0], the_array[:,1], the_array[:,2], '.', markersize=5.0)
-            ax.scatter(the_array[:,0], the_array[:,1], the_array[:,2], marker='o', s=energies[particle], label=key) #), markersize=5.0)
-
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    ax.set_title(title)
-
-    #if args.hdf5 is None:
-    #    ax.plot(vtx[:, 0], vtx[:, 1], vtx[:, 2], '.')
-    plt.legend(loc=2)   # See https://pythonspot.com/3d-scatterplot/
-
-    # See: http://fredborg-braedstrup.dk/blog/2014/10/10/saving-mpl-figures-using-pickle
-    pickle.dump(fig, file(file_name, 'wb'))      # Shouldn't this be 'wb'?
-    plt.show()
-
 # See: https://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
@@ -389,7 +350,6 @@ def compute_scatter_angle(track_tree, total_photons, particle_num, energy):
         print("========")
         '''
 
-
 def fire_particles(particle, count, energy, position, momentum):
     print('Particle\t#\tEnergy\tLocations: neutron\tproton\tcapture\t' +
           'Recoil angle' + '\tFirst proton energy %' + '\tTotal photons')
@@ -411,14 +371,16 @@ def fire_particles(particle, count, energy, position, momentum):
         # print('Photon count: ' + str(len(output.dir)))
         # Geant4.HepRandom.setTheSeed(9876)
         # print("Random seed: ", Geant4.HepRandom.getTheSeed()
-        #plot_vertices(track_tree, title, file_name='vertices'+'-'+particle+'-'+str(i)+'.pickle', with_electrons=False)
+        utilities.plot_vertices(track_tree, title, file_name='vertices'+'-'+particle+'-'+str(i)+'.pickle', with_electrons=False)
         compute_scatter_angle(track_tree, len(output.dir), i , energy)
+
+        # Need to add: config name, matrials config
+        gun_specs = {'particle': particle, 'position': position, 'momentum': momentum, 'energy': energy}
+        file_name = particle + '_' + str(energy) + '_' + str(i) + '.h5';
+        utilities.write_deep_dish_file(file_name, track_tree, gun_specs, None, output)
     print(photon_counts)
     print(np.average(photon_counts))
     print(np.std(photon_counts))
-
-
-
 
 if __name__ == '__main__':
 
@@ -455,8 +417,6 @@ if __name__ == '__main__':
 
     # print("create_g4material() number of elements: ", G4Element.GetNumberOfElements())
 
-    import g4py.NISTmaterials
-
     # Add Geant4 PrintVersion()
     Geant4.print_version()     # Geant4 method
     #G4NistManager * NISTManager = G4NistManager::Instance();
@@ -467,4 +427,4 @@ if __name__ == '__main__':
     # fire_particles(['mu-','mu+'], 2, 1.*1000.)   # mu+ is the anti-particle (but I think it has negative charge)
     #fire_particles(['e-','gamma'], 2, 2.)
     for energy in [2.]:  # ,20.,200.]:
-        fire_particles('neutron', 1, energy, (0,0,0), (1,0,0))        # Can the momentum override the energy???
+        fire_particles('neutron', 2, energy, (0,0,0), (1,0,0))        # Can the momentum override the energy???

@@ -121,7 +121,6 @@ class G4Generator(object):
         # self.tracking_action = _g4chroma.PhotonTrackingAction()
         gRunManager.SetUserAction(self.tracking_action)
         '''
-
         # gRunManager.Initialize()
 
     def find_material(self, material):     # This could be a class method - don't need self
@@ -230,6 +229,7 @@ class G4Generator(object):
     '''
 
 
+
     def generate_photons(self, vertices):
         photons = None
         try:
@@ -252,8 +252,8 @@ class G4Generator(object):
                     self.particle_gun.SetParticlePolarization(G4ThreeVector(*vertex.pol).unit())
 
                 #self.tracking_action.Clear()
+                print('===== Turning beam on =====')
                 gRunManager.BeamOn(1)
-
                 '''
                 if photons is None:
                     photons = self._extract_photons_from_tracking_action()
@@ -468,24 +468,45 @@ if __name__=='__main__':
     physics_list = QGSP_BERT_HP()
     gRunManager.SetUserInitialization(physics_list)
 
+    # AddPhysicsList("OpticalPhysics")
+
+    # physics_list = G4EmPenelopePhysics()
+    # gRunManager.SetUserInitialization(physics_list)
+
     #primary_generator_action = MyPrimaryGeneratorAction()
     #gRunManager.SetUserAction(primary_generator_action)
 
     # Initialise
     gRunManager.Initialize()
+    print('===== Geant4 initialized =====')
+
+    ListPhysicsList()
 
     #gUImanager.ExecuteMacroFile('macros/raytrace.mac')
-    gUImanager.ExecuteMacroFile('dawn.mac')
+    print('===== Running macro file =====')
+    #gUImanager.ExecuteMacroFile('dawn.mac')
 
     momentum = (1, 0, 0)
     position = (0, 0, 0)
     amount = 10
     energy = 2*MeV
 
+    print('===== Creating Vertex =====')
+
     # See kabamland2
     vertex = Vertex('neutron', position, momentum, energy)
+    print('===== Generating events =====')
     output = g4gen.generate_photons([vertex])
 
+    '''
+    track_tree = g4gen.track_tree
+    print('===== g4gen:')
+    if track_tree is not None:
+        pprint.pprint(track_tree)
+    if hasattr(output, "__dict__"):
+        pprint.pprint(output.__dict__)
+    print('===== Photon count: ' + str(len(output.dir)) + " =====")
+    '''
     #gRunManager.BeamOn(50)
 
 

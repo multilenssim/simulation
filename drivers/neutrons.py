@@ -1,20 +1,18 @@
-import pickle
-#import matplotlib.pyplot as plt
-import numpy as np
 import h5py
 import time
 import os
-import pprint
 import argparse
 import pprint
 
-import paths
-import nog4_sim
-from DetectorResponseGaussAngle import DetectorResponseGaussAngle
-from EventAnalyzer import EventAnalyzer
-
-from chroma.generator import vertex
 import Geant4
+from chroma.generator import vertex
+
+import paths
+from EventAnalyzer import EventAnalyzer
+from DetectorResponseGaussAngle import DetectorResponseGaussAngle
+import nog4_sim
+from drivers import utilities
+
 
 # This is the call from efficiency.py:
 #	eff_test(detfile,
@@ -63,54 +61,6 @@ def simulate_and_compute_AVF(config, detres=None):
     for ind, ev in enumerate(sim.simulate(events, keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100)):
         # Do AVF event reconstruction
         vtcs = analyzer.analyze_one_event_AVF(ev, sig_cone, n_ph, min_tracks, chiC, temps, tol, debug, lens_dia)
-
-def AVF_analyze_event(analyzer, event):
-    sig_cone = 0.01
-    lens_dia = None
-    n_ph = 0
-    min_tracks = 0.1
-    chiC = 1.5
-    temps = [256, 0.25]
-    tol = 0.1
-    debug = True
-
-    vtcs = analyzer.analyze_one_event_AVF(event, sig_cone, n_ph, min_tracks, chiC, temps, tol, debug, lens_dia)
-    print('Vertices: ' + str(vtcs))
-
-def plot_vertices(track_tree, title, with_electrons=True, file_name='vertex_plot.pickle'):
-    particles = {}
-    energies = {}
-    for key, value in track_tree.iteritems():
-        if 'particle' in value:
-            particle = value['particle']
-            if particle not in particles:
-                particles[particle] = []
-                energies[particle] = []
-            particles[particle].append(value['position'])       # Not sure if this will work??  Changed the Chroma track_tree API
-            energies[particle].append(100.*value['energy'])
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    #ax = fig.gca(projection='3d')
-
-    for key, value in particles.iteritems():
-        if with_electrons or key != 'e-':
-            the_array = np.array(value)
-            #ax.plot(the_array[:,0], the_array[:,1], the_array[:,2], '.', markersize=5.0)
-            ax.scatter(the_array[:,0], the_array[:,1], the_array[:,2], marker='o', s=energies[particle], label=key) #), markersize=5.0)
-
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    ax.set_title(title)
-
-    #if args.hdf5 is None:
-    #    ax.plot(vtx[:, 0], vtx[:, 1], vtx[:, 2], '.')
-    plt.legend(loc=2)   # See https://pythonspot.com/3d-scatterplot/
-
-    # See: http://fredborg-braedstrup.dk/blog/2014/10/10/saving-mpl-figures-using-pickle
-    pickle.dump(fig, file(file_name, 'wb'))      # Shouldn't this be 'wb'?
-    plt.show()
 
 
 def write_h5_reverse_track_file_event(h5file, vert, tracks, first):
@@ -163,6 +113,8 @@ def generate_events(sample, cfg, particle, energy, i_r, o_r):
     print("Random seed: ", Geant4.HepRandom.getTheSeed())
 
     location = nog4_sim.sph_scatter(sample, i_r * 1000, o_r * 1000)
+    print('Loc: ' + str(location))
+    location = [(0,0,0)]
     with h5py.File(fname, 'w') as f:
         first = True
         print('Running locations: ' + str(len(location)))
@@ -180,7 +132,8 @@ def generate_events(sample, cfg, particle, energy, i_r, o_r):
                 tracks = analyzer.generate_tracks(ev, qe=(1. / 3.))
                 write_h5_reverse_track_file_event(f, vert, tracks, first)
 
-                AVF_analyze_event(analyzer, ev)
+                vertices = utilities.AVF_analyze_event(analyzer, ev)
+                utilities.plot_vertices(ev.photons_beg.track_tree, 'AVF plot', reconstructed_vertices=vertices)
                 first = False
 
             print ('Time: ' + str(time.time() - start) + '\tPhotons detected: ' + str(tracks.sigmas.shape[0]))
@@ -195,7 +148,8 @@ if __name__=='__main__':
     #for particle in ['neutron']: # ['e-']:  # ,'gamma']:
     #for dist_range in ['01']:  #,'34']:
     sample = 1
-    energy = 5.
+    #energy = 50.
     start_time = time.time()
     print('CUDA initialized')
-    generate_events(sample, args.cfg, args.particle, energy, int(args.s_d[0]), int(args.s_d[1]))
+    for energy in [2,20,100]:
+        generate_events(sample, args.cfg, args.particle, energy, int(args.s_d[0]), int(args.s_d[1]))
