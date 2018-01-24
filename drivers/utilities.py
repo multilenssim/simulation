@@ -55,7 +55,7 @@ def plot_vertices(track_tree, title, with_electrons=True, file_name='vertex_plot
 
 def AVF_analyze_tracks(analyzer, tracks):
     min_tracks = 0.1
-    chiC = 1.5
+    chiC = 0.75
     temps = [256, 0.25]
     tol = 0.1
     debug = True
@@ -107,12 +107,19 @@ if __name__=='__main__':
     event = dd.io.load(args.h5_file)
     # Note - there is currently a lot of redundancy in the new hdf5 file format
 
+    print('Photon count: ' + str(len(event['photons'])))
+    print('Photons: ' + str(event['photons'].pos))
     vertices = None
     if event['tracks'] is not None:
-        config_name = event['config-name']
-        det_res = DetectorResponseGaussAngle(config_name, 10, 10, 10, paths.get_calibration_file_name(config_name))       # What are the 10s??
-        analyzer = EventAnalyzer(det_res)
+        print('Track count: ' + str(len(event['tracks'])))
+        config_name = event['config_name']
+        cal_file = paths.get_calibration_file_name(config_name)
+        print('Calibration file: ' + cal_file)
+        det_res = DetectorResponseGaussAngle.DetectorResponseGaussAngle(config_name, 10, 10, 10, cal_file)       # What are the 10s??
+        analyzer = EventAnalyzer.EventAnalyzer(det_res)
         vertices = AVF_analyze_tracks(analyzer, event['tracks'])
 
     # Test this without tracks
-    plot_vertices(event['track_tree'], "Woo hoo!", reconstructed_vertices=vertices)
+    gun_specs = event['gun']
+    title = str(gun_specs['energy']) + ' MeV ' + gun_specs['particle']
+    plot_vertices(event['track_tree'], title, reconstructed_vertices=vertices)
