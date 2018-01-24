@@ -1,11 +1,14 @@
-import matplotlib
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D # Required for projection='3d' below
 import pickle
 import numpy as np
 import deepdish as dd
+import argparse
 
 import detectorconfig
+import DetectorResponseGaussAngle
+import EventAnalyzer
+import paths
 
 def plot_vertices(track_tree, title, with_electrons=True, file_name='vertex_plot.pickle', reconstructed_vertices=None):
     particles = {}
@@ -50,6 +53,16 @@ def plot_vertices(track_tree, title, with_electrons=True, file_name='vertex_plot
     pickle.dump(fig, file(file_name, 'wb'))      # Shouldn't this be 'wb'?
     plt.show()
 
+def AVF_analyze_tracks(analyzer, tracks):
+    min_tracks = 0.1
+    chiC = 1.5
+    temps = [256, 0.25]
+    tol = 0.1
+    debug = True
+
+    vtcs = analyzer.AVF(tracks, min_tracks, chiC, temps, tol, debug)
+    print('Vertices: ' + str(vtcs))
+    return vtcs
 
 def AVF_analyze_event(analyzer, event):
     sig_cone = 0.01
@@ -86,3 +99,20 @@ def write_deep_dish_file(file_name, config_name, gun_specs, track_tree, tracks, 
     print('Gun type: ' + str(type(gun_specs)))
     print('Writing deepdish file: ' + file_name)
     dd.io.save(file_name, data)
+
+if __name__=='__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('h5_file', help='Event HDF5 file')
+    args = parser.parse_args()
+    event = dd.io.load(args.h5_file)
+    # Note - there is currently a lot of redundancy in the new hdf5 file format
+
+    vertices = None
+    if event['tracks'] is not None:
+        config_name = event['config-name']
+        det_res = DetectorResponseGaussAngle(config_name, 10, 10, 10, paths.get_calibration_file_name(config_name))       # What are the 10s??
+        analyzer = EventAnalyzer(det_res)
+        vertices = AVF_analyze_tracks(analyzer, event['tracks'])
+
+    # Test this without tracks
+    plot_vertices(event['track_tree'], "Woo hoo!", reconstructed_vertices=vertices)
