@@ -78,7 +78,6 @@ def generate_events(sample_count, config_name, particle, energy, i_r, o_r):
 
     driver_utils.fire_g4_particles(sample_count, config_name, particle, energy, i_r, o_r, fname, di_file_base=fname_base)
 
-
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('cfg', help='detector configuration')

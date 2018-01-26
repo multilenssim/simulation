@@ -286,7 +286,8 @@ class DetectorResponse(object):
 	c_rings[0] = 0
 	mtx = (np.tile(2*c_rings,(len(renorm_triangle),1)).T - renorm_triangle).T
 	stop_arr = c_rings[np.argmax(mtx>0,axis=1)-1]
-	return ((renorm_triangle - 2*stop_arr) % self.ring[np.argmax(mtx>0,axis=1)-1]) + stop_arr + curved_surface_index*self.n_pmts_per_surf
+        print('Lens number: ' + str(curved_surface_index) + ', Stop array: ' + str(stop_arr))
+	return ((renorm_triangle - 2*stop_arr) % self.ring[np.argmax(mtx>0,axis=1)-1]) + stop_arr + curved_surface_index*self.n_pmts_per_surf, curved_surface_index
 
     def find_pmt_bin_array(self, pos_array):
         

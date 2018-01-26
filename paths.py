@@ -1,10 +1,18 @@
 import platform
 
+exo_data_files = '/home/kwells/chroma_data/'
+JACOPO = False
+
 # Note that the code assumes that there is a trailing '/' on these
 if platform.node().startswith('exo3'):
-    detector_pickled_path = '/home/jacopodalmasson/Desktop/dev/sphere/pickled_detectors/'
-    detector_calibration_path = '/home/jacopodalmasson/Desktop/dev/sphere/calibrations/'  # Path for the calibration files
-    data_files_path = '/home/jacopodalmasson/Desktop/dev/sphere/'      # Path for the simulation data files
+    if JACOPO:
+        detector_pickled_path = '/home/jacopodalmasson/Desktop/dev/sphere/pickled_detectors/'
+        detector_calibration_path = '/home/jacopodalmasson/Desktop/dev/sphere/calibrations/'  # Path for the calibration files
+        data_files_path = '/home/jacopodalmasson/Desktop/dev/sphere/'      # Path for the simulation data files
+    else:
+        detector_pickled_path = exo_data_files+'pickled_detectors/'
+        detector_calibration_path = exo_data_files+'calibrations/'  # Path for the calibration files
+        data_files_path = exo_data_files      # Path for the simulation data files
 else:
     detector_pickled_path = '/chroma-data/configurations/'
     detector_calibration_path = '/chroma-data/configurations/'  # Path for the calibration files

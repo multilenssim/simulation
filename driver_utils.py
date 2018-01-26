@@ -39,7 +39,7 @@ def sph_scatter(sample_count,in_shell,out_shell):
 # Fire Geant4 particles within a spherical shell, or from a specific location
 # Writes both DIEventFile (one per sample_count if file name is provided) and original HDF5 file
 # 'location' is a flag as to whether to generate random locations, momentum, and energy or not
-# If location is provided, those parameters will be fixed
+# If location is provided, those parameters will be fixed, and sample_count will be ignored
 def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius, outer_radius, h5_file, location= None, momentum=None, di_file_base=None):
     from chroma.generator import vertex
 
@@ -56,12 +56,12 @@ def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius,
     i = 0
     with h5py.File(h5_file, 'w') as f:
         first = True
-        print('Running locations: ' + str(len(location)))
+        print('Running locations: ' + str(len(loc_array)))
         for i in range(sample_count):
             if location is None:  # Use location as a flag
-                gun = vertex.particle_gun([particle], vertex.constant(loc_array), vertex.isotropic(), vertex.flat(float(energy) * 0.999, float(energy) * 1.001))
+                gun = vertex.particle_gun([particle], vertex.constant(location), vertex.isotropic(), vertex.flat(float(energy) * 0.999, float(energy) * 1.001))
             else:
-                gun = vertex.particle_gun([particle], vertex.constant(loc_array), vertex.constant(np.array(momentum)), vertex.constant(energy))
+                gun = vertex.particle_gun([particle], vertex.constant(location), vertex.constant(np.array(momentum)), vertex.constant(energy))
 
             events = sim.simulate(gun, keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100)
             for ev in events:
