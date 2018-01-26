@@ -6,7 +6,7 @@ import sys
 
 import pycuda.driver as cuda
 import paths
-from drivers import driver_utils
+import driver_utils
 
 from multiprocessing import Pool, TimeoutError
 from multiprocessing.pool import ThreadPool

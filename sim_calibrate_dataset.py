@@ -1,5 +1,4 @@
 import os
-import pickle
 import argparse
 
 import kabamland2 as kb
@@ -8,7 +7,7 @@ import paths
 import g4_sim
 import detectorconfig
 import lensmaterials
-from drivers import driver_utils
+import driver_utils
 
 from logger_lfd import logger
 

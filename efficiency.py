@@ -21,7 +21,7 @@ import detectorconfig
 import numpy as np
 
 import paths
-from drivers import driver_utils
+import driver_utils
 
 def plot_vertices(origin, vertices):  # track_tree, title, with_electrons=True, file_name='vertex_plot.pickle'):
 

@@ -7,7 +7,8 @@ import Geant4
 import paths
 from EventAnalyzer import EventAnalyzer
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
-from drivers import driver_utils
+import driver_utils
+
 
 ######## This is old code - clean it out....
 

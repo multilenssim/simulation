@@ -19,7 +19,7 @@ from Geant4 import *
 
 import lensmaterials
 import count_processes
-from drivers import driver_utils
+import driver_utils
 
 
 class G4Generator:
