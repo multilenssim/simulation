@@ -8,7 +8,7 @@ import paths
 import g4_sim
 import detectorconfig
 import lensmaterials
-from drivers import utilities
+from drivers import driver_utils
 
 from logger_lfd import logger
 
@@ -42,10 +42,10 @@ def calibrate_and_simulate(cfg, particle, dist_range, energy ):
             all_config_info['energy'] = energy
             all_config_info['distance_range'] = dist_range
             all_config_info['quantum_efficiency'] = 'placeholder'
-            utilities.save_config_file(cfg, 'full_config.pickle', all_config_info)
+            driver_utils.save_config_file(cfg, 'full_config.pickle', all_config_info)
 
             # Write both files for now to support Jacopo's test setup
-            utilities.save_config_file(cfg, 'conf.pkl', detectorconfig.configdict(cfg))  # cfg].__dict__)
+            driver_utils.save_config_file(cfg, 'conf.pkl', detectorconfig.configdict(cfg))  # cfg].__dict__)
 
     logger.info('==== Simulation part ====')
     g4_sim.run_simulation(cfg, particle, dist_range, energy)

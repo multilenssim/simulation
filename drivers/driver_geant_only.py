@@ -19,7 +19,7 @@ from Geant4 import *
 
 import lensmaterials
 import count_processes
-from drivers import utilities
+from drivers import driver_utils
 
 
 class G4Generator:
@@ -371,13 +371,13 @@ def fire_particles(particle, count, energy, position, momentum):
         # print('Photon count: ' + str(len(output.dir)))
         # Geant4.HepRandom.setTheSeed(9876)
         # print("Random seed: ", Geant4.HepRandom.getTheSeed()
-        utilities.plot_vertices(track_tree, title, file_name='vertices'+'-'+particle+'-'+str(i)+'.pickle', with_electrons=False)
+        driver_utils.plot_vertices(track_tree, title, file_name='vertices' + '-' + particle + '-' + str(i) + '.pickle', with_electrons=False)
         compute_scatter_angle(track_tree, len(output.dir), i , energy)
 
         # Need to add: config name, matrials config
         gun_specs = {'particle': particle, 'position': position, 'momentum': momentum, 'energy': energy}
         file_name = particle + '_' + str(energy) + '_' + str(i) + '.h5';
-        utilities.write_deep_dish_file(file_name, track_tree, gun_specs, None, output)
+        driver_utils.write_deep_dish_file(file_name, track_tree, gun_specs, None, output)
     print(photon_counts)
     print(np.average(photon_counts))
     print(np.std(photon_counts))

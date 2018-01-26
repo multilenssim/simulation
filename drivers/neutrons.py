@@ -7,7 +7,7 @@ import Geant4
 import paths
 from EventAnalyzer import EventAnalyzer
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
-from drivers import utilities
+from drivers import driver_utils
 
 ######## This is old code - clean it out....
 
@@ -31,7 +31,7 @@ from drivers import utilities
 # 		debug=False)
 
 def simulate_and_compute_AVF(config, detres=None):
-    sim, analyzer = utilities.sim_setup(config, detres)  # KW: where did this line come from?  It seems to do nothing
+    sim, analyzer = driver_utils.sim_setup(config, detres)  # KW: where did this line come from?  It seems to do nothing
     detbins = 10
 
     if detres is None:
@@ -75,7 +75,7 @@ def generate_events(sample_count, config_name, particle, energy, i_r, o_r):
     print("Random engine: ", Geant4.HepRandom.getTheEngine())
     print("Random seed: ", Geant4.HepRandom.getTheSeed())
 
-    utilities.fire_g4_particles(sample_count, config_name, particle, energy, i_r, o_r, fname, di_file_base=fname_base)
+    driver_utils.fire_g4_particles(sample_count, config_name, particle, energy, i_r, o_r, fname, di_file_base=fname_base)
 
 
 if __name__=='__main__':

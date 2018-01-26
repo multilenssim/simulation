@@ -6,7 +6,7 @@ import sys
 
 import pycuda.driver as cuda
 import paths
-from drivers import utilities
+from drivers import driver_utils
 
 from multiprocessing import Pool, TimeoutError
 from multiprocessing.pool import ThreadPool
@@ -26,12 +26,12 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r, cuda_device=None):
 	        os.makedirs(data_file_dir)
         fname_base = data_file_dir+seed_loc+'_'+str(energy)+particle+'_'+'sim'
         fname = fname_base+'.h5'
-	sim,analyzer = utilities.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, geant4_processes=1, cuda_device=cuda_device)
+	sim,analyzer = driver_utils.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, geant4_processes=1, cuda_device=cuda_device)
 	print('Configuration loaded: ' + cfg)
         print('Particle: ' + particle)
         print('Energy: ' + str(energy))
         print('Distance range: ' + str(i_r) + ' ' + str(o_r))
-	location = utilities.sph_scatter(sample,i_r*1000,o_r*1000)
+	location = driver_utils.sph_scatter(sample, i_r * 1000, o_r * 1000)
 	arr_tr, arr_depo = [],[]
         i = 0
 	with h5py.File(fname,'w') as f:
@@ -64,8 +64,8 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r, cuda_device=None):
                         print ('Time: ' + str(time.time() - start) + '\tPhotons detected: ' + str(tracks.sigmas.shape[0])) 
 			first = False
                         #gun_specs = utilities.build_gun_specs(particle, position, momentum, energy_random)
-                        gun_specs = utilities.build_gun_specs(particle, None, None, None)
-                        utilities.write_deep_dish_file(fname_base+'_'+str(i)+'.h5', cfg, gun_specs, ev.photons_beg.track_tree, tracks, ev.photons_beg)
+                        gun_specs = driver_utils.build_gun_specs(particle, None, None, None)
+                        driver_utils.write_deep_dish_file(fname_base + '_' + str(i) + '.h5', cfg, gun_specs, ev.photons_beg.track_tree, tracks, ev.photons_beg)
                         i += 1
 		f.create_dataset('idx_tr',data=arr_tr)
 		f.create_dataset('idx_depo',data=arr_depo)

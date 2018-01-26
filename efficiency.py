@@ -21,7 +21,7 @@ import detectorconfig
 import numpy as np
 
 import paths
-from drivers import utilities
+from drivers import driver_utils
 
 def plot_vertices(origin, vertices):  # track_tree, title, with_electrons=True, file_name='vertex_plot.pickle'):
 
@@ -104,7 +104,7 @@ def eff_test(config,
 
 		print('Simulation started.')
 
-		sim, analyzer = utilities.sim_setup(config, detres)   # KW: where did this line come from?  It seems to do nothing
+		sim, analyzer = driver_utils.sim_setup(config, detres)   # KW: where did this line come from?  It seems to do nothing
 
 		if detres is None:
 			det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins)

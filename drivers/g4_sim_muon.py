@@ -8,7 +8,7 @@ import os
 import sys
 
 import paths
-import utilities
+import driver_utils
 
 import time
 
@@ -30,9 +30,9 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r, cuda_device=None):
         if not os.path.exists(data_file_dir):
 	        os.makedirs(data_file_dir)
         fname = data_file_dir+seed_loc+'_'+str(energy)+particle+'_'+'sim.h5'
-	sim,analyzer = utilities.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, cuda_device=cuda_device)
+	sim,analyzer = driver_utils.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, cuda_device=cuda_device)
 	print 'configuration loaded'
-	location = utilities.sph_scatter(sample,i_r*1000,o_r*1000)
+	location = driver_utils.sph_scatter(sample, i_r * 1000, o_r * 1000)
 	arr_tr, arr_depo = [],[]
 	with h5py.File(fname,'w') as f:
 		first = True
@@ -66,7 +66,7 @@ def run_simulation(cfg, particle, dist_range):
 def run_simulation_with_device(cfg, particle, dist_range, cuda_device):
         # Trying this for the subprocesses
         import pycuda.driver as cuda
-        import utilities
+        import driver_utils
 
         #print('Initing CUDA in subprocess')
         #sys.stdout = open(str(os.getpid()) + ".out", "a", buffering=0)
