@@ -1,5 +1,7 @@
 import numpy as np
 
+# Currently only used by Event Analyzer
+#
 class Tracks(object):
     '''A Tracks object contains a list of photon tracks and their uncertainties, working
     backward from their point of detection. The current implementation represents them as

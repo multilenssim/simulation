@@ -29,15 +29,6 @@ def fixed_dist(sample, radius, in_shell, out_shell, rads=None):
 	loc2[bl_idx] = 2 * loc1[bl_idx] - loc2[bl_idx]
 	return loc1,loc2,rads
 
-def sph_scatter(sample,in_shell,out_shell):
-	print('sph_scatter shell radii: ' + str(in_shell) + ' ' + str(out_shell))
-	loc = np.random.uniform(-out_shell,out_shell,(sample,3))
-	while len(loc[(np.linalg.norm(loc,axis=1)>in_shell) & (np.linalg.norm(loc,axis=1)<=out_shell)]) != sample:
-		bl_idx = np.logical_not((np.linalg.norm(loc,axis=1)>in_shell) & (np.linalg.norm(loc,axis=1)<=out_shell))
-		smpl = sum(bl_idx)
-		loc[bl_idx] = np.random.uniform(-out_shell,out_shell,(smpl,3))
-	return loc
-
 def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 	# produces a list of Photons objects, each with two different photon sources
 	# locs1 and locs2 are lists of locations (tuples)
@@ -52,15 +43,6 @@ def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 		event = event1 + event2						#Just add the list of photons from the two sources into a single event
 		events.append(event)
 	return events
-
-
-def sim_setup(config,in_file, useGeant4=False, geant4_processes=4, seed=12345, cuda_device=None):
-	g4_detector_parameters = G4DetectorParameters(orb_radius=7., world_material='G4_Galactic') if useGeant4 else None
-	kabamland = kbl.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
-	sim = Simulation(kabamland, seed=seed, geant4_processes=geant4_processes if useGeant4 else 0, cuda_device=cuda_device)
-	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)
-	analyzer = EventAnalyzer(det_res)
-	return sim, analyzer
 
 # Runs the simulation and writes the HDF5 file (except the index)
 def run_simulation(file, sim, events, analyzer, first=False):

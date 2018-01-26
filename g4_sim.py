@@ -6,7 +6,6 @@ import sys
 
 import pycuda.driver as cuda
 import paths
-import nog4_sim
 from drivers import utilities
 
 from multiprocessing import Pool, TimeoutError
@@ -27,12 +26,12 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r, cuda_device=None):
 	        os.makedirs(data_file_dir)
         fname_base = data_file_dir+seed_loc+'_'+str(energy)+particle+'_'+'sim'
         fname = fname_base+'.h5'
-	sim,analyzer = nog4_sim.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, geant4_processes=1, cuda_device=cuda_device)
+	sim,analyzer = utilities.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, geant4_processes=1, cuda_device=cuda_device)
 	print('Configuration loaded: ' + cfg)
         print('Particle: ' + particle)
         print('Energy: ' + str(energy))
         print('Distance range: ' + str(i_r) + ' ' + str(o_r))
-	location = nog4_sim.sph_scatter(sample,i_r*1000,o_r*1000)
+	location = utilities.sph_scatter(sample,i_r*1000,o_r*1000)
 	arr_tr, arr_depo = [],[]
         i = 0
 	with h5py.File(fname,'w') as f:

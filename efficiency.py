@@ -19,10 +19,9 @@ import kabamland2 as kbl
 from array import array
 import detectorconfig
 import numpy as np
-import nog4_sim
 
 import paths
-
+from drivers import utilities
 
 def plot_vertices(origin, vertices):  # track_tree, title, with_electrons=True, file_name='vertex_plot.pickle'):
 
@@ -105,7 +104,7 @@ def eff_test(config,
 
 		print('Simulation started.')
 
-		sim, analyzer = nog4_sim.sim_setup(config, detres)   # KW: where did this line come from?  It seems to do nothing
+		sim, analyzer = utilities.sim_setup(config, detres)   # KW: where did this line come from?  It seems to do nothing
 
 		if detres is None:
 			det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins)

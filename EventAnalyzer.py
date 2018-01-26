@@ -527,7 +527,7 @@ class EventAnalyzer(object):
             # Cull tracks to only those tracks which were not already associated
             #tracks.cull(np.nonzero(wt_list[opt_ind]>1.1)) # Use this to stop after 1st vtx is found
             tracks.cull(np.nonzero(wt_list[opt_ind]<0.5))
-            #print "Remaining tracks: " + str(len(tracks))
+            print ">>>>>>>> Remaining tracks: " + str(len(tracks))
 
             # Check that vertex has a (normalized) objective function less than qual*chiC
             qual = 0.95#0.5

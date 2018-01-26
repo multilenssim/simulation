@@ -8,15 +8,9 @@ import paths
 import g4_sim
 import detectorconfig
 import lensmaterials
+from drivers import utilities
 
 from logger_lfd import logger
-
-def save_config_file(cfg, file_name, dict):
-        config_path = paths.get_data_file_path(cfg)
-        if not os.path.exists(config_path):
-                os.makedirs(config_path)
-        with open(config_path+file_name, 'w') as outf:
-                pickle.dump(dict, outf)
 
 def calibrate_and_simulate(cfg, particle, dist_range, energy ):
     if not os.path.isfile(paths.get_calibration_file_name(cfg)):   # This is not a great structure as other configuration data may change in addition to the detector config
@@ -43,15 +37,15 @@ def calibrate_and_simulate(cfg, particle, dist_range, energy ):
             all_config_info['scintillator'] = lensmaterials.create_scintillation_material().__dict__
             all_config_info['lens_material'] = lensmaterials.lensmat.__dict__
             all_config_info['G4_config'] = 'placeholder'
-            # Note - these night override on successive runs??
+            # Note - these might override on successive runs??
             all_config_info['particle'] = particle
             all_config_info['energy'] = energy
             all_config_info['distance_range'] = dist_range
             all_config_info['quantum_efficiency'] = 'placeholder'
-            save_config_file(cfg, 'full_config.pickle', all_config_info)
+            utilities.save_config_file(cfg, 'full_config.pickle', all_config_info)
 
             # Write both files for now to support Jacopo's test setup
-            save_config_file(cfg, 'conf.pkl', detectorconfig.configdict(cfg))  # cfg].__dict__)
+            utilities.save_config_file(cfg, 'conf.pkl', detectorconfig.configdict(cfg))  # cfg].__dict__)
 
     logger.info('==== Simulation part ====')
     g4_sim.run_simulation(cfg, particle, dist_range, energy)
