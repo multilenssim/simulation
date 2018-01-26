@@ -1,17 +1,22 @@
-from mpl_toolkits.mplot3d import Axes3D
 from chroma.generator import vertex
-import matplotlib.pyplot as plt
-import h5py,time,argparse
+import pickle,time,argparse
 import nog4_sim as setup
 import numpy as np
 import paths
 
-def sim_ev(cfg,particle,lg,energy):
-	sim,analyzer = setup.sim_setup(cfg,paths.get_calibration_file_name(cfg),useGeant4=True)
-	print 'Configuration loaded'
+'''                        db = DBSCAN(eps=3, min_samples=10).fit(vert)
+                        label =  db.labels_
+                        labels = label[label!=-1]
+                        vert = vert[label!=-1]
+                        unique, counts = np.unique(labels, return_counts=True)
+                        main_cluster = vert[labels==unique[np.argmax(counts)],:]
+'''
+
+
+def sim_ev(particle,lg,energy):
 	gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(energy*0.999, energy*1.001))
 	for ev in sim.simulate(gun,keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100):
-		vert = ev.photons_beg.pos
+		vert = ev.photons_beg.track_tree
 		tracks = analyzer.generate_tracks(ev,qe=(1./3.))
 	return vert, tracks
 
@@ -47,10 +52,6 @@ def roll_funct(ofst,drct,sgm,i,half=False):
 		r_sgm = r_sgm[:i]		
 
 	ofst_diff = ofst - r_ofst
-	#b_drct = np.cross(drct,r_drct)
-	#norm_d = b_drct/np.linalg.norm(b_drct,axis=1).reshape(-1,1)
-	#dist = np.absolute(np.einsum('ij,ij->i',ofst_diff,norm_d))
-	#dist = remove_nan(dist,ofst_diff,drct)
 	sm = np.stack((sgm,r_sgm),axis=1)
 	off_stack = np.stack((ofst,r_ofst),axis=1)
 	drct_stack = np.stack((drct,r_drct),axis=1)
@@ -66,52 +67,39 @@ def track_dist(ofst,drct,sgm,dim_len=0):
 	arr_dist, arr_sgm, arr_pos = [], [], []
 	for i in range(1,(ofst.shape[0]-1)/2+1):
 		dist,sigmas,recon_pos = roll_funct(ofst,drct,sgm,i,half=False)
-		arr_dist.extend(dist)
-		arr_sgm.extend(sigmas)
-		arr_pos.extend(recon_pos)
+		mask_bool = (dist!=0) & (dist<0.15) & (np.linalg.norm(recon_pos,axis=1)<700)
+		arr_dist.extend(dist[mask_bool])
+		arr_sgm.extend(sigmas[mask_bool])
+		arr_pos.extend(recon_pos[mask_bool])
 	if ofst.shape[0] & 0x1: pass						#condition removed if degeneracy is kept
 	else:
 		dist,sigmas,recon_pos = roll_funct(ofst,drct,sgm,half,half=True)
-		arr_dist.extend(dist)
-		arr_sgm.extend(sigmas)
-		arr_pos.extend(recon_pos)
+                mask_bool = (dist!=0) & (dist<0.15) & (np.linalg.norm(recon_pos,axis=1)<700)
+                arr_dist.extend(dist[mask_bool])
+                arr_sgm.extend(sigmas[mask_bool])
 	return np.asarray(arr_dist),(np.asarray(arr_sgm)+dim_len),np.asarray(arr_pos)
 
 
-cfg = 'cfSam1_K200_8'
-particle = 'e-'
+cfg = 'cfSam1_K200_8_small'
+sim,analyzer = setup.sim_setup(cfg,paths.get_calibration_file_name(cfg),useGeant4=True)
+print 'Configuration loaded'
 lg = [0,0,0]
 energy = 2.0
-vtx,trx = sim_ev(cfg,particle,lg,energy)
-print 'Simulation done, starting reconstruction'
-dist,err,rcn_pos = track_dist(trx.hit_pos.T,trx.means.T,trx.sigmas,trx.lens_rad)
-mask_bool = (dist!=0) & (dist<1) & (np.linalg.norm(rcn_pos,axis=1)<5000)# & (err<2000)
-#mask_bool = np.ones(len(err),dtype=bool)
-c_rcn_pos = rcn_pos[mask_bool]
-c_err = err[mask_bool]
-c_dist = dist[mask_bool]
-#plt.hist(c_err,bins=100)
-#plt.show()
-plt.hist(np.linalg.norm(c_rcn_pos,axis=1),bins=1000)
-plt.xlabel('radial position of the reconstructed mid-point (not r$^2$ normalized) [mm]')
-plt.show()
-print rcn_pos.shape,c_rcn_pos.shape
-ans = raw_input('separate cut? y or n')
-if ans == 'y':
-	a = float(raw_input())
-	b = float(raw_input())
-	c = float(raw_input())
-	d = float(raw_input())
-	fig = plt.figure()
-	ax = fig.gca(projection='3d')
-	f_peak = (a<np.linalg.norm(c_rcn_pos,axis=1)) & (np.linalg.norm(c_rcn_pos,axis=1)<b)
-	s_peak = (c<np.linalg.norm(c_rcn_pos,axis=1)) & (np.linalg.norm(c_rcn_pos,axis=1)<d)
-	ax.plot(c_rcn_pos[f_peak,0],c_rcn_pos[f_peak,1],c_rcn_pos[f_peak,2],'.', color='red', markersize=0.5)
-	ax.plot(c_rcn_pos[s_peak,0],c_rcn_pos[s_peak,1],c_rcn_pos[s_peak,2],'.', color='green', markersize=0.5)
-elif ans == 'n':
-	ax.plot(c_rcn_pos[:,0],c_rcn_pos[:,1],c_rcn_pos[:,2],'.', markersize=0.5)
-ax.plot(vtx[:,0],vtx[:,1],vtx[:,2],'.')
-ax.set_xlim(-5000, 5000)
-ax.set_ylim(-5000, 5000)
-ax.set_zlim(-5000, 5000)
-plt.show()
+dct = {}
+for i in xrange(1):
+	n_ph,s_coord = [],[]
+	particle = np.random.choice(['neutron','neutron'])
+	vtx,trx = sim_ev(particle,lg,energy)
+	for vx in vtx:
+		try:
+			n_ph.append(vtx[vx]['child_processes']['Scintillation'])
+			s_coord.append(vtx[vx]['position'])
+		except KeyError:
+			pass
+	dct['scint%i'%i] = {'n_photons':n_ph,'coord':s_coord}
+	print 'Simulation done, starting reconstruction'
+	dist,err,rcn_pos = track_dist(trx.hit_pos.T,trx.means.T,trx.sigmas,trx.lens_rad)
+	dct['vtx%i'%i] = rcn_pos
+
+with open('dataset_%s.p'%particle,'w') as f:
+	pickle.dump(dct,f,pickle.HIGHEST_PROTOCOL)
