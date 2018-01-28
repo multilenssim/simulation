@@ -137,11 +137,14 @@ def display_configuration(config_name, config):
     print ('  EPD ratio:\t\t%0.2f'      % config[4])
     print ('  Number of rings (+1):\t%d' % config[5])
     print ('  Central pixels:\t%d'      % b_pxl)
+    if len(config) > 7:
+        t_pxl = config[7]
+        print ('  Total pixels (in config):\t%d'        % t_pxl)
 
     lens_system_name = config_name.split('_')[0][2:]
     dtc_r = get_system_measurements(lens_system_name, max_rad)[1]
     n_step, tot_pxl = param_arr(n_lens, b_pxl, lens_system_name, dtc_r, max_rad)
-    print ('  Total pixels.:\t%d'       % tot_pxl)
+    print ('  Total pixels (computed):\t%d'       % tot_pxl)
     # Focal length
     # vtx,max_rad,geom_eff = calc_rad(fibonacci_sphere(n_lens),sph_rad)   # This is what takes the time....
     # Cross check anything?
@@ -157,10 +160,26 @@ if __name__ == '__main__':
     configs_pickle_file = '%sconf_file.p' % detector_pickled_path
 
     if args.list:
+        import detectorconfig
+        import pprint
         with open(configs_pickle_file, 'r') as f:
             dct = pickle.load(f)
         for key, value in dct.iteritems():
             display_configuration(key, value)
+            dc = detectorconfig.DetectorConfig(value[0],
+                                               value[1],
+                                               value[2],
+                                               value[3],
+                                               0, 0, 1.0,
+                                               lens_system_name='Sam1',
+                                               EPD_ratio=value[4],
+                                               light_confinement=True,
+                                               nsteps=value[5],
+                                               b_pixel=value[6],
+                                               tot_pixels=value[7] if len(value) > 7 else None,
+                                               config_name=key)
+            pprint.pprint(vars(dc))
+
         print('========================')
         exit()
 
@@ -179,7 +198,7 @@ if __name__ == '__main__':
     n_step,tot_pxl = param_arr(n_lens,b_pxl,lens_system_name,dtc_r,max_rad)
     conf_name = 'cf%s_K%i_%i'%(lens_system_name,n_lens,int(EPD_ratio*10))
 
-    config = [sph_rad, n_lens, max_rad, vtx, EPD_ratio, n_step, b_pxl]
+    config = [sph_rad, n_lens, max_rad, vtx, EPD_ratio, n_step, b_pxl, tot_pxl]
     config_map_entry = {conf_name: config}
     display_configuration(conf_name, config)
 
@@ -189,7 +208,7 @@ if __name__ == '__main__':
         try:
             with open(configs_pickle_file,'r') as f:
                 dct = pickle.load(f)
-            dct[conf_name] = [sph_rad,n_lens,max_rad,vtx,EPD_ratio,n_step,b_pxl]
+            dct[conf_name] = config
             with open(configs_pickle_file,'w') as f:
                 pickle.dump(dct,f,protocol=pickle.HIGHEST_PROTOCOL)
         except IOError:

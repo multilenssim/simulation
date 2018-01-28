@@ -6,6 +6,7 @@ import deepdish as dd
 import argparse
 import h5py
 import os
+import pprint
 
 # These ALL pull in Geant4 (which is very heavyweight) even if we don't need it
 import detectorconfig
@@ -78,6 +79,35 @@ def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius,
 
             print ('Photons detected: ' + str(tracks.sigmas.shape[0]))
 
+
+def detector_config_from_parameter_array(config_name,
+                                         config_dict,
+                                         thickness_ratio=0.25,
+                                         blockers=True,
+                                         blocker_thickness_ratio=1.0/1000,
+                                         lens_system_name=None,
+                                         focal_length=1.0,
+                                         light_confinement=True):
+
+    return detectorconfig.DetectorConfig(
+                config_dict[0],
+                config_dict[1],
+                config_dict[2],
+                config_dict[3],
+                0, 0, 1.0,        # pmtxbins, pmtybins, diameter_ratio
+                thickness_ratio=thickness_ratio,
+                blockers=blockers,
+                blocker_thickness_ratio=blocker_thickness_ratio,
+                lens_system_name=lens_system_name,
+                focal_length=focal_length,
+                EPD_ratio = config_dict[4],
+                light_confinement=light_confinement,
+                nsteps=config_dict[5],
+                b_pixel=config_dict[6],
+                tot_pixels=config_dict[7] if len(config_dict) > 7 else None,
+                config_name=config_name)
+
+
 def save_config_file(cfg, file_name, dict):
     config_path = paths.get_data_file_path(cfg)
     if not os.path.exists(config_path):
@@ -135,8 +165,8 @@ temps = [256, 0.25]
 tol = 0.1
 debug = True
 
+# Doesn't do much
 def AVF_analyze_tracks(analyzer, tracks):
-
     vtcs = analyzer.AVF(tracks, min_tracks, chiC, temps, tol, debug)
     print('Vertices: ' + str(vtcs))
     return vtcs
@@ -153,8 +183,7 @@ def AVF_analyze_event(analyzer, event):
 def write_h5_reverse_track_file_event(h5file, vert, tracks, first):
     if first:
         en_depo = h5file.create_dataset('en_depo', maxshape=(None, 3), data=vert, chunks=True)
-        h5file.create_dataset('coord', maxshape=(2, None, 3),
-                              data=[tracks.hit_pos.T, tracks.means.T], chunks=True)
+        h5file.create_dataset('coord', maxshape=(2, None, 3), data=[tracks.hit_pos.T, tracks.means.T], chunks=True)
         uncert = h5file.create_dataset('sigma', maxshape=(None,), data=tracks.sigmas, chunks=True)
         h5file.create_dataset('r_lens', data=tracks.lens_rad)
 
@@ -195,6 +224,28 @@ def build_gun_specs(particle, position, momentum, energy):
 #   There is currently some redundancy in the new hdf5 file format
 #   Need to make this support mutiple events
 #   Test new format without tracks
+#   Cross check the config!!
+
+'''
+HDF5 file structure:
+    config_name
+    config: DetectorConfig object
+    gun_specs
+        particle
+        position
+        momentum
+        energy
+    track_tree: dict from chroma
+    tracks:
+    photons:
+
+# Original HDF5 fields:
+    hit_pos:
+    means:
+    sigmas:
+'''
+
+
 class DIEventFile(object):
     def __init__(self, config_name, gun_specs, track_tree, tracks, photons=None):
         self.config_name    = config_name
@@ -214,20 +265,27 @@ class DIEventFile(object):
         photons = event['photons']
         print('Photon count: ' + str(len(photons)))
 
-        dief = cls(config_name, gun_specs, track_tree, tracks, photons)
-        dief.full_event = event  # Preserve the additional data (for compatibility with the original HDF5 format)
-        return dief
+        event_file = cls(config_name, gun_specs, track_tree, tracks, photons)
+        event_file.full_event = event  # Preserve the additional data (for compatibility with the original HDF5 format)
+
+        print('==================')
+        print('Configuration (in file): ')
+        pprint.pprint(vars(event['config']))
+        print('==================')
+        print('Configuration (local): ')
+        pprint.pprint(vars(detectorconfig.configdict(config_name)))
+        print('==================')
+        return event_file
 
 
     def write(self, file_name):
         event = {'track_tree': self.track_tree, 'gun': self.gun_specs, 'config_name': self.config_name}
-        #data['photon_positions'] = output.pos
         if self.config_name is not None:
             event['config'] = detectorconfig.configdict(self.config_name)
         if self.photons is not None:
             event['photons'] = self.photons
         event['tracks'] = self.tracks
-        event['hit_pos'] = self.tracks.hit_pos
+        event['hit_pos'] = self.tracks.hit_pos      # Note: these are the center of the lens that the photon hit
         event['means'] = self.tracks.means
         event['sigmas'] = self.tracks.sigmas
         print('Gun type: ' + str(type(self.gun_specs)))
@@ -245,9 +303,19 @@ if __name__=='__main__':
         print('Track count: ' + str(len(event.tracks)))
         cal_file = paths.get_calibration_file_name(event.config_name)
         print('Calibration file: ' + cal_file)
+
         det_res = DetectorResponseGaussAngle(event.config_name, 10, 10, 10, cal_file)  # What are the 10s??
         analyzer = EventAnalyzer(det_res)
-        vertices = AVF_analyze_tracks(analyzer, event.tracks)
+
+        #vertices = AVF_analyze_tracks(analyzer, event.tracks)
+
+
+        hit_pos = event.full_event['full_event'].photons_end.pos
+        print('Hits:')
+        for hit in hit_pos:
+            print(str(hit[0]) + '\t' + str(hit[1]) + '\t' + str(hit[2]))
+        new_tracks = analyzer.generate_tracks_from_hit_positions(hit_pos, debug=True)  # event.tracks.hit_pos.T
+        vertices = AVF_analyze_tracks(analyzer, new_tracks)
 
     title = str(event.gun_specs['energy']) + ' MeV ' + event.gun_specs['particle']
     plot_vertices(event.track_tree, title, reconstructed_vertices=vertices)
