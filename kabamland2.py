@@ -1,32 +1,31 @@
-from chroma.geometry import Geometry, Material, Mesh, Solid, Surface
+from chroma.geometry import Solid
 from chroma.transform import make_rotation_matrix, normalize
-from chroma.detector import Detector, G4DetectorParameters
+#from chroma.detector import Detector, G4DetectorParameters
 from chroma.demo.optics import glass, black_surface
 from chroma.detector import Detector
 from chroma.detector import G4DetectorParameters
-from chroma.sim import Simulation
 from ShortIO.root_short import ShortRootWriter
 from chroma.sample import uniform_sphere
 from matplotlib.tri import Triangulation
 from mpl_toolkits.mplot3d import Axes3D
 from chroma import make, view, sample
-from contextlib import contextmanager
-from chroma.generator import vertex
+#from contextlib import contextmanager
+#from chroma.generator import vertex
 from chroma.loader import load_bvh
-from chroma.sim import Simulation
+#from chroma.sim import Simulation
 import detectorconfig, lenssystem
-from chroma.pmt import build_pmt
+#from chroma.pmt import build_pmt
 from chroma.event import Photons
 import matplotlib.pyplot as plt
 import lensmaterials as lm
 import meshhelper as mh
 import numpy as np
 
-from Geant4.hepunit import *
+#from Geant4.hepunit import *
 
 import pickle, os
 import paths
-from logger_lfd import logger
+#from logger_lfd import logger
 
 inputn = 16.0
 
@@ -246,6 +245,7 @@ def driver_funct(configname):
 	#kabamland.bvh = load_bvh(kabamland)
 	#view(kabamland)
 
+'''
 def full_detector_simulation(amount, configname, simname, datadir=""):
         #simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron. Note that viewing may crash if there are too many lenses. (try using configview)
 
@@ -263,6 +263,7 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
                 for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
                         f.write_event(ev)
         f.close()
+'''
 
 def load_or_build_detector(config, detector_material, g4_detector_parameters):
     filename = paths.detector_pickled_path + config + '.pickle'

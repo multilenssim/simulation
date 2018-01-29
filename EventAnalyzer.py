@@ -10,12 +10,13 @@ from chroma.transform import normalize
 from chroma.sample import uniform_sphere
 from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader
 import time as time
-from DetectorResponse import DetectorResponse
+from DetectorResponse import DetectorResponse      # Ick - some weird import loop due to detectorconfig importing utils
 from DetectorResponsePDF import DetectorResponsePDF
 from DetectorResponseGAKW import DetectorResponseGAKW
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 from Tracks import Tracks, Vertex
 
+from logger_lfd import logger
 
 class EventAnalyzer(object):
     '''An EventAnalyzer has methods of reconstructing an event and gauging
@@ -617,16 +618,55 @@ class EventAnalyzer(object):
 		mask.extend(fltr)
 	return gen[sorted(mask)]
 
-    def generate_tracks(self, ev, qe=None, heat_map = False, sig_cone=0.01, n_ph=0, lens_dia=None, debug=False):
+    # Makes tracks from a list of Photon objects at the ending position
+    # Returns 'enhanced' Track objects with lens/PMT positions included
+    def generate_tracks_from_hit_positions(self, photons_end, debug=False):
+        detected = (photons_end.flags & (0x1 << 2)).astype(bool)
+        detected_photons = photons_end.pos[detected]
+        logger.info('Using ' + str(len(detected_photons)) + ' detected of ' + str(len(photons_end)) + ' photons')
+
+        event_pmt_bin_array = np.array(self.det_res.find_pmt_bin_array(detected_photons))  # Get PMT hit location
+        # event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T     # Not needed???
+
+        event_lens_bin_array = np.array(event_pmt_bin_array / self.det_res.n_pmts_per_surf)
+        event_lens_pos_array = np.array([self.det_res.lens_centers[x] for x in event_lens_bin_array]).T
+
+        # If detector is not calibrated or not of the GaussAngle subclass, quit
+        if not (self.det_res.is_calibrated and (isinstance(self.det_res, DetectorResponseGAKW) or isinstance(self.det_res, DetectorResponseGaussAngle))):
+            logger.severe('== Detector not calibrated ==')
+            return None
+
+        # Detector is calibrated, use response to generate tracks
+        tracks = Tracks(event_lens_pos_array,
+                        self.det_res.means[:, event_pmt_bin_array],
+                        self.det_res.sigmas[event_pmt_bin_array],
+                        lenses=event_lens_bin_array,
+                        rings=None,
+                        pixels_in_ring=event_pmt_bin_array,  # Not right yet...
+                        lens_rad=self.det_res.lens_rad)
+        # tracks = Tracks(event_pmt_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = 0.0000001)
+        tracks.cull(np.where(tracks.sigmas > 0.001))  # Remove tracks with zero uncertainty (not calibrated)
+        if np.any(np.isnan(tracks.sigmas)):
+            print "Nan tracks!! Removing."
+            nan_tracks = np.where(np.isnan(tracks.sigmas))
+            tracks.cull(nan_tracks)
+        if debug:
+            print "Tracks for calibrated PMTs: " + str(len(tracks))
+        # tracks.cull(np.where(tracks.sigmas<0.2)) # Remove tracks with too large uncertainty
+        # tracks.sigmas[:] = 0.054 # Temporary! Checking if setting all sigmas equal to each other helps or hurts
+        return tracks
+
+    def generate_tracks(self, ev, qe=None, heat_map=False, sig_cone=0.01, n_ph=0, lens_dia=None, debug=False):
         #Makes tracks for event ev; allow for multiple track representations?
         detected = (ev.photons_end.flags & (0x1 <<2)).astype(bool)
-        #reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
-        #reflected_specular = (ev.photons_end.flags & (0x1 <<6)).astype(bool)
-        #good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
+        reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
+        reflected_specular = (ev.photons_end.flags & (0x1 <<6)).astype(bool)
+        good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
              
         beginning_photons = ev.photons_beg.pos[detected] # Include reflected photons
         ending_photons = ev.photons_end.pos[detected]
         length = np.shape(ending_photons)[0]
+        logger.info('Using ' + str(len(ending_photons)) + ' detected of ' + str(len(ending_photons)) + ' photons')
         if debug:
             print "Total detected photons in event: " + str(sum(detected*1))
             print "Total photons: " + str(np.shape(ev.photons_end.pos)[0])
@@ -642,10 +682,10 @@ class EventAnalyzer(object):
  
         end_direction_array = normalize(ending_photons-beginning_photons).T
         event_pmt_bin_array = np.array(self.det_res.find_pmt_bin_array(ending_photons)) # Get PMT hit location
-	if qe == None:
-		pass
-	else:
-		event_pmt_bin_array = self.QE(event_pmt_bin_array,qe)
+        if qe == None:
+            pass
+        else:
+            event_pmt_bin_array = self.QE(event_pmt_bin_array,qe)
         # print('PMT bins: ' + str(event_pmt_bin_array))
         event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T
         
@@ -699,10 +739,14 @@ class EventAnalyzer(object):
             
             ang_noise = np.random.normal(scale=sig_th,size=np.shape(end_direction_array))#np.zeros(np.shape(end_direction_array))#
             means = normalize((-end_direction_array+ang_noise).T).T
-            tracks = Tracks(hit_pos, means, sigmas)
+            tracks = Tracks(hit_pos, means, sigmas, qe=qe)
             return tracks
         else: # Detector is calibrated, use response to generate tracks
-            tracks = Tracks(event_lens_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = self.det_res.lens_rad)  
+            tracks = Tracks(event_lens_pos_array,
+                            self.det_res.means[:,event_pmt_bin_array],
+                            self.det_res.sigmas[event_pmt_bin_array],
+                            lens_rad = self.det_res.lens_rad,
+                            qe=qe)
             #tracks = Tracks(event_pmt_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = 0.0000001)   
             tracks.cull(np.where(tracks.sigmas>0.001)) # Remove tracks with zero uncertainty (not calibrated)
             if np.any(np.isnan(tracks.sigmas)):
@@ -713,9 +757,9 @@ class EventAnalyzer(object):
                 print "Tracks for calibrated PMTs: " + str(len(tracks))
             #tracks.cull(np.where(tracks.sigmas<0.2)) # Remove tracks with too large uncertainty
             #tracks.sigmas[:] = 0.054 # Temporary! Checking if setting all sigmas equal to each other helps or hurts
-	    if heat_map == True:
-		return tracks, event_pmt_bin_array
-            return tracks     
+        if heat_map:
+            return tracks, event_pmt_bin_array
+        return tracks
     
     @staticmethod
     def get_weights(chi, chiC, Tm):

@@ -18,6 +18,7 @@ class DetectorConfig(object):
                   nsteps=10,
                   b_pixel=4,
                   tot_pixels=None,
+                  uuid=None,
                   config_name=None):
         # Spherical geometry the focal surface is considered curve (planar surface not considered).
         # The parameters of the lens system defined in lenssystem.py for any given name. 
@@ -53,6 +54,7 @@ class DetectorConfig(object):
         self.b_pixel = b_pixel # number of pixels in the first ring (active only with NEW PIXELIZATION)
         self.vtx = vtx
         self.tot_pixels = tot_pixels
+        self.uuid = uuid
         self.config_name = config_name
 
 

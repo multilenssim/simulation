@@ -3,3 +3,4 @@ dataset.sh
 kabamland_erlangen.py
 *.pyc
 *~
+.idea/

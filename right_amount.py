@@ -1,50 +1,10 @@
-from paths import detector_pickled_path
 import itertools,argparse,math,pickle
 import scipy.spatial
 import numpy as np
+import uuid
 
-######## Copied in from lenssystem to avoid importing a WHOLE lot of chroma and Geant4
-#import lensmaterials as lm      # After all this, lm brings in chroma
-# Appears that this is not necessary
-
-class LensSys(object):
-    def __init__(self, sys_rad, focal_length, detector_r_curve, lens_rad): # , lensmat=lm.lensmat):
-        # Contains parameters common to all lens systems
-        self.sys_rad = sys_rad  # Radius of detecting surface
-        self.focal_length = focal_length  # Focal length (distance from center of first lens to center of detecting surface)
-        self.detector_r_curve = detector_r_curve  # Radius of curvature of detecting surface
-        self.lens_rad = lens_rad  # Radius of first lens in lens system
-        # self.lensmat = lensmat  # Lens material
-
-lensdict = {'Jiani3': LensSys(sys_rad=643., focal_length=1074., detector_r_curve=943., lens_rad=488.)}
-lensdict['Sam1'] = LensSys(sys_rad=350., focal_length=737.4, detector_r_curve=480., lens_rad=350.) # , lensmat=lm.lensmat_ohara)
-
-def get_lens_sys(lens_system_name):
-    if lens_system_name in lensdict:
-        return lensdict[lens_system_name]
-    else:
-        raise Exception('Lens system name '+str(lens_system_name)+' is not valid.')
-
-def get_scale_factor(lens_system_name, scale_rad):
-	# Returns the factor used to scale a given lens system of name lens_system_name
-    # Scaling will happen in such a way that all distances are set by the scale
-    # factor except for the detector size, which is fixed separately.
-    sys_rad = get_lens_sys(lens_system_name).sys_rad
-    return scale_rad/sys_rad
-
-def get_system_measurements(lens_system_name, scale_rad):
-    # Returns the focal length and detecting surface radius of curvature for
-    # a given lens system of name lens_system_name;
-    scale_factor = get_scale_factor(lens_system_name, scale_rad)
-    lens_sys = get_lens_sys(lens_system_name)
-    fl_unscaled = lens_sys.focal_length
-    det_r_unscaled = lens_sys.detector_r_curve
-    fl = fl_unscaled * scale_factor
-    det_r = det_r_unscaled * scale_factor
-
-    return fl, det_r
-    # det_diam < 2*det_r = 2*sys_det_r*scale_factor
-########
+from lenssystem import get_system_measurements
+from paths import detector_pickled_path
 
 def calc_steps(x_value,y_value,detector_r,n_lens_pixel):
         x_coord = np.asarray([x_value,np.roll(x_value,-1)]).T[:-1]
@@ -125,21 +85,19 @@ def calc_rad(vtx,rad_sp):
                 geom_eff = (1-np.cos(np.arctan(rd)))/2.0*vtx.shape[0]
                 i += 1
 
-def display_configuration(config_name, config):
-    sph_rad = config[0]
+def display_configuration_from_array(config_name, config):
     n_lens = config[1]
     max_rad = config[2]  # Get's overwritten below
     b_pxl = config[6]
     print('=== Config: %s =====' % config_name)
-    print ('  Detector radius:\t%0.2f'  % sph_rad)
+    print ('  Detector radius:\t%0.2f'  % config[0])
     print ('  Number of lenses:\t%d'    % n_lens)
     print ('  Max radius:\t\t%0.2f'     % max_rad)
     print ('  EPD ratio:\t\t%0.2f'      % config[4])
     print ('  Number of rings (+1):\t%d' % config[5])
     print ('  Central pixels:\t%d'      % b_pxl)
-    if len(config) > 7:
-        t_pxl = config[7]
-        print ('  Total pixels (in config):\t%d'        % t_pxl)
+    print ('  UUID:\t\t\t\t' + (str(config[8]) if len(config) > 8 else 'None'))
+    print ('  Total pixels (in config):\t' + (str(config[7]) if len(config) > 7 else 'Not in config file'))
 
     lens_system_name = config_name.split('_')[0][2:]
     dtc_r = get_system_measurements(lens_system_name, max_rad)[1]
@@ -149,7 +107,7 @@ def display_configuration(config_name, config):
     # vtx,max_rad,geom_eff = calc_rad(fibonacci_sphere(n_lens),sph_rad)   # This is what takes the time....
     # Cross check anything?
     # print ('  Geometric eff.:\t' + str(geom_eff))
-
+    print('-------------------------')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Calculate distributed imaging detector geometry and configuration")
@@ -165,7 +123,7 @@ if __name__ == '__main__':
         with open(configs_pickle_file, 'r') as f:
             dct = pickle.load(f)
         for key, value in dct.iteritems():
-            display_configuration(key, value)
+            display_configuration_from_array(key, value)
             dc = detectorconfig.DetectorConfig(value[0],
                                                value[1],
                                                value[2],
@@ -177,6 +135,7 @@ if __name__ == '__main__':
                                                nsteps=value[5],
                                                b_pixel=value[6],
                                                tot_pixels=value[7] if len(value) > 7 else None,
+                                               uuid=value[8] if len(value) > 8 else None,
                                                config_name=key)
             pprint.pprint(vars(dc))
 
@@ -198,9 +157,9 @@ if __name__ == '__main__':
     n_step,tot_pxl = param_arr(n_lens,b_pxl,lens_system_name,dtc_r,max_rad)
     conf_name = 'cf%s_K%i_%i'%(lens_system_name,n_lens,int(EPD_ratio*10))
 
-    config = [sph_rad, n_lens, max_rad, vtx, EPD_ratio, n_step, b_pxl, tot_pxl]
+    config = [sph_rad, n_lens, max_rad, vtx, EPD_ratio, n_step, b_pxl, tot_pxl, uuid.uuid1()]
     config_map_entry = {conf_name: config}
-    display_configuration(conf_name, config)
+    display_configuration_from_array(conf_name, config)
 
     print '  Geometrical filling factor: %0.2f'%(geom_eff*math.pow(EPD_ratio,2))
     anw = raw_input('add %s configuration (y or n)?: '%conf_name)
@@ -208,6 +167,8 @@ if __name__ == '__main__':
         try:
             with open(configs_pickle_file,'r') as f:
                 dct = pickle.load(f)
+            if conf_name in dct:
+                print('Replacing configuration: ' + conf_name)
             dct[conf_name] = config
             with open(configs_pickle_file,'w') as f:
                 pickle.dump(dct,f,protocol=pickle.HIGHEST_PROTOCOL)

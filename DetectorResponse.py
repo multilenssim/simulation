@@ -3,11 +3,11 @@ from kabamland2 import get_curved_surf_triangle_centers, get_lens_triangle_cente
 from chroma.transform import make_rotation_matrix, normalize
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
-import lensmaterials as lm
+#import lensmaterials as lm
 from scipy import spatial 
 import detectorconfig
 import numpy as np
-import time
+#import time
 
 
 class DetectorResponse(object):
@@ -278,19 +278,18 @@ class DetectorResponse(object):
         return detector_dir_list
 
     def scaled_pmt_arr_surf(self,closest_triangle_index):
-	closest_triangle_index = np.asarray(closest_triangle_index)
-	curved_surface_index = (closest_triangle_index/self.n_triangles_per_surf).astype(int)
-	renorm_triangle = closest_triangle_index % self.n_triangles_per_surf
-	c_rings = np.cumsum(self.ring)
-	c_rings = np.roll(c_rings,1)
-	c_rings[0] = 0
-	mtx = (np.tile(2*c_rings,(len(renorm_triangle),1)).T - renorm_triangle).T
-	stop_arr = c_rings[np.argmax(mtx>0,axis=1)-1]
+        closest_triangle_index = np.asarray(closest_triangle_index)
+        curved_surface_index = (closest_triangle_index/self.n_triangles_per_surf).astype(int)
+        renorm_triangle = closest_triangle_index % self.n_triangles_per_surf
+        c_rings = np.cumsum(self.ring)
+        c_rings = np.roll(c_rings,1)
+        c_rings[0] = 0
+        mtx = (np.tile(2*c_rings,(len(renorm_triangle),1)).T - renorm_triangle).T
+        stop_arr = c_rings[np.argmax(mtx>0,axis=1)-1]
         print('Lens number: ' + str(curved_surface_index) + ', Stop array: ' + str(stop_arr))
-	return ((renorm_triangle - 2*stop_arr) % self.ring[np.argmax(mtx>0,axis=1)-1]) + stop_arr + curved_surface_index*self.n_pmts_per_surf, curved_surface_index
+        return ((renorm_triangle - 2*stop_arr) % self.ring[np.argmax(mtx>0,axis=1)-1]) + stop_arr + curved_surface_index*self.n_pmts_per_surf
 
     def find_pmt_bin_array(self, pos_array):
-        
         if(self.detector_r == 0):
             # returns an array of global pmt bins corresponding to an array of end-positions
             length = np.shape(pos_array)[0]
@@ -324,22 +323,26 @@ class DetectorResponse(object):
             
         else:
             #print("Curved surface detector was selected.")
-            closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array)
-	    bin_array = self.scaled_pmt_arr_surf(closest_triangle_index)
+            closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array, max_dist=1.)
+            bin_array = self.scaled_pmt_arr_surf(closest_triangle_index)
+            print('Bin array length: ' + str(len(bin_array)))
             #curved_surface_index = [int(x / self.n_triangles_per_surf) for x in closest_triangle_index]
             #surface_pmt_index = [((x % self.n_triangles_per_surf) % (self.n_pmts_per_surf)) for x in closest_triangle_index]
             #bin_array = [((x*self.n_pmts_per_surf) + y) for x,y in zip(curved_surface_index,surface_pmt_index)]
-            bad_bins = np.array(np.where(np.array(bin_array) >= self.npmt_bins))
+            ba2 = np.asarray(bin_array)
+            bad_bins = np.asarray(np.where(ba2 >= self.npmt_bins))  # Why does this have to be an array inside of an array?  How to convert a tuple into an array? asarray() shuld do it
             #print np.array(bin_array) >= n_pmts_total
             #print np.extract((np.array(bin_array) >= n_pmts_total), bin_array)
+            print('Bad bin array length: ' + str(len(bad_bins[0])))
             if np.size(bad_bins) > 0:
-				print("The following "+str(np.shape(bad_bins)[1])+" photons were not associated to a PMT: ")
-				print(bad_bins)
-				#print max(closest_triangle_index)
-				#print max(bin_array)
-				#print n_pmts_total
-				#print "Distances to nearest PMT: "
-				#print closest_triangle_dist[bad_bins[0]] # Determine distances correctly
+                print("The following "+str(np.shape(bad_bins)[1])+" photons were not associated to a PMT: " + str(bad_bins))
+                bin_array = np.delete(bin_array, bad_bins[0])
+                print('New bin array length: ' + str(len(bin_array)))
+                #print max(closest_triangle_index)
+                #print max(bin_array)
+                #print n_pmts_total
+                #print "Distances to nearest PMT: "
+                #print closest_triangle_dist[bad_bins[0]] # Determine distances correctly
             #fig = plt.figure(figsize=(15, 10))
             #plt.hist(bin_array,bins=6*20)
             #plt.xlabel("PMT index")
@@ -347,7 +350,7 @@ class DetectorResponse(object):
             #plt.show()
             #for ii in range(len(bin_array)):
                 #print ii, "\t", closest_triangle_index[ii],"\t",curved_surface_index[ii], "\t",surface_pmt_index[ii], "\t",bin_array[ii]    
-                
+            print('bin_array: ' + str(bin_array))
             return bin_array.astype(int)
             
     def find_closest_triangle_center(self, pos_array, max_dist = 1.):
@@ -357,6 +360,7 @@ class DetectorResponse(object):
         #max_dist = 1
         #max_dist=1000
         query_results = self.triangle_centers_tree.query(pos_array,distance_upper_bound = max_dist)
+        print('Tree query results: ' + str(query_results))
         closest_triangle_index = query_results[1].tolist()
         closest_triangle_dist = query_results[0].tolist()
         # print('Triangle index: ' + str(closest_triangle_index))

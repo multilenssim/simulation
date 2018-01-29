@@ -1,5 +1,5 @@
-from chroma.geometry import Material, Solid, Surface
-from Geant4.hepunit import *
+from chroma.geometry import Material
+from chroma.geometry import Surface
 
 import numpy as np
 
@@ -51,15 +51,6 @@ mirror.set('reflect_specular', 1.0)
 # myglass.set('scattering_length', 1e8)
 
 
-##### Scintillation parameters #####  Currenty unused
-Scnt_PP = np.array([ 6.6*eV, 6.7*eV, 6.8*eV, 6.9*eV, 7.0*eV, 7.1*eV, 7.2*eV, 7.3*eV, 7.4*eV ])
-
-Scnt_FAST = np.array([ 0.000134, 0.004432, 0.053991, 0.241971, 0.398942, 0.000134, 0.004432, 0.053991, 0.241971 ])
-Scnt_SLOW = np.array([ 0.000010, 0.000020, 0.000030, 0.004000, 0.008000, 0.005000, 0.020000, 0.001000, 0.000010 ])
-
-# Set RI to 1.0 to turn off Cherenkov light
-ls_refractive_index = 1.5
-
 def k_thresh(r_idx,m=0.511):
 # return the Cerenkov threshold energy (kinetic) for a given particle (mass in MeV) crossing media with r_idx as refractive index
 	s = r_idx*r_idx
@@ -72,6 +63,17 @@ _ls = None
 def create_scintillation_material():
 	global _ls
 	if _ls is None:
+		from Geant4.hepunit import eV, pi, hbarc, nanometer, MeV, ns
+
+		##### Scintillation parameters #####  Currenty unused
+		Scnt_PP = np.array([6.6 * eV, 6.7 * eV, 6.8 * eV, 6.9 * eV, 7.0 * eV, 7.1 * eV, 7.2 * eV, 7.3 * eV, 7.4 * eV])
+
+		Scnt_FAST = np.array([0.000134, 0.004432, 0.053991, 0.241971, 0.398942, 0.000134, 0.004432, 0.053991, 0.241971])
+		Scnt_SLOW = np.array([0.000010, 0.000020, 0.000030, 0.004000, 0.008000, 0.005000, 0.020000, 0.001000, 0.000010])
+
+		# Set RI to 1.0 to turn off Cherenkov light
+		ls_refractive_index = 1.5
+
 		# ls stands for "liquid scintillator"
 		_ls = Material('liquid-scintillator')
 		_ls.set('refractive_index', ls_refractive_index)
@@ -124,6 +126,5 @@ def create_scintillation_material():
 		proton_energy_scint = list([0.5 * MeV, 1. * MeV, 5. * MeV, 10. * MeV, 20. * MeV, 50. * MeV, 100. * MeV])
 		proton_yield = list([2500., 3000., 4000., 4200., 4400., 6000., 10000.])
 		_ls.set_scintillation_property('PROTONSCINTILLATIONYIELD', proton_energy_scint , proton_yield)
-
 
 	return _ls

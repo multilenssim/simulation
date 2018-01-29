@@ -1,4 +1,3 @@
-from chroma import make
 from chroma.transform import make_rotation_matrix
 import meshhelper as mh
 import numpy as np
@@ -132,5 +131,6 @@ def asphere_lens(rad, t, c1, k1, d1, e1, f1, c2, k2, d2, e2, f2, nsteps=128):
     
     y1 = asphere_func(x1, c1, k1, d1, e1, f1)-ymax_1 # Shift so Y=0 plane is the first surface's edge
     y2 = asphere_func(x2, c2, k2, d2, e2, f2)+t-ymax_1 # Shift second surface to give appropriate thickness
-    
+
+    from chroma import make
     return make.rotate_extrude(np.concatenate((x1, x2)), np.concatenate((y1, y2)), nsteps=64)

@@ -8,10 +8,8 @@ import h5py
 import os
 import pprint
 
-# These ALL pull in Geant4 (which is very heavyweight) even if we don't need it
-import detectorconfig
-from DetectorResponseGaussAngle import DetectorResponseGaussAngle
-from EventAnalyzer import EventAnalyzer
+import detectorconfig  # No longer pulls in Geant4 by commenting out a LOT of imports
+import EventAnalyzer
 import lensmaterials as lm
 
 import paths
@@ -20,12 +18,13 @@ def sim_setup(config,in_file, useGeant4=False, geant4_processes=4, seed=12345, c
     import kabamland2 as kbl2
     from chroma.detector import G4DetectorParameters
     from chroma.sim import Simulation
+    import DetectorResponseGaussAngle
 
     g4_detector_parameters = G4DetectorParameters(orb_radius=7., world_material='G4_Galactic') if useGeant4 else None
     kabamland = kbl2.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
     sim = Simulation(kabamland, seed=seed, geant4_processes=geant4_processes if useGeant4 else 0, cuda_device=cuda_device)
-    det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)
-    analyzer = EventAnalyzer(det_res)
+    det_res = DetectorResponseGaussAngle.DetectorResponseGaussAngle(config,10,10,10,in_file)
+    analyzer = EventAnalyzer.EventAnalyzer(det_res)
     return sim, analyzer
 
 def sph_scatter(sample_count,in_shell,out_shell):
@@ -105,6 +104,7 @@ def detector_config_from_parameter_array(config_name,
                 nsteps=config_dict[5],
                 b_pixel=config_dict[6],
                 tot_pixels=config_dict[7] if len(config_dict) > 7 else None,
+                uuid=config_dict[8] if len(config_dict) > 8 else None,
                 config_name=config_name)
 
 
@@ -116,7 +116,7 @@ def save_config_file(cfg, file_name, dict):
         pickle.dump(dict, outf)
 
 
-def plot_vertices(track_tree, title, with_electrons=True, file_name=None, reconstructed_vertices=None):
+def plot_vertices(track_tree, title, with_electrons=True, file_name=None, reconstructed_vertices=None, reconstructed_vertices2=None):
     particles = {}
     energies = {}
     for key, value in track_tree.iteritems():
@@ -145,6 +145,15 @@ def plot_vertices(track_tree, title, with_electrons=True, file_name=None, recons
         vp = np.asarray(vertex_positions)
         print('AVF positions: ' + str(vp))
         ax.scatter(vp[:,0], vp[:,1], vp[:,2], marker=(6,1,0), s=100., color='gray', label='AVF') #), markersize=5.0)
+    # Temporary
+    if reconstructed_vertices2 is not None:
+        vertex_positions = []
+        for v in reconstructed_vertices2:
+            print(v.pos)
+            vertex_positions.append(np.asarray(v.pos))
+        vp = np.asarray(vertex_positions)
+        print('AVF 2 positions: ' + str(vp))
+        ax.scatter(vp[:,0], vp[:,1], vp[:,2], marker=(6,1,0), s=100., color='black', label='AVF 2') #), markersize=5.0)
 
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
@@ -247,12 +256,13 @@ HDF5 file structure:
 
 
 class DIEventFile(object):
-    def __init__(self, config_name, gun_specs, track_tree, tracks, photons=None):
+    def __init__(self, config_name, gun_specs, track_tree, tracks, photons=None, full_event=None):
         self.config_name    = config_name
         self.gun_specs      = gun_specs
         self.track_tree     = track_tree
         self.tracks         = tracks
         self.photons        = photons
+        self.full_event     = full_event
 
     @classmethod
     def load_from_file(cls, file_name):
@@ -266,8 +276,12 @@ class DIEventFile(object):
         print('Photon count: ' + str(len(photons)))
 
         event_file = cls(config_name, gun_specs, track_tree, tracks, photons)
-        event_file.full_event = event  # Preserve the additional data (for compatibility with the original HDF5 format)
+        event_file.full_event = event['full_event']
 
+        # TODO: Preserve the whole thing in case we need access to 'hit_pos', 'means', 'sigmas' (for compatibility with the original HDF5 format)
+        event_file.complete = event
+
+        '''
         print('==================')
         print('Configuration (in file): ')
         pprint.pprint(vars(event['config']))
@@ -275,6 +289,7 @@ class DIEventFile(object):
         print('Configuration (local): ')
         pprint.pprint(vars(detectorconfig.configdict(config_name)))
         print('==================')
+        '''
         return event_file
 
 
@@ -293,29 +308,35 @@ class DIEventFile(object):
         dd.io.save(file_name, event)
 
 if __name__=='__main__':
+    import DetectorResponseGaussAngle
+
     parser = argparse.ArgumentParser()
     parser.add_argument('h5_file', help='Event HDF5 file')
     args = parser.parse_args()
 
     event = DIEventFile.load_from_file(args.h5_file)
+    title = str(event.gun_specs['energy']) + ' MeV ' + event.gun_specs['particle']
     vertices = None
     if event.tracks is not None:
         print('Track count: ' + str(len(event.tracks)))
         cal_file = paths.get_calibration_file_name(event.config_name)
         print('Calibration file: ' + cal_file)
 
-        det_res = DetectorResponseGaussAngle(event.config_name, 10, 10, 10, cal_file)  # What are the 10s??
-        analyzer = EventAnalyzer(det_res)
+        det_res = DetectorResponseGaussAngle.DetectorResponseGaussAngle(event.config_name, 10, 10, 10, cal_file)  # What are the 10s??
+        analyzer = EventAnalyzer.EventAnalyzer(det_res)
 
-        #vertices = AVF_analyze_tracks(analyzer, event.tracks)
+        vertices_from_original_run = AVF_analyze_tracks(analyzer, event.tracks)
 
-
-        hit_pos = event.full_event['full_event'].photons_end.pos
+        '''
+        hit_pos = event.full_event.photons_end.pos
         print('Hits:')
         for hit in hit_pos:
             print(str(hit[0]) + '\t' + str(hit[1]) + '\t' + str(hit[2]))
-        new_tracks = analyzer.generate_tracks_from_hit_positions(hit_pos, debug=True)  # event.tracks.hit_pos.T
-        vertices = AVF_analyze_tracks(analyzer, new_tracks)
+        '''
+        for qe in [0.3, 1.0]:
+            for i in range(5):
+                new_tracks = analyzer.generate_tracks(event.full_event, qe=qe, debug=True)
+                new_vertices = AVF_analyze_tracks(analyzer, new_tracks)
 
-    title = str(event.gun_specs['energy']) + ' MeV ' + event.gun_specs['particle']
-    plot_vertices(event.track_tree, title, reconstructed_vertices=vertices)
+                plot_vertices(event.track_tree, title + ', QE: ' + str(qe), reconstructed_vertices=vertices_from_original_run, reconstructed_vertices2=new_vertices)
+

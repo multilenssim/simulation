@@ -69,7 +69,6 @@ def generate_events(sample_count, config_name, particle, energy, i_r, o_r):
     fname_base = data_file_dir+seed_loc+'_'+str(energy)+'_'+particle+'_'+'sim'
     fname = fname_base+'.h5'
 
-
     print('Configuration loaded: ' + config_name)
     print('Energy: ' + str(energy))
     print("G4 state: ", Geant4.gStateManager.GetCurrentState())
