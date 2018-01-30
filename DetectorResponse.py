@@ -336,7 +336,8 @@ class DetectorResponse(object):
             print('Bad bin array length: ' + str(len(bad_bins[0])))
             if np.size(bad_bins) > 0:
                 print("The following "+str(np.shape(bad_bins)[1])+" photons were not associated to a PMT: " + str(bad_bins))
-                bin_array = np.delete(bin_array, bad_bins[0])
+                # Note: Deleting these will break calibration
+                #bin_array = np.delete(bin_array, bad_bins[0])
                 print('New bin array length: ' + str(len(bin_array)))
                 #print max(closest_triangle_index)
                 #print max(bin_array)

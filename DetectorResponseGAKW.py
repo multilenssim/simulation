@@ -213,6 +213,7 @@ class DetectorResponseGAKW(DetectorResponse):
         pickle_name = self.configname + '-hits.pickle'
 
         try:
+            print('Loading pickle hits file: ' + directory+pickle_name);
             with open(directory+pickle_name, 'rb') as inf:
                 pmt_hits = pickle.load(inf)
             logger.info('Hit map pickle file loaded: ' + pickle_name)

@@ -618,6 +618,7 @@ class EventAnalyzer(object):
 		mask.extend(fltr)
 	return gen[sorted(mask)]
 
+    # This is likely DEPRECATED already
     # Makes tracks from a list of Photon objects at the ending position
     # Returns 'enhanced' Track objects with lens/PMT positions included
     def generate_tracks_from_hit_positions(self, photons_end, debug=False):
@@ -656,7 +657,7 @@ class EventAnalyzer(object):
         # tracks.sigmas[:] = 0.054 # Temporary! Checking if setting all sigmas equal to each other helps or hurts
         return tracks
 
-    def generate_tracks(self, ev, qe=None, heat_map=False, sig_cone=0.01, n_ph=0, lens_dia=None, debug=False):
+    def generate_tracks(self, ev, qe=None, heat_map=False, sig_cone=0.01, n_ph=0, lens_dia=None, debug=True):
         #Makes tracks for event ev; allow for multiple track representations?
         detected = (ev.photons_end.flags & (0x1 <<2)).astype(bool)
         reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
@@ -667,6 +668,7 @@ class EventAnalyzer(object):
         ending_photons = ev.photons_end.pos[detected]
         length = np.shape(ending_photons)[0]
         logger.info('Using ' + str(len(ending_photons)) + ' detected of ' + str(len(ending_photons)) + ' photons')
+
         if debug:
             print "Total detected photons in event: " + str(sum(detected*1))
             print "Total photons: " + str(np.shape(ev.photons_end.pos)[0])
