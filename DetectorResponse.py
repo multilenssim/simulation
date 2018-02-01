@@ -325,7 +325,6 @@ class DetectorResponse(object):
             #print("Curved surface detector was selected.")
             closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array, max_dist=1.)
             bin_array = self.scaled_pmt_arr_surf(closest_triangle_index)
-            print('Bin array length: ' + str(len(bin_array)))
             #curved_surface_index = [int(x / self.n_triangles_per_surf) for x in closest_triangle_index]
             #surface_pmt_index = [((x % self.n_triangles_per_surf) % (self.n_pmts_per_surf)) for x in closest_triangle_index]
             #bin_array = [((x*self.n_pmts_per_surf) + y) for x,y in zip(curved_surface_index,surface_pmt_index)]
