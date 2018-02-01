@@ -620,6 +620,7 @@ class EventAnalyzer(object):
         return sorted(mask)
 
     '''
+    # This is likely DEPRECATED already
     # Makes tracks from a list of Photon objects at the ending position
     # Returns 'enhanced' Track objects with lens/PMT positions included
     def generate_tracks_from_hit_positions(self, photons_end, debug=False):
@@ -670,6 +671,7 @@ class EventAnalyzer(object):
         ending_photons = ev.photons_end.pos[detected]
         length = np.shape(ending_photons)[0]
         logger.info('Using ' + str(len(ending_photons)) + ' detected of ' + str(len(ending_photons)) + ' photons')
+
         if debug:
             print "Total detected photons in event: " + str(sum(detected*1))
             print "Total photons: " + str(np.shape(ev.photons_end.pos)[0])

@@ -9,16 +9,17 @@ import os
 import pprint
 
 import detectorconfig  # No longer pulls in Geant4 by commenting out a LOT of imports
-import EventAnalyzer
 import lensmaterials as lm
 
 import paths
 
 def sim_setup(config,in_file, useGeant4=False, geant4_processes=4, seed=12345, cuda_device=None):
+    # Imports are here both to avoind loading Geant4 when unnecessary, and to avoid circular imports
     import kabamland2 as kbl2
     from chroma.detector import G4DetectorParameters
     from chroma.sim import Simulation
     import DetectorResponseGaussAngle
+    import EventAnalyzer
 
     g4_detector_parameters = G4DetectorParameters(orb_radius=7., world_material='G4_Galactic') if useGeant4 else None
     kabamland = kbl2.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
@@ -232,7 +233,7 @@ def build_gun_specs(particle, position, momentum, energy):
 # A Distributed Imaging event file is a "deep dish" HDF5 file containing all of the data about this event
 # Notes / TODO:
 #   Need to add: config name, matrials config
-#   There is currently some redundancy in the new hdf5 file format
+#   There is currently much redundancy in the new hdf5 file format
 #   Need to make this support mutiple events
 #   Test new format without tracks
 #   Cross check the config!!
@@ -280,7 +281,7 @@ class DIEventFile(object):
         event_file = cls(config_name, gun_specs, track_tree, tracks, photons)
         event_file.full_event = event['full_event']
 
-        # TODO: Preserve the whole thing in case we need access to 'hit_pos', 'means', 'sigmas' (for compatibility with the original HDF5 format)
+        # Preserve the whole thing in case we need access to 'hit_pos', 'means', 'sigmas' (for compatibility with the original HDF5 format)
         event_file.complete = event
 
         '''
@@ -301,6 +302,8 @@ class DIEventFile(object):
             event['config'] = detectorconfig.configdict(self.config_name)
         if self.photons is not None:
             event['photons'] = self.photons
+        if self.full_event is not None:
+            event['full_event'] = self.full_event
         event['tracks'] = self.tracks
         event['hit_pos'] = self.tracks.hit_pos      # Note: these are the center of the lens that the photon hit
         event['means'] = self.tracks.means
@@ -318,6 +321,7 @@ def print_tracks(tracks, count):
 
 if __name__=='__main__':
     import DetectorResponseGaussAngle
+    import EventEnalyzer
 
     parser = argparse.ArgumentParser()
     parser.add_argument('h5_file', help='Event HDF5 file')
