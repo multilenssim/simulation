@@ -49,6 +49,7 @@ def get_dict_param(conf_fl,conf_name):
 	with open(conf_fl,'r') as f:
 		dtc = pickle.load(f)
 	return dtc[conf_name]
+
 # Newer configurations, including those with curved detecting surfaces and pre-made lens systems
 def configdict(conf_name):
 	fname  =  '%sconf_file.p'%detector_pickled_path

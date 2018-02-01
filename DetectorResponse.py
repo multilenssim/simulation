@@ -4,7 +4,7 @@ from chroma.transform import make_rotation_matrix, normalize
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import lensmaterials as lm
-from scipy import spatial 
+from scipy import spatial
 import detectorconfig
 import numpy as np
 import time
@@ -320,69 +320,19 @@ class DetectorResponse(object):
             #print "Curved surface detector was selected."
             closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array)
 	    bin_array = self.scaled_pmt_arr_surf(closest_triangle_index)
-            #curved_surface_index = [int(x / self.n_triangles_per_surf) for x in closest_triangle_index]
-            #surface_pmt_index = [((x % self.n_triangles_per_surf) % (self.n_pmts_per_surf)) for x in closest_triangle_index]
-            #bin_array = [((x*self.n_pmts_per_surf) + y) for x,y in zip(curved_surface_index,surface_pmt_index)]
             bad_bins = np.array(np.where(np.array(bin_array) >= self.npmt_bins))
-            #print np.array(bin_array) >= n_pmts_total
-            #print np.extract((np.array(bin_array) >= n_pmts_total), bin_array)
             if np.size(bad_bins) > 0:
 				print "The following "+str(np.shape(bad_bins)[1])+" photons were not associated to a PMT: "
 				print bad_bins
-				#print max(closest_triangle_index)
-				#print max(bin_array)
-				#print n_pmts_total
-				#print "Distances to nearest PMT: "
-				#print closest_triangle_dist[bad_bins[0]] # Determine distances correctly
-            #fig = plt.figure(figsize=(15, 10))
-            #plt.hist(bin_array,bins=6*20)
-            #plt.xlabel("PMT index")
-            #plt.ylabel("counts")
-            #plt.show()
-            #for ii in range(len(bin_array)):
-                #print ii, "\t", closest_triangle_index[ii],"\t",curved_surface_index[ii], "\t",surface_pmt_index[ii], "\t",bin_array[ii]    
-                
             return bin_array
             
     def find_closest_triangle_center(self, pos_array, max_dist = 1.):
         #print "Finding closest triangle centers..."
         if(max_dist == 1.):
             max_dist = 1.1*2*np.pi*self.lns_rad/self.nsteps # Circumference of detecting surface divided by number of steps, with 1.1x of wiggle room
-        #max_dist = 1
-        #max_dist=1000
         query_results = self.triangle_centers_tree.query(pos_array,distance_upper_bound = max_dist)
         closest_triangle_index = query_results[1].tolist()
         closest_triangle_dist = query_results[0].tolist()
-        #print max(closest_triangle_dist)
-        
-        #fig = plt.figure(figsize=(15, 10))
-        #plt.hist(closest_triangle_dist,bins=100)
-        #plt.xlabel("distance to closest triangle")
-        #plt.ylabel("counts")
-        #plt.show()
-        #quit()
-        
-        #fig = plt.figure(figsize=(15, 10))
-        #ax = fig.add_subplot(111, projection='3d')
-        #for i in range(len(pos_array[:,0])):
-            #if(closest_triangle_dist[i]<float('inf')):
-                ##print i, closest_triangle_index[i],closest_triangle_dist[i]
-                #x = [pos_array[i,0],self.triangle_centers[closest_triangle_index[i],0]]
-                #y = [pos_array[i,1],self.triangle_centers[closest_triangle_index[i],1]]
-                #z = [pos_array[i,2],self.triangle_centers[closest_triangle_index[i],2]]
-                #ax.scatter(pos_array[i,0], pos_array[i,1], pos_array[i,2], color='b')
-                #ax.scatter(self.triangle_centers[closest_triangle_index[i],0], self.triangle_centers[closest_triangle_index[i],1], self.triangle_centers[closest_triangle_index[i],2], color='r')
-                #ax.plot(x,y,z, color='g')
-        #ax.scatter(self.triangle_centers[:,0].tolist(), self.triangle_centers[:,1].tolist(), self.triangle_centers[:,2].tolist(),s=5, c='m')
-        #ax.set_xlabel('X Label')
-        #ax.set_ylabel('Y Label')
-        #ax.set_zlabel('Z Label')
-        #axis_range = 10
-        #ax.set_xlim([-axis_range,axis_range])
-        #ax.set_ylim([-axis_range,axis_range])
-        #ax.set_zlim([-axis_range,axis_range])
-        #plt.show()	
-        
         return closest_triangle_index, closest_triangle_dist
 
     def plot_pdf(self, pdf, plot_title, photon_start=None, photon_end=None, bin_pos=None, show=True):

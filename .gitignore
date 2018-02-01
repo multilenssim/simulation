@@ -3,3 +3,5 @@ dataset.sh
 kabamland_erlangen.py
 *.pyc
 *.py~
+*.h5
+*.p

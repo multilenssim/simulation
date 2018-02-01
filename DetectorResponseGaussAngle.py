@@ -1,10 +1,9 @@
 from ShortIO.root_short import GaussAngleRootWriter, GaussAngleRootReader, ShortRootReader
-from chroma.transform import normalize
-import numpy as np
-import matplotlib.pyplot as plt
-import time
-
 from DetectorResponse import DetectorResponse
+from chroma.transform import normalize
+import matplotlib.pyplot as plt
+import numpy as np
+import time
 
 class DetectorResponseGaussAngle(DetectorResponse):
     '''Detector calibration information is stored in Gaussian cones for each PMT: 
@@ -177,7 +176,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
             except ValueError:
                 pass
             except TypeError:
-				pass
+		pass
             
             total_means[i] = mean_angle
             total_variances[i] = variance

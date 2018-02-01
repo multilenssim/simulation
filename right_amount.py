@@ -68,8 +68,8 @@ def acting_force(g,vtx):
 
 def calc_rad(vtx,rad_sp):
         geom_eff,i = 0,0
+	g = np.exp(-2.39840805*np.log(vtx.shape[0])+5.38099281)		#obtained from a linear log-log fit see ~/Desktop/dev/dvlp/sphere.py for details
         while True:
-                g = 0.1         #0.1 for lns = 20, 0.002 for lns = 200, 0.000004 for lns = 1300
                 force = acting_force(g,vtx)
                 mod_vtx = np.einsum('ij,i->ij',(vtx + force),1.0/np.linalg.norm((vtx + force),axis=1))
                 rad = min(scipy.spatial.distance.pdist(mod_vtx))/2.0
@@ -87,14 +87,17 @@ if __name__ == '__main__':
 	parser.add_argument('lens_system_name',help='provide lens design')
 	args = parser.parse_args()
 	lens_system_name = args.lens_system_name
-	sph_rad = 7556.0
+	sph_rad = 800.0  #7556.0
 	b_pxl = int(raw_input('input number of pixels at the central ring: (more than 3) '))
 	n_lens = int(raw_input('input the number of lens assemblies: '))
 	EPD_ratio = float(raw_input('input the pupil ratio: '))
 	vtx,max_rad,geom_eff = calc_rad(fibonacci_sphere(n_lens),sph_rad)
 	dtc_r = get_system_measurements(lens_system_name,max_rad)[1]
 	n_step,tot_pxl = param_arr(n_lens,b_pxl,lens_system_name,dtc_r,max_rad)
-	conf_name = 'cf%s_K%i_%i'%(lens_system_name,n_lens,int(EPD_ratio*10))
+	if sph_rad<7000:
+		conf_name = 'cf%s_K%i_%i_small'%(lens_system_name,n_lens,int(EPD_ratio*10))
+	else:
+		conf_name = 'cf%s_K%i_%i'%(lens_system_name,n_lens,int(EPD_ratio*10))
         print 'rings in the optical system (+1): %i'%int(n_step)
         print 'geometrical filling factor: %0.2f'%(geom_eff*math.pow(EPD_ratio,2))
         print 'total amount of pixels: %i'%tot_pxl

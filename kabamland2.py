@@ -151,12 +151,15 @@ def build_lens_icosahedron(kabamland, vtx, rad, diameter_ratio, thickness_ratio,
     if blockers:
     	blocker_thickness = 2*rad*blocker_thickness_ratio
     	if half_EPD < rad:
-        	anulus_blocker = mh.rotate(cylindrical_shell(half_EPD, rad, blocker_thickness, 32), make_rotation_matrix(np.pi/2.0, (1,0,0)))
+		c1 = lenssystem.get_lens_sys(lens_system_name).c1*lenssystem.get_scale_factor(lens_system_name,scale_rad)
+		offset = [0,0,c1-np.sqrt(c1*c1-rad*rad)]
+        	anulus_blocker = mh.shift(mh.rotate(cylindrical_shell(half_EPD, rad, blocker_thickness, 32), make_rotation_matrix(np.pi/2.0, (1,0,0))),offset)
 		face += Solid(anulus_blocker, lensmat, kabamland.detector_material, black_surface, 0xff0000)
     phi, axs = rot_axis([0,0,1],vtx)
     for vx,ph,ax in zip(vtx,-phi,axs):
         kabamland.add_solid(face, rotation=make_rotation_matrix(ph,ax), displacement = -vx)
-        kabamland.add_solid(baffle, rotation=make_rotation_matrix(ph,ax), displacement = -normalize(vx)*(np.linalg.norm(vx)+focal_length/2.0))
+	if light_confinement:
+	        kabamland.add_solid(baffle, rotation=make_rotation_matrix(ph,ax), displacement = -normalize(vx)*(np.linalg.norm(vx)+focal_length/2.0))
 
 
 def calc_steps(x_value,y_value,detector_r,base_pixel):
@@ -231,13 +234,13 @@ def driver_funct(configname):
 	kabamland = Detector(lm.create_scintillation_material())
 	config = detectorconfig.configdict(configname)
 	#get_lens_triangle_centers(vtx, rad_assembly, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
-	print get_curved_surf_triangle_centers(config.vtx, config.half_EPD/config.EPD_ratio, config.detector_r, config.focal_length, config.nsteps, config.b_pixel)[0]
-	#build_lens_icosahedron(kabamland, config.vtx, config.half_EPD/config.EPD_ratio, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
+	#print get_curved_surf_triangle_centers(config.vtx, config.half_EPD/config.EPD_ratio, config.detector_r, config.focal_length, config.nsteps, config.b_pixel)[0]
+	build_lens_icosahedron(kabamland, config.vtx, config.half_EPD/config.EPD_ratio, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
 	#build_curvedsurface_icosahedron(kabamland, config.vtx, config.half_EPD/config.EPD_ratio, config.diameter_ratio, focal_length=config.focal_length, detector_r=config.detector_r, nsteps=config.nsteps, b_pxl=config.b_pixel)
 	#build_pmt_icosahedron(kabamland, np.linalg.norm(config.vtx[0]), focal_length=config.focal_length)
-	#kabamland.flatten()
-	#kabamland.bvh = load_bvh(kabamland)
-	#view(kabamland)
+	kabamland.flatten()
+	kabamland.bvh = load_bvh(kabamland)
+	view(kabamland)
 
 def full_detector_simulation(amount, configname, simname, datadir=""):
         #simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron. Note that viewing may crash if there are too many lenses. (try using configview)
@@ -300,4 +303,4 @@ def load_or_build_detector(config, detector_material, g4_detector_parameters):
 
 
 if __name__ == '__main__':
-	driver_funct('cfSam1_K20_8')
+	driver_funct('cfSam1_K200_8')
