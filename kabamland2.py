@@ -245,26 +245,6 @@ def driver_funct(configname):
 	#kabamland.bvh = load_bvh(kabamland)
 	#view(kabamland)
 
-'''
-def full_detector_simulation(amount, configname, simname, datadir=""):
-        #simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron. Note that viewing may crash if there are too many lenses. (try using configview)
-
-        config = detectorconfig.configdict(configname)
-        print('Starting to build')
-        g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
-        kabamland = load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
-        print('Detector was built')
-
-        f = ShortRootWriter(datadir + simname)
-        sim = Simulation(kabamland,geant4_processes=0)
-        for j in range(100):
-                print j
-                sim_events = [uniform_photons(config.edge_length, amount) for i in range(10)]
-                for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
-                        f.write_event(ev)
-        f.close()
-'''
-
 def load_or_build_detector(config, detector_material, g4_detector_parameters):
     filename = paths.detector_pickled_path + config + '.pickle'
     if not os.path.exists(paths.detector_pickled_path):

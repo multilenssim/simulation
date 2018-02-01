@@ -175,11 +175,13 @@ tol = 0.1
 debug = True
 
 # Doesn't do much
+#### Note: AVF() modifies the tracks object ####
 def AVF_analyze_tracks(analyzer, tracks):
     vtcs = analyzer.AVF(tracks, min_tracks, chiC, temps, tol, debug)
     print('Vertices: ' + str(vtcs))
     return vtcs
 
+# Not currently in use
 def AVF_analyze_event(analyzer, event):
     sig_cone = 0.01
     lens_dia = None
@@ -307,6 +309,13 @@ class DIEventFile(object):
         print('Writing deepdish file: ' + file_name)
         dd.io.save(file_name, event)
 
+def print_tracks(tracks, count):
+    print('Total track count: %d' % len(tracks))
+    for index, track in enumerate(tracks):
+        print('Track %d: %s, %s, %f, norm: %f' % (index, str(track[0]), str(track[1]), track[2], np.linalg.norm(track[0])))
+        if index >= count:
+            break
+
 if __name__=='__main__':
     import DetectorResponseGaussAngle
 
@@ -322,21 +331,25 @@ if __name__=='__main__':
         cal_file = paths.get_calibration_file_name(event.config_name)
         print('Calibration file: ' + cal_file)
 
+        print_tracks(event.tracks, 20)
+
         det_res = DetectorResponseGaussAngle.DetectorResponseGaussAngle(event.config_name, 10, 10, 10, cal_file)  # What are the 10s??
+        '''
+        tester_triangles = np.arange(1200)
+        pixel_result = det_res.scaled_pmt_arr_surf(tester_triangles)
+        for i in range(1200):
+            print('%d\t%d\t%d\t%d\t%d' % (tester_triangles[i], pixel_result[0][i], pixel_result[1][i], pixel_result[2][i], pixel_result[3][i]))
+        '''
         analyzer = EventAnalyzer.EventAnalyzer(det_res)
-
         vertices_from_original_run = AVF_analyze_tracks(analyzer, event.tracks)
-
         '''
-        hit_pos = event.full_event.photons_end.pos
-        print('Hits:')
-        for hit in hit_pos:
-            print(str(hit[0]) + '\t' + str(hit[1]) + '\t' + str(hit[2]))
-        '''
-        for qe in [0.3, 1.0]:
-            for i in range(5):
+        print ("==================================================================")
+        print ("==================================================================")
+        for qe in [None]:  # 1./3.]: # , 1.0]:
+            for i in range(1):
                 new_tracks = analyzer.generate_tracks(event.full_event, qe=qe, debug=True)
+                print_tracks(new_tracks, 20)
                 new_vertices = AVF_analyze_tracks(analyzer, new_tracks)
 
                 plot_vertices(event.track_tree, title + ', QE: ' + str(qe), reconstructed_vertices=vertices_from_original_run, reconstructed_vertices2=new_vertices)
-
+        '''
