@@ -246,7 +246,7 @@ class EventAnalyzer(object):
         '''
 
         # Get an array of voxel positions within the detector, for repeated use
-        bin_pos_array = np.array(self.det_res.bin_to_position_array())
+        bin_pos_array = np.array(self.det_res.bin_to_position_array())  # REturns 10x10x10 = 1000 coordinate positions
         
         # Sets how much to scale down changes in vertex position by, should they fail to improve fit
         # Only used for analytic (matrix) solution, not numpy's fmin() optimization function
@@ -542,6 +542,7 @@ class EventAnalyzer(object):
                 vtx.n_ph = len(trx_assoc)
                 vtcs.append(vtx)
             else: # If the vertex quality is poor or has too few tracks, stop looking for more vertices
+                print('Vertex quality too low: %f Dropping and quitting.' % obj_fin)
                 break
         
         # Restrict to unique vertices (distance > tol; only position is relevant for this step)
@@ -607,17 +608,19 @@ class EventAnalyzer(object):
         return vtcs
 
     def QE(self,gen,qe):
-	#applies a given quantum efficiency to each pixel to a vector containing the hit pixel
-	mask = []
-	for e in np.unique(gen):
-		arr_id = np.where(gen==e)[0]
-		counts = np.random.poisson(qe*len(arr_id))
-		if counts>len(arr_id):
-			counts = np.random.choice(len(arr_id))
-		fltr = np.random.choice(arr_id,counts,replace=False)
-		mask.extend(fltr)
-	return gen[sorted(mask)]
+        #applies a given quantum efficiency to each pixel to a vector containing the hit pixel
+        mask = []
+        for e in np.unique(gen):
+            arr_id = np.where(gen==e)[0]
+            counts = np.random.poisson(qe*len(arr_id))
+            if counts>len(arr_id):
+                counts = np.random.choice(len(arr_id))
+            fltr = np.random.choice(arr_id,counts,replace=False)
+            mask.extend(fltr)
+        return sorted(mask)
 
+    '''
+    # This is likely DEPRECATED already
     # Makes tracks from a list of Photon objects at the ending position
     # Returns 'enhanced' Track objects with lens/PMT positions included
     def generate_tracks_from_hit_positions(self, photons_end, debug=False):
@@ -655,8 +658,9 @@ class EventAnalyzer(object):
         # tracks.cull(np.where(tracks.sigmas<0.2)) # Remove tracks with too large uncertainty
         # tracks.sigmas[:] = 0.054 # Temporary! Checking if setting all sigmas equal to each other helps or hurts
         return tracks
+    '''
 
-    def generate_tracks(self, ev, qe=None, heat_map=False, sig_cone=0.01, n_ph=0, lens_dia=None, debug=False):
+    def generate_tracks(self, ev, qe=None, heat_map=False, sig_cone=0.01, n_ph=0, lens_dia=None, debug=True):
         #Makes tracks for event ev; allow for multiple track representations?
         detected = (ev.photons_end.flags & (0x1 <<2)).astype(bool)
         reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
@@ -667,6 +671,7 @@ class EventAnalyzer(object):
         ending_photons = ev.photons_end.pos[detected]
         length = np.shape(ending_photons)[0]
         logger.info('Using ' + str(len(ending_photons)) + ' detected of ' + str(len(ending_photons)) + ' photons')
+
         if debug:
             print "Total detected photons in event: " + str(sum(detected*1))
             print "Total photons: " + str(np.shape(ev.photons_end.pos)[0])
@@ -679,13 +684,17 @@ class EventAnalyzer(object):
             # beginning_photons = beginning_photons[start:(start+n_ph),:]
             # ending_photons = ending_photons[start:(start+n_ph),:]
             length = n_ph
- 
         end_direction_array = normalize(ending_photons-beginning_photons).T
-        event_pmt_bin_array = np.array(self.det_res.find_pmt_bin_array(ending_photons)) # Get PMT hit location
+        event_pmt_bin_array, lenses, rings, pixels = np.array(self.det_res.find_pmt_bin_array_new(ending_photons)) # Get PMT hit indices
         if qe == None:
             pass
         else:
-            event_pmt_bin_array = self.QE(event_pmt_bin_array,qe)
+            mask = self.QE(event_pmt_bin_array,qe)
+            event_pmt_bin_array = event_pmt_bin_array[mask]
+            lenses = lenses[mask]
+            rings = rings[mask]
+            pixels = pixels[mask]
+
         # print('PMT bins: ' + str(event_pmt_bin_array))
         event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T
         
@@ -746,6 +755,9 @@ class EventAnalyzer(object):
                             self.det_res.means[:,event_pmt_bin_array],
                             self.det_res.sigmas[event_pmt_bin_array],
                             lens_rad = self.det_res.lens_rad,
+                            lenses=lenses,
+                            rings=rings,
+                            pixels_in_ring=pixels,
                             qe=qe)
             #tracks = Tracks(event_pmt_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = 0.0000001)   
             tracks.cull(np.where(tracks.sigmas>0.001)) # Remove tracks with zero uncertainty (not calibrated)

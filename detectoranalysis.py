@@ -14,6 +14,7 @@ from logger_lfd import logger
 
 def create_detres(config, simname, detresname, detxbins=10, detybins=10, detzbins=10, method="PDF", nevents=-1, datadir=""):
 	#saves a detector response list of pdfs- 1 for each pixel- given a simulation file of photons emitted isotropically throughout the detector.
+	print('Calibrating for: ' + datadir + simname)
 	if method=="PDF":
 		smalltest = DetectorResponsePDF(config, detxbins, detybins, detzbins)
 	elif method=="GaussAngle":

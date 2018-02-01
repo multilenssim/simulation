@@ -22,7 +22,7 @@ class DetectorResponse(object):
         config = detectorconfig.configdict(configname)
         self.configname = configname  # Adding this for intermediate calibration file writing
         self.is_calibrated = False
-	self.lns_rad = config.half_EPD/config.EPD_ratio
+        self.lns_rad = config.half_EPD/config.EPD_ratio
         self.detectorxbins = detectorxbins
         self.detectorybins = detectorybins
         self.detectorzbins = detectorzbins
@@ -69,7 +69,10 @@ class DetectorResponse(object):
         #self.calc3 = 2*self.pmtybins/(np.sqrt(3)*self.pmt_side_length)
         #self.calc4 = self.pmtybins/3.0
         #self.calc5 = self.pmtxbins*self.pmtybins
-        
+        self.c_rings = np.cumsum(self.ring)
+        self.c_rings_rolled = np.roll(self.c_rings, 1)
+        self.c_rings_rolled[0] = 0
+
     def build_rotation_matrices(self):
         rotation_matrices = np.empty((20, 3, 3))
         for k in range(20):
@@ -281,16 +284,49 @@ class DetectorResponse(object):
         closest_triangle_index = np.asarray(closest_triangle_index)
         curved_surface_index = (closest_triangle_index/self.n_triangles_per_surf).astype(int)
         renorm_triangle = closest_triangle_index % self.n_triangles_per_surf
-        c_rings = np.cumsum(self.ring)
-        c_rings = np.roll(c_rings,1)
-        c_rings[0] = 0
-        mtx = (np.tile(2*c_rings,(len(renorm_triangle),1)).T - renorm_triangle).T
-        stop_arr = c_rings[np.argmax(mtx>0,axis=1)-1]
-        print('Lens number: ' + str(curved_surface_index) + ', Stop array: ' + str(stop_arr))
-        return ((renorm_triangle - 2*stop_arr) % self.ring[np.argmax(mtx>0,axis=1)-1]) + stop_arr + curved_surface_index*self.n_pmts_per_surf
+
+        mtx = (np.tile(2 * self.c_rings_rolled, (len(renorm_triangle), 1)).T - renorm_triangle).T
+        pixels_outside_hit_ring = self.c_rings_rolled[np.argmax(mtx > 0, axis=1) - 1]   # This may not be the right name for this??
+        complicated = ((renorm_triangle - 2*pixels_outside_hit_ring) % self.ring[np.argmax(mtx>0,axis=1)-1])
+
+        pmt_number = complicated + pixels_outside_hit_ring + curved_surface_index*self.n_pmts_per_surf
+
+        ### Alternative calculation ###
+        new_lens_number = (pmt_number / self.n_pmts_per_surf).astype(int)
+        pixel_number_in_lens = pmt_number - curved_surface_index*self.n_pmts_per_surf       # Depends on PMT number...
+        ring = np.searchsorted(self.c_rings, pixel_number_in_lens, side='right')
+        pixel_number_in_ring = pixel_number_in_lens - self.c_rings_rolled[ring]
+        pixels_outside_hit_ring2 = self.c_rings_rolled[ring]
+        pmt_number2 = pixel_number_in_ring + pixels_outside_hit_ring2 + curved_surface_index*self.n_pmts_per_surf
+
+        for i in range(len(closest_triangle_index)):
+            if new_lens_number[i] != curved_surface_index[i]:
+                print('Lens number mismatch: %d, %d, %d' % (i, new_lens_number[i], new_lens_number[i]))
+            if pmt_number[i] != pmt_number2[i]:
+                print('Pixel number mismatch: %d, %d, %d, %d' % (i, pmt_number[i], pmt_number2[i], pmt_number[i] - pmt_number2[i]))
+            if pixel_number_in_ring[i] != complicated[i]:
+                print('Pixel number in ring mismatch: %d, %d, %d, %d' % (i, pixel_number_in_ring[i], complicated[i], pixel_number_in_ring[i] - complicated[i]))
+            if pixels_outside_hit_ring[i] != pixels_outside_hit_ring2[i]:
+                print('Pixel number outside ring mismatch: %d, %d, %d, %d, ring: %d' % (i, pixels_outside_hit_ring[i], pixels_outside_hit_ring2[i], pixels_outside_hit_ring[i] - pixels_outside_hit_ring2[i], ring[i]))
+
+        return pmt_number, curved_surface_index, ring, pixel_number_in_ring
+
+    def find_pmt_bin_array_new(self, pos_array):
+        closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array, max_dist=1.)
+        pmts, lenses, rings, pixels = self.scaled_pmt_arr_surf(closest_triangle_index)
+        bad_bins = np.asarray(np.where(pmts >= self.npmt_bins))  # Why does this have to be an array inside of an array?  How to convert a tuple into an array? asarray() shuld do it
+        if np.size(bad_bins) > 0:
+            print('Bad bin count: ' + str(len(bad_bins[0])))
+            print("The following " + str(np.shape(bad_bins)[1]) + " photons were not associated to a PMT: " + str(bad_bins))
+            pmts = np.delete(pmts, bad_bins) # Note: this line work work with new scaled_pmt_arr_surf scheme, and it also breaks calibration
+            lenses = np.delete(lenses, bad_bins)
+            rings = np.delete(rings, bad_bins)
+            pixels = np.delete(pixels, bad_bins)
+            print('New bin array length: ' + str(len(pmts)))
+        return pmts, lenses, rings, pixels
 
     def find_pmt_bin_array(self, pos_array):
-        if(self.detector_r == 0):
+        if(self.detector_r == 0):   # Note: this code is appears to be specific to the icosahedron
             # returns an array of global pmt bins corresponding to an array of end-positions
             length = np.shape(pos_array)[0]
             #facebin array is left as -1s, that way if a particular photon does not get placed onto a side, it gets ignored (including its pmt_position) in the checking stages at the bottom of this function.
@@ -324,7 +360,8 @@ class DetectorResponse(object):
         else:
             #print("Curved surface detector was selected.")
             closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array, max_dist=1.)
-            bin_array = self.scaled_pmt_arr_surf(closest_triangle_index)
+            bin_array, _, _, _ = self.scaled_pmt_arr_surf(closest_triangle_index)
+            print('Bin array length: ' + str(len(bin_array)))
             #curved_surface_index = [int(x / self.n_triangles_per_surf) for x in closest_triangle_index]
             #surface_pmt_index = [((x % self.n_triangles_per_surf) % (self.n_pmts_per_surf)) for x in closest_triangle_index]
             #bin_array = [((x*self.n_pmts_per_surf) + y) for x,y in zip(curved_surface_index,surface_pmt_index)]
@@ -332,10 +369,11 @@ class DetectorResponse(object):
             bad_bins = np.asarray(np.where(ba2 >= self.npmt_bins))  # Why does this have to be an array inside of an array?  How to convert a tuple into an array? asarray() shuld do it
             #print np.array(bin_array) >= n_pmts_total
             #print np.extract((np.array(bin_array) >= n_pmts_total), bin_array)
-            print('Bad bin array length: ' + str(len(bad_bins[0])))
             if np.size(bad_bins) > 0:
+                print('Bad bin count: ' + str(len(bad_bins[0])))
                 print("The following "+str(np.shape(bad_bins)[1])+" photons were not associated to a PMT: " + str(bad_bins))
-                bin_array = np.delete(bin_array, bad_bins[0])
+                # Note: Deleting these will break calibration
+                #bin_array = np.delete(bin_array, bad_bins[0])
                 print('New bin array length: ' + str(len(bin_array)))
                 #print max(closest_triangle_index)
                 #print max(bin_array)
