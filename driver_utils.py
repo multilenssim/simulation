@@ -169,21 +169,20 @@ def plot_vertices(track_tree, title, with_electrons=True, file_name=None, recons
     plt.show()
 
 # Defaults for AVF
-min_tracks = 0.1
+min_tracks = 10 # 0.1       # Use a fraction to take a fraction of total available tracks (something like that)
 chiC = 0.75
 temps = [256, 0.25]
 tol = 0.1
-debug = True
 
 # Doesn't do much
 #### Note: AVF() modifies the tracks object ####
-def AVF_analyze_tracks(analyzer, tracks):
+def AVF_analyze_tracks(analyzer, tracks, debug=False):
     vtcs = analyzer.AVF(tracks, min_tracks, chiC, temps, tol, debug)
     print('Vertices: ' + str(vtcs))
     return vtcs
 
 # Not currently in use
-def AVF_analyze_event(analyzer, event):
+def AVF_analyze_event(analyzer, event, debug=False):
     sig_cone = 0.01
     lens_dia = None
     n_ph = 0
@@ -284,15 +283,6 @@ class DIEventFile(object):
         # Preserve the whole thing in case we need access to 'hit_pos', 'means', 'sigmas' (for compatibility with the original HDF5 format)
         event_file.complete = event
 
-        '''
-        print('==================')
-        print('Configuration (in file): ')
-        pprint.pprint(vars(event['config']))
-        print('==================')
-        print('Configuration (local): ')
-        pprint.pprint(vars(detectorconfig.configdict(config_name)))
-        print('==================')
-        '''
         return event_file
 
 
@@ -321,7 +311,7 @@ def print_tracks(tracks, count):
 
 if __name__=='__main__':
     import DetectorResponseGaussAngle
-    import EventEnalyzer
+    import EventAnalyzer
 
     parser = argparse.ArgumentParser()
     parser.add_argument('h5_file', help='Event HDF5 file')
@@ -345,7 +335,7 @@ if __name__=='__main__':
             print('%d\t%d\t%d\t%d\t%d' % (tester_triangles[i], pixel_result[0][i], pixel_result[1][i], pixel_result[2][i], pixel_result[3][i]))
         '''
         analyzer = EventAnalyzer.EventAnalyzer(det_res)
-        vertices_from_original_run = AVF_analyze_tracks(analyzer, event.tracks)
+        vertices_from_original_run = AVF_analyze_tracks(analyzer, event.tracks, debug=True)
         '''
         print ("==================================================================")
         print ("==================================================================")
@@ -357,3 +347,4 @@ if __name__=='__main__':
 
                 plot_vertices(event.track_tree, title + ', QE: ' + str(qe), reconstructed_vertices=vertices_from_original_run, reconstructed_vertices2=new_vertices)
         '''
+        plot_vertices(event.track_tree, title, reconstructed_vertices=vertices_from_original_run)

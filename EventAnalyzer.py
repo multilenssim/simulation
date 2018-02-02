@@ -244,9 +244,10 @@ class EventAnalyzer(object):
             are fed back to the algorithm to find the next vertex.
             If min_tracks<1, use as a fraction of the total event's tracks.
         '''
+        WEIGHT_CUT = 0.56  # Initially was 0.50
 
         # Get an array of voxel positions within the detector, for repeated use
-        bin_pos_array = np.array(self.det_res.bin_to_position_array())  # REturns 10x10x10 = 1000 coordinate positions
+        bin_pos_array = np.array(self.det_res.bin_to_position_array())  # Returns 10x10x10 = 1000 coordinate positions
         
         # Sets how much to scale down changes in vertex position by, should they fail to improve fit
         # Only used for analytic (matrix) solution, not numpy's fmin() optimization function
@@ -285,9 +286,9 @@ class EventAnalyzer(object):
                 if np.isnan(sig):
                     print "Track sig is nan - skipping."
                 if doNLL:
-					gp = self.gauss_nll(dists_scaled, sig)
+                    gp = self.gauss_nll(dists_scaled, sig)
                 else:
-					gp = self.gauss_prob(dists_scaled, sig)
+                    gp = self.gauss_prob(dists_scaled, sig)
                 final_pdf += gp
                 #final_pdf *= gp
                 #f_squared += gp**2
@@ -325,15 +326,15 @@ class EventAnalyzer(object):
                 
                 #self.plot_tracks(tracks,highlight_pt=v_pos_max)
                 if doNLL:
-					plotpdf = 1./final_pdf # Take inverse if using NLL method (since values close to 0 are better)
+                    plotpdf = 1./final_pdf # Take inverse if using NLL method (since values close to 0 are better)
                 else:
-					plotpdf = final_pdf
+                    plotpdf = final_pdf
                 plotpdf = np.float32(plotpdf/float(np.sum(plotpdf))) #normalize, for plotting purposes
 
-                #fig=self.det_res.plot_pdf(plotpdf, "Initial vtx position finding", bin_pos=bin_pos_array, show=False)
-                #plt.show(fig)
-                #ax = fig.gca()
-                #ax.scatter(v_pos_max[0],v_pos_max[1],v_pos_max[2],color='green')
+                fig=self.det_res.plot_pdf(plotpdf, "Initial vtx position finding", bin_pos=bin_pos_array, show=False)
+                #plt.show()
+                ax = fig.gca()
+                ax.scatter(v_pos_max[0],v_pos_max[1],v_pos_max[2],color='green')
                 print "Initial vertex position: " + str(v_pos_max)
 
                 # codethis = raw_input('Do some code tweaks>')
@@ -341,9 +342,10 @@ class EventAnalyzer(object):
                 #     exec(codethis)
                 #     codethis = raw_input()
                      
-                # plt.figure(fig.number)
-                # raw_input("Waiting for input")
-                # plt.show(fig)   
+                plt.figure(fig.number)
+                plt.show()
+                #raw_input("Waiting for input")
+                #plt.show(fig)
 
             # Temporary, for testing; try AVF with several different initial locations near that found above
             # Pick from a uniform sphere of radius rad_frac*inscribed_radius
@@ -369,6 +371,8 @@ class EventAnalyzer(object):
             for ii in range(n_pos0+1):
                 v_pos = v_pos0[ii,:]            
                 # Initialize this vertex
+                print('===============================')
+                print('=== AVF starting vertex: %s (%d)===' % (str(v_pos), ii))
                 vtx = Vertex(v_pos, -1., 0)
             
                 # # Temporary, for testing; just use initial vtx position
@@ -491,6 +495,7 @@ class EventAnalyzer(object):
                         print "Temp this iteration: " + str(Tm)
                     
                     v_pos_old = v_pos
+
                 # Done finding this vertex position                
                 if debug:
                     print "Position record: " + str(v_pos_rec)
@@ -503,12 +508,15 @@ class EventAnalyzer(object):
                     #self.plot_weights(np.random.random_sample(np.shape(np.array(wt_rec))),obj=np.array(obj_rec))
                 # TODO: calculate error
                 # TODO: check that final associated tracks are at least min_tracks, else break
-                vtx_ph = np.sum(1.0*(wt0 >= 0.5))
+                vtx_ph = np.sum(1.0*(wt0 >= WEIGHT_CUT))
                 #print "Associated tracks: " + str(vtx_ph)
                 vtx.n_ph = vtx_ph
                 vtx_list.append(vtx)
                 obj_list.append(obj0)
                 wt_list.append(wt0)
+
+                print('=== AVF finished starting vertex: %s (%d), result: %s ===' % (str(v_pos0[ii, :]), ii, str(vtx.pos)))
+                print('===============================')
             # print [vt.pos for vt in vtx_list]
             # print v_pos_max
             #print [np.linalg.norm(vt.pos-vtx_list[0].pos) for vt in vtx_list]
@@ -523,26 +531,26 @@ class EventAnalyzer(object):
 
             # Record tracks associated to this vertex
             trx_assoc = copy.deepcopy(tracks) # Tracks associated to vtx
-            trx_assoc.cull(np.nonzero(wt_list[opt_ind]>=0.5))
+            trx_assoc.cull(np.nonzero(wt_list[opt_ind]>=WEIGHT_CUT))
 
             # Cull tracks to only those tracks which were not already associated
             #tracks.cull(np.nonzero(wt_list[opt_ind]>1.1)) # Use this to stop after 1st vtx is found
-            tracks.cull(np.nonzero(wt_list[opt_ind]<0.5))
+            tracks.cull(np.nonzero(wt_list[opt_ind]<WEIGHT_CUT))
             print ">>>>>>>> Remaining tracks: " + str(len(tracks))
 
             # Check that vertex has a (normalized) objective function less than qual*chiC
-            qual = 0.95#0.5
+            qual = 0.5
             #qual = 2 
             _, _, _, _, _, obj_fin = self.get_track_fit_params(trx_assoc, vtx, chiC, 1.0)
             if debug:
-                print "obj_fin (uses only associated tracks): " + str(obj_fin)
+                print 'obj_fin (uses only associated tracks): %f / %f' % (obj_fin, qual*chiC)
                 print "Associated tracks: " + str(len(trx_assoc))
             if obj_fin < qual*chiC and len(trx_assoc) >= min_tracks:
                 vtx.err = obj_fin # use objective function to judge quality of vertex
                 vtx.n_ph = len(trx_assoc)
                 vtcs.append(vtx)
             else: # If the vertex quality is poor or has too few tracks, stop looking for more vertices
-                print('Vertex quality too low: %f Dropping and quitting.' % obj_fin)
+                print('Vertex quality too poor / too few tracks: %f, Targets: %f %d. Dropping and quitting.' % (obj_fin, qual*chiC, min_tracks))
                 break
         
         # Restrict to unique vertices (distance > tol; only position is relevant for this step)
