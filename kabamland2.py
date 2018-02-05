@@ -79,12 +79,26 @@ def uniform_photons(edge_length, n):
     wavelengths = np.repeat(300.0, n)
     return Photons(pos, dir, pol, wavelengths) 
 
+def constant_photons(pos, n):
+    #constructs photons at one location with random propagation directions
+    points = np.empty((n,3))
+    points[:] = pos
+    #points[:,0] = pos[0]
+    #points[:,1] = pos[1]
+    #points[:,2] = pos[2]
+    pos = points
+    dir = uniform_sphere(n)
+    pol = np.cross(dir, uniform_sphere(n))
+    #300 nm is roughly the pseudocumene scintillation wavelength
+    wavelengths = np.repeat(300.0, n)
+    return Photons(pos, dir, pol, wavelengths)
+
 def plot_mesh_object(mesh, centers=[[0,0,0]]): 
     fig = plt.figure(figsize=(10, 8))
     ax = fig.gca(projection='3d')
-	
-    centers = np.array(centers) 
-	
+
+    centers = np.array(centers)
+
     ax.set_xlabel('X Label')
     ax.set_ylabel('Y Label')
     ax.set_zlabel('Z Label')

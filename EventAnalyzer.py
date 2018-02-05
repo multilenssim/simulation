@@ -244,7 +244,7 @@ class EventAnalyzer(object):
             are fed back to the algorithm to find the next vertex.
             If min_tracks<1, use as a fraction of the total event's tracks.
         '''
-        WEIGHT_CUT = 0.56  # Initially was 0.50
+        WEIGHT_CUT = 0.5  # Initially was 0.50
 
         # Get an array of voxel positions within the detector, for repeated use
         bin_pos_array = np.array(self.det_res.bin_to_position_array())  # Returns 10x10x10 = 1000 coordinate positions
@@ -321,10 +321,11 @@ class EventAnalyzer(object):
             # if max_bin_com is not None: # Stick with original position if center of mass calc fails
             #     v_pos_max = np.array(self.det_res.bin_to_position(max_bin_com))
             #max_bin = self.find_max_starting_bin(bin_array, final_pdf, np.shape(final_pdf))
-            
+
+            print "Initial vertex position: " + str(v_pos_max)
             if debug:
-                
-                #self.plot_tracks(tracks,highlight_pt=v_pos_max)
+                self.plot_tracks(tracks,highlight_pt=v_pos_max)
+                '''
                 if doNLL:
                     plotpdf = 1./final_pdf # Take inverse if using NLL method (since values close to 0 are better)
                 else:
@@ -335,7 +336,6 @@ class EventAnalyzer(object):
                 #plt.show()
                 ax = fig.gca()
                 ax.scatter(v_pos_max[0],v_pos_max[1],v_pos_max[2],color='green')
-                print "Initial vertex position: " + str(v_pos_max)
 
                 # codethis = raw_input('Do some code tweaks>')
                 # while codethis not in ['','q','exit'] : 
@@ -346,7 +346,7 @@ class EventAnalyzer(object):
                 plt.show()
                 #raw_input("Waiting for input")
                 #plt.show(fig)
-
+                '''
             # Temporary, for testing; try AVF with several different initial locations near that found above
             # Pick from a uniform sphere of radius rad_frac*inscribed_radius
             n_pos0 = 0
@@ -503,8 +503,8 @@ class EventAnalyzer(object):
                     #print "Weight record: " + str(wt_rec)
                     print "Objective function record: " + str(obj_rec)
                     # Make plot of vtx pos vs iteration, weights and obj function vs iteration
-                    #self.plot_tracks(tracks,path=np.array(v_pos_rec).T)
-                    #self.plot_weights(np.array(wt_rec),obj=np.array(obj_rec))
+                    self.plot_tracks(tracks,path=np.array(v_pos_rec).T)
+                    self.plot_weights(np.array(wt_rec),obj=np.array(obj_rec))
                     #self.plot_weights(np.random.random_sample(np.shape(np.array(wt_rec))),obj=np.array(obj_rec))
                 # TODO: calculate error
                 # TODO: check that final associated tracks are at least min_tracks, else break
@@ -817,24 +817,27 @@ class EventAnalyzer(object):
         obj = np.sum(wt*chi**2)/np.sum(wt) # Get current value of objective function
         return r, sig, d, chi, wt, obj
  
-    def plot_tracks(self, tracks, pts=None, highlight_pt=None, path=None, show=True):
+    def plot_tracks(self, _tracks, pts=None, highlight_pt=None, path=None, show=True, skip_interval=50):
         # Returns a 3D plot of tracks (a Tracks object), as lines extending from their 
         # PMT hit position to the inscribed diameter of the detector. 
         # If pts is not None, will also draw them (should be a (3,n) numpy array).
         # If highlight_pt exists, it will be colored differently.
         # If path exists, a path will be drawn between its points (should be shape (3,n)).
 
-        end_pts = tracks.hit_pos+2*self.det_res.inscribed_radius*tracks.means
-        xs = np.vstack((tracks.hit_pos[0,:], end_pts[0,:]))
-        ys = np.vstack((tracks.hit_pos[1,:], end_pts[1,:]))
-        zs = np.vstack((tracks.hit_pos[2,:], end_pts[2,:]))
+        hit_pos = _tracks.hit_pos.T[0::skip_interval].T
+        means = _tracks.means.T[0::skip_interval].T
+        print('plotting %d tracks' % len(hit_pos[0]))
+        end_pts = hit_pos + self.det_res.inscribed_radius * means
+        xs = np.vstack((hit_pos[0, :], end_pts[0, :]))
+        ys = np.vstack((hit_pos[1, :], end_pts[1, :]))
+        zs = np.vstack((hit_pos[2, :], end_pts[2, :]))
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         # Draw track hit positions
-        ax.scatter(tracks.hit_pos[0,:],tracks.hit_pos[1,:],tracks.hit_pos[2,:],color='red')
+        ax.scatter(hit_pos[0, :], hit_pos[1, :], hit_pos[2, :], color='red')
         # Draw tracks as lines
-        for ii in range(len(tracks)):
+        for ii in range(len(hit_pos[0])):
             ax.plot(xs[:,ii],ys[:,ii],zs[:,ii],color='red')
         
         ax.set_xlabel('X')

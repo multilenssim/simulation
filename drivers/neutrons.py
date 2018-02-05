@@ -60,13 +60,65 @@ def simulate_and_compute_AVF(config, detres=None):
         # Do AVF event reconstruction
         vtcs = analyzer.analyze_one_event_AVF(ev, sig_cone, n_ph, min_tracks, chiC, temps, tol, debug, lens_dia)
 
-def generate_events_old_but_working(sample, cfg, particle, energy, i_r, o_r):
+def create_double_fixed_source_events(loc1, loc2, amount1, amount2):
+    import kabamland2 as kbl
+
+    # produces a list of Photons objects, each with two different photon sources at fixed locations
+    events = []
+    events.append(kbl.constant_photons(loc1, int(amount1)) + kbl.constant_photons(loc2, int(amount2)))
+    return events
+
+def run_simulation_double_fixed_source(sample, cfg, loc1, loc2, amount, qe=None):
+    import h5py
+    import numpy as np
+
+    # File pathing stuff should not be in here
+    data_file_dir = paths.get_data_file_path_no_raw(cfg)
+    if not os.path.exists(data_file_dir):
+        os.makedirs(data_file_dir)
+    dist = np.linalg.norm(loc2 - loc1)
+    fname_base = data_file_dir + 'd-site-'+str(int(dist/10))+'cm-'+str(qe)
+    fname = fname_base + '.h5'
+
+    sim, analyzer = driver_utils.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, geant4_processes=1)
+
+    print('Configuration loaded: ' + cfg)
+    print('Photon count: ' + str(amount))
+    print("G4 state: ", Geant4.gStateManager.GetCurrentState())
+    print("Random engine: ", Geant4.HepRandom.getTheEngine())
+    print("Random seed: ", Geant4.HepRandom.getTheSeed())
+
+    with h5py.File(fname, 'w') as f:
+        first = True
+        for i in range(sample):  # lg in location:
+            # for lg in location:
+            start = time.time()
+            sim_events = create_double_fixed_source_events(loc1, loc2, amount/2, amount/2)
+            for ev in sim.simulate(sim_events, keep_photons_beg=True, keep_photons_end=True, run_daq=False,max_steps=100):
+                vert = ev.photons_beg.pos
+                tracks = analyzer.generate_tracks(ev, qe=qe)
+                driver_utils.write_h5_reverse_track_file_event(f, vert, tracks, first)
+
+                # vertices = utilities.AVF_analyze_event(analyzer, ev)
+                # utilities.plot_vertices(ev.photons_beg.track_tree, 'AVF plot', reconstructed_vertices=vertices)
+
+                gun_specs = driver_utils.build_gun_specs(None, loc1, None, amount)      # TODO: Need loc2?? & using amount of photons as energy
+                di_file = driver_utils.DIEventFile(cfg, gun_specs, ev.photons_beg.track_tree, tracks, photons=ev.photons_beg, full_event=ev)
+                di_file.write(fname_base + '_' + str(i) + '.h5')
+
+                first = False
+                i += 1
+
+            print ('Time: ' + str(time.time() - start) + '\tPhotons detected: ' + str(tracks.sigmas.shape[0]))
+
+
+def generate_events_old_but_working(sample, cfg, particle, energy, i_r, o_r, qe=None):
     # File pathing stuff should not be in here
     seed_loc = 'r%i-%i' % (i_r, o_r)
     data_file_dir = paths.get_data_file_path_no_raw(cfg)
     if not os.path.exists(data_file_dir):
         os.makedirs(data_file_dir)
-    fname_base = data_file_dir+seed_loc+'_'+str(energy)+'_'+particle+'_'+'sim'
+    fname_base = data_file_dir+seed_loc+'_'+str(energy)+'_'+particle+'_'+str(qe)+'_sim'
     fname = fname_base+'.h5'
 
     sim, analyzer = driver_utils.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, geant4_processes=1)
@@ -98,7 +150,7 @@ def generate_events_old_but_working(sample, cfg, particle, energy, i_r, o_r):
             events = sim.simulate(gun, keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100)
             for ev in events:
                 vert = ev.photons_beg.pos
-                tracks = analyzer.generate_tracks(ev, qe=(1. / 3.))
+                tracks = analyzer.generate_tracks(ev, qe=qe)
                 driver_utils.write_h5_reverse_track_file_event(f, vert, tracks, first)
 
                 #vertices = utilities.AVF_analyze_event(analyzer, ev)
@@ -113,13 +165,13 @@ def generate_events_old_but_working(sample, cfg, particle, energy, i_r, o_r):
 
             print ('Time: ' + str(time.time() - start) + '\tPhotons detected: ' + str(tracks.sigmas.shape[0]))
 
-def generate_events(sample_count, config_name, particle, energy, i_r, o_r):
+def generate_events(sample_count, config_name, particle, energy, i_r, o_r, qe=None):
     # File pathing stuff should not be in here
     seed_loc = 'r%i-%i' % (i_r, o_r)
     data_file_dir = paths.get_data_file_path_no_raw(config_name)
     if not os.path.exists(data_file_dir):
         os.makedirs(data_file_dir)
-    fname_base = data_file_dir+seed_loc+'_'+str(energy)+'_'+particle+'_'+'sim'
+    fname_base = data_file_dir+seed_loc+'_'+str(energy)+'_'+particle+'_'+str(qe)+'_sim'
     fname = fname_base+'.h5'
 
     print('Configuration loaded: ' + config_name)
@@ -128,7 +180,7 @@ def generate_events(sample_count, config_name, particle, energy, i_r, o_r):
     print("Random engine: ", Geant4.HepRandom.getTheEngine())
     print("Random seed: ", Geant4.HepRandom.getTheSeed())
 
-    driver_utils.fire_g4_particles(sample_count, config_name, particle, energy, i_r, o_r, fname, di_file_base=fname_base)
+    driver_utils.fire_g4_particles(sample_count, config_name, particle, energy, i_r, o_r, fname, di_file_base=fname_base, qe=qe)
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
@@ -139,9 +191,9 @@ if __name__=='__main__':
 
     #for particle in ['neutron']: # ['e-']:  # ,'gamma']:
     #for dist_range in ['01']:  #,'34']:
-    sample = 1
+    _sample = 3
     #energy = 50.
-    start_time = time.time()
-    print('CUDA initialized')
-    for energy in [2,10,50]:
-        generate_events_old_but_working(sample, args.cfg, args.particle, energy, int(args.s_d[0]), int(args.s_d[1]))
+    #for energy in [2,10,50]:
+    #    generate_events_old_but_working(_sample, args.cfg, args.particle, energy, int(args.s_d[0]), int(args.s_d[1]))
+
+    run_simulation_double_fixed_source(_sample, args.cfg, (0,0,0), (2,0,0), 16000, qe=None)

@@ -198,7 +198,7 @@ class DetectorResponseGAKW(DetectorResponse):
         full_length = 0
         n_min = 10 # Do not calibrate a PMT if <n_min photons hit it
         if nevents < 1:
-            nevents = len(reader)
+            nevents = len(reader)   # This will blow up
         total_means = np.zeros((self.npmt_bins, 3))
         total_variances = np.zeros((self.npmt_bins))
         total_u_minus_v = np.zeros((self.npmt_bins))

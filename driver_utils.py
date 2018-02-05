@@ -12,6 +12,7 @@ import detectorconfig  # No longer pulls in Geant4 by commenting out a LOT of im
 import lensmaterials as lm
 
 import paths
+import logger_lfd as logger
 
 def sim_setup(config,in_file, useGeant4=False, geant4_processes=4, seed=12345, cuda_device=None):
     # Imports are here both to avoind loading Geant4 when unnecessary, and to avoid circular imports
@@ -120,24 +121,25 @@ def save_config_file(cfg, file_name, dict):
 def plot_vertices(track_tree, title, with_electrons=True, file_name=None, reconstructed_vertices=None, reconstructed_vertices2=None):
     particles = {}
     energies = {}
-    for key, value in track_tree.iteritems():
-        if 'particle' in value:
-            particle = value['particle']
-            if particle not in particles:
-                particles[particle] = []
-                energies[particle] = []
-            particles[particle].append(value['position'])
-            energies[particle].append(100.*value['energy'])
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     #ax = fig.gca(projection='3d')
 
-    for key, value in particles.iteritems():
-        if with_electrons or key != 'e-':
-            the_array = np.array(value)
-            #ax.plot(the_array[:,0], the_array[:,1], the_array[:,2], '.', markersize=5.0)
-            ax.scatter(the_array[:,0], the_array[:,1], the_array[:,2], marker='o', s=energies[particle], label=key) #), markersize=5.0)
+    if track_tree is not None:
+        for key, value in track_tree.iteritems():
+            if 'particle' in value:
+                particle = value['particle']
+                if particle not in particles:
+                    particles[particle] = []
+                    energies[particle] = []
+                particles[particle].append(value['position'])
+                energies[particle].append(100.*value['energy'])
+        for key, value in particles.iteritems():
+            if with_electrons or key != 'e-':
+                the_array = np.array(value)
+                #ax.plot(the_array[:,0], the_array[:,1], the_array[:,2], '.', markersize=5.0)
+                ax.scatter(the_array[:,0], the_array[:,1], the_array[:,2], marker='o', s=energies[particle], label=key) #), markersize=5.0)
     if reconstructed_vertices is not None:
         vertex_positions = []
         for v in reconstructed_vertices:
@@ -169,7 +171,7 @@ def plot_vertices(track_tree, title, with_electrons=True, file_name=None, recons
     plt.show()
 
 # Defaults for AVF
-min_tracks = 10 # 0.1       # Use a fraction to take a fraction of total available tracks (something like that)
+min_tracks = 0.1       # Use a fraction to take a fraction of total available tracks (something like that)
 chiC = 0.75
 temps = [256, 0.25]
 tol = 0.1
@@ -318,7 +320,7 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     event = DIEventFile.load_from_file(args.h5_file)
-    title = str(event.gun_specs['energy']) + ' MeV ' + event.gun_specs['particle']
+    title = str(event.gun_specs['energy']) + ' MeV ' + str(event.gun_specs['particle'])     # 'str(particle)' in case it's None
     vertices = None
     if event.tracks is not None:
         print('Track count: ' + str(len(event.tracks)))
