@@ -8,12 +8,15 @@ import h5py
 import os
 import pprint
 
+#import traceback
+
 import detectorconfig  # No longer pulls in Geant4 by commenting out a LOT of imports
 import lensmaterials as lm
 
 import paths
-import logger_lfd as logger
+from logger_lfd import logger
 
+# Do something smarter with the seed?
 def sim_setup(config,in_file, useGeant4=False, geant4_processes=4, seed=12345, cuda_device=None):
     # Imports are here both to avoind loading Geant4 when unnecessary, and to avoid circular imports
     import kabamland2 as kbl2
@@ -21,6 +24,9 @@ def sim_setup(config,in_file, useGeant4=False, geant4_processes=4, seed=12345, c
     from chroma.sim import Simulation
     import DetectorResponseGaussAngle
     import EventAnalyzer
+
+    #logger.info('Debugging stack trace:')
+    #traceback.print_stack()
 
     g4_detector_parameters = G4DetectorParameters(orb_radius=7., world_material='G4_Galactic') if useGeant4 else None
     kabamland = kbl2.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
@@ -30,7 +36,7 @@ def sim_setup(config,in_file, useGeant4=False, geant4_processes=4, seed=12345, c
     return sim, analyzer
 
 def sph_scatter(sample_count,in_shell,out_shell):
-    print('sph_scatter shell radii: ' + str(in_shell) + ' ' + str(out_shell))
+    logger.info('sph_scatter shell radii: ' + str(in_shell) + ' ' + str(out_shell))
     loc = np.random.uniform(-out_shell,out_shell,(sample_count,3))
     while len(loc[(np.linalg.norm(loc,axis=1)>in_shell) & (np.linalg.norm(loc,axis=1)<=out_shell)]) != sample_count:
         bl_idx = np.logical_not((np.linalg.norm(loc,axis=1)>in_shell) & (np.linalg.norm(loc,axis=1)<=out_shell))
@@ -42,43 +48,48 @@ def sph_scatter(sample_count,in_shell,out_shell):
 # Writes both DIEventFile (one per sample_count if file name is provided) and original HDF5 file
 # 'location' is a flag as to whether to generate random locations, momentum, and energy or not
 # If location is provided, those parameters will be fixed, and sample_count will be ignored
-def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius, outer_radius, h5_file, location= None, momentum=None, di_file_base=None):
+def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius, outer_radius, h5_file, location=None, momentum=None, di_file_base=None, qe=None):
     from chroma.generator import vertex
 
     sim, analyzer = sim_setup(config_name, paths.get_calibration_file_name(config_name), useGeant4=True, geant4_processes=1)
 
-    print('Configuration loaded: ' + config_name)
-    print('Energy: ' + str(energy))
-
-    if location is None:
+    logger.info('Configuration:\t%s' % config_name)
+    logger.info('Particle:\t\t%s ' % particle)
+    logger.info('Energy:\t\t%d' % energy)
+    logger.info('Sim count:\t\t%d' % sample_count)
+    
+    if location is None: # Location is a flag
         loc_array = sph_scatter(sample_count, inner_radius * 1000, outer_radius * 1000)
     else:
         loc_array = [location]
 
-    i = 0
     with h5py.File(h5_file, 'w') as f:
         first = True
-        print('Running locations: ' + str(len(loc_array)))
-        for i in range(sample_count):
-            if location is None:  # Use location as a flag
-                gun = vertex.particle_gun([particle], vertex.constant(location), vertex.isotropic(), vertex.flat(float(energy) * 0.999, float(energy) * 1.001))
+        logger.info('Running locations:\t%d' % len(loc_array))
+        for i, lg in enumerate(loc_array):
+            logger.info('Location:\t\t%s' % str(lg))
+            if location is None:
+                gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.999, float(energy) * 1.001))
             else:
-                gun = vertex.particle_gun([particle], vertex.constant(location), vertex.constant(np.array(momentum)), vertex.constant(energy))
+                gun = vertex.particle_gun([particle], vertex.constant(loc_array), vertex.constant(np.array(momentum)), vertex.constant(energy))
+            print('Gun: %s' % str(gun.next()))
 
             events = sim.simulate(gun, keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100)
             for ev in events:
                 vert = ev.photons_beg.pos
-                tracks = analyzer.generate_tracks(ev, qe=(1. / 3.))
+                tracks = analyzer.generate_tracks(ev, qe=qe)
                 write_h5_reverse_track_file_event(f, vert, tracks, first)
+                first=False
 
                 #vertices = utilities.AVF_analyze_event(analyzer, ev)
                 #utilities.plot_vertices(ev.photons_beg.track_tree, 'AVF plot', reconstructed_vertices=vertices)
-                if di_file is not None:
+                if di_file_base is not None:
                     gun_specs = build_gun_specs(particle, lg, None, energy)
                     di_file = DIEventFile(config_name, gun_specs, ev.photons_beg.track_tree, tracks, ev.photons_beg)
                     di_file.write(di_file_base+'_'+str(i)+'.h5')
 
-            print ('Photons detected: ' + str(tracks.sigmas.shape[0]))
+            logger.info('Photons detected:\t' + str(tracks.sigmas.shape[0]))
+            logger.info('============')
 
 
 def detector_config_from_parameter_array(config_name,
@@ -143,19 +154,19 @@ def plot_vertices(track_tree, title, with_electrons=True, file_name=None, recons
     if reconstructed_vertices is not None:
         vertex_positions = []
         for v in reconstructed_vertices:
-            print(v.pos)
+            logger.info('Vertex position: %s' % v.pos)
             vertex_positions.append(np.asarray(v.pos))
         vp = np.asarray(vertex_positions)
-        print('AVF positions: ' + str(vp))
+        logger.info('AVF positions: ' + str(vp))
         ax.scatter(vp[:,0], vp[:,1], vp[:,2], marker=(6,1,0), s=100., color='gray', label='AVF') #), markersize=5.0)
     # Temporary
     if reconstructed_vertices2 is not None:
         vertex_positions = []
         for v in reconstructed_vertices2:
-            print(v.pos)
+            logger.info('Vertex position: %s' % v.pos)
             vertex_positions.append(np.asarray(v.pos))
         vp = np.asarray(vertex_positions)
-        print('AVF 2 positions: ' + str(vp))
+        logger.info('AVF 2 positions: ' + str(vp))
         ax.scatter(vp[:,0], vp[:,1], vp[:,2], marker=(6,1,0), s=100., color='black', label='AVF 2') #), markersize=5.0)
 
     ax.set_xlabel('X')
@@ -170,8 +181,29 @@ def plot_vertices(track_tree, title, with_electrons=True, file_name=None, recons
         pickle.dump(fig, file(file_name, 'wb'))
     plt.show()
 
+############
+# This is the AVF call from efficiency.py:  (For reference)
+#       eff_test(detfile,
+#               detres=paths.get_calibration_file_name(detfile),
+#               detbins=10,
+#               sig_pos=0.01,
+#               n_ph_sim=energy,
+#               repetition=repetition,
+#               max_rad=6600,
+#               n_pos=n_pos,
+#               loc1=(0,0,0),
+#               sig_cone=0.01,
+#               lens_dia=None,
+#               n_ph=0,
+#               min_tracks=0.1,
+#               chiC=1.5,
+#               temps=[256, 0.25],
+#               tol=0.1,
+#               debug=False)
+############
+
 # Defaults for AVF
-min_tracks = 0.1       # Use a fraction to take a fraction of total available tracks (something like that)
+min_tracks = 0.1       # Use a fraction to take a fraction of total available tracks as the minimum (something like that)
 chiC = 0.75
 temps = [256, 0.25]
 tol = 0.1
@@ -180,7 +212,7 @@ tol = 0.1
 #### Note: AVF() modifies the tracks object ####
 def AVF_analyze_tracks(analyzer, tracks, debug=False):
     vtcs = analyzer.AVF(tracks, min_tracks, chiC, temps, tol, debug)
-    print('Vertices: ' + str(vtcs))
+    logger.info('Vertices: ' + str(vtcs))
     return vtcs
 
 # Not currently in use
@@ -190,7 +222,7 @@ def AVF_analyze_event(analyzer, event, debug=False):
     n_ph = 0
 
     vtcs = analyzer.analyze_one_event_AVF(event, sig_cone, n_ph, min_tracks, chiC, temps, tol, debug, lens_dia)
-    print('Vertices: ' + str(vtcs))
+    logger.info('Vertices: ' + str(vtcs))
     return vtcs
 
 def write_h5_reverse_track_file_event(h5file, vert, tracks, first):
@@ -216,7 +248,7 @@ def write_h5_reverse_track_file_event(h5file, vert, tracks, first):
         # Untested - and is there a better way?  This looks too complicated
         idx_tr = h5file.get('idx_tr')
         idx_tr_size = idx_tr.shape[0]
-        #print('=== ' + str(idx_tr_size))
+        #logger.info('=== ' + str(idx_tr_size))
         idx_tr.resize(idx_tr_size + 1, axis=0)
         idx_tr[idx_tr_size] = uncert.shape[0]
 
@@ -277,7 +309,7 @@ class DIEventFile(object):
         track_tree = event['track_tree']
         tracks = event['tracks']
         photons = event['photons']
-        print('Photon count: ' + str(len(photons)))
+        logger.info('Photon count: ' + str(len(photons)))
 
         event_file = cls(config_name, gun_specs, track_tree, tracks, photons)
         event_file.full_event = event['full_event']
@@ -300,14 +332,13 @@ class DIEventFile(object):
         event['hit_pos'] = self.tracks.hit_pos      # Note: these are the center of the lens that the photon hit
         event['means'] = self.tracks.means
         event['sigmas'] = self.tracks.sigmas
-        print('Gun type: ' + str(type(self.gun_specs)))
-        print('Writing deepdish file: ' + file_name)
+        logger.info('Writing deepdish file: ' + file_name)
         dd.io.save(file_name, event)
 
 def print_tracks(tracks, count):
-    print('Total track count: %d' % len(tracks))
+    logger.info('Total track count: %d' % len(tracks))
     for index, track in enumerate(tracks):
-        print('Track %d: %s, %s, %f, norm: %f' % (index, str(track[0]), str(track[1]), track[2], np.linalg.norm(track[0])))
+        logger.info('Track %d: %s, %s, %f, norm: %f' % (index, str(track[0]), str(track[1]), track[2], np.linalg.norm(track[0])))
         if index >= count:
             break
 
@@ -323,9 +354,9 @@ if __name__=='__main__':
     title = str(event.gun_specs['energy']) + ' MeV ' + str(event.gun_specs['particle'])     # 'str(particle)' in case it's None
     vertices = None
     if event.tracks is not None:
-        print('Track count: ' + str(len(event.tracks)))
+        logger.info('Track count: ' + str(len(event.tracks)))
         cal_file = paths.get_calibration_file_name(event.config_name)
-        print('Calibration file: ' + cal_file)
+        logger.info('Calibration file: ' + cal_file)
 
         print_tracks(event.tracks, 20)
 
@@ -334,13 +365,13 @@ if __name__=='__main__':
         tester_triangles = np.arange(1200)
         pixel_result = det_res.scaled_pmt_arr_surf(tester_triangles)
         for i in range(1200):
-            print('%d\t%d\t%d\t%d\t%d' % (tester_triangles[i], pixel_result[0][i], pixel_result[1][i], pixel_result[2][i], pixel_result[3][i]))
+            logger.info('%d\t%d\t%d\t%d\t%d' % (tester_triangles[i], pixel_result[0][i], pixel_result[1][i], pixel_result[2][i], pixel_result[3][i]))
         '''
         analyzer = EventAnalyzer.EventAnalyzer(det_res)
         vertices_from_original_run = AVF_analyze_tracks(analyzer, event.tracks, debug=True)
         '''
-        print ("==================================================================")
-        print ("==================================================================")
+        logger.info("==================================================================")
+        logger.info("==================================================================")
         for qe in [None]:  # 1./3.]: # , 1.0]:
             for i in range(1):
                 new_tracks = analyzer.generate_tracks(event.full_event, qe=qe, debug=True)

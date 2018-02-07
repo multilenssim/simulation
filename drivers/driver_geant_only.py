@@ -375,9 +375,12 @@ def fire_particles(particle, count, energy, position, momentum):
         compute_scatter_angle(track_tree, len(output.dir), i , energy)
 
         # Need to add: config name, matrials config
-        gun_specs = {'particle': particle, 'position': position, 'momentum': momentum, 'energy': energy}
         file_name = particle + '_' + str(energy) + '_' + str(i) + '.h5';
-        driver_utils.write_deep_dish_file(file_name, track_tree, gun_specs, None, output)
+        gun_specs = driver_utils.build_gun_specs(particle, position, momentum, energy)
+        # DIEventFile don't work with None for tracks....
+        di_file = driver_utils.DIEventFile(None, gun_specs, track_tree, None)
+        di_file.write(file_name)
+
     print(photon_counts)
     print(np.average(photon_counts))
     print(np.std(photon_counts))

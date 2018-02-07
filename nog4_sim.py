@@ -107,15 +107,15 @@ energy = 1.
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument('cfg', help='detector configuration')
+	parser.add_argument('cfg', help='detector configuration', nargs='?', default='cfSam1_K200_10')
 	parser.add_argument('sl', help='seed_location')
 	args = parser.parse_args()
 	sample = 500
 	distance = np.linspace(20,450,6)
 	cfg = args.cfg
 	seed_loc = args.sl
-	in_shell = int(seed_loc[1])*1000
-	out_shell = int(seed_loc[3])*1000
+	in_shell = int(seed_loc[0])*1000
+	out_shell = int(seed_loc[1])*1000
 	print('Seed locations: ' + str(in_shell) + ' ' + str(out_shell))
 
 	data_file_dir = paths.get_data_file_path(cfg)
@@ -135,8 +135,10 @@ if __name__ == '__main__':
 
 	print('Firing ' + str(energy) + ' MeV e-''s (not really - WTF)')
 	fire(sample, energy*MeV, sim, analyzer, path, amount)
+        '''
 	print('Firing ' + str(energy) + ' MeV gammas (not really - WTF)')
 	fire(sample, energy*MeV, sim, analyzer, path, amount)
+        '''
 
 	'''
 	bkg_dist_hist(sample,16000,sim,analyzer)

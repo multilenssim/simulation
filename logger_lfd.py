@@ -8,7 +8,7 @@ logger = logging.getLogger('LFD')
 ch = logging.StreamHandler()   # Console logging
 ch.setLevel(logging.DEBUG)
 # create formatter and add it to the handlers
-formatter = logging.Formatter('[%(asctime)s]:%(levelname)s:%(module)s:%(funcName)-12s %(message)s', '%Y-%m-%d %H:%M:%S')
+formatter = logging.Formatter('[%(asctime)s]:%(levelname)s:%(module)s:%(funcName)s:  %(message)s', '%Y-%m-%d %H:%M:%S')
 ch.setFormatter(formatter)
 # add the handlers to logger
 logger.addHandler(ch)

@@ -83,9 +83,6 @@ def constant_photons(pos, n):
     #constructs photons at one location with random propagation directions
     points = np.empty((n,3))
     points[:] = pos
-    #points[:,0] = pos[0]
-    #points[:,1] = pos[1]
-    #points[:,2] = pos[2]
     pos = points
     dir = uniform_sphere(n)
     pol = np.cross(dir, uniform_sphere(n))
