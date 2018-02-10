@@ -139,7 +139,16 @@ configdict['cfSam1_23'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_na
 configdict['cfSam1_24'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=17, b_pixel=4) #1056000 plx, 55 system/face, l_radius: 465 cm np
 '''
 
+
+# The old parameters:    edge_length, base, pmtxbins, pmtybins, diameter_ratio,
+
 def configdict(conf_name):
+    # Temportary to access the old config files for checking sigmas
+    if conf_name == 'cfSam1_K10_8':
+        return DetectorConfig(7556., 55*20, 0, None, 0, 0, 1.0, lens_system_name='Sam1', EPD_ratio=0.8,
+                                                    light_confinement=True, nsteps=6,
+                                                    b_pixel=4)  # 101200plx, 55 system/face, l_radius: 46cm np
+
     fname  =  '%sconf_file.p'%detector_pickled_path
     config_dict = get_dict_param(fname,conf_name)
     return driver_utils.detector_config_from_parameter_array(conf_name, config_dict, lens_system_name='Sam1', light_confinement=True)

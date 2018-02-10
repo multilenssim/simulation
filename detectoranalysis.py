@@ -9,8 +9,10 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+import argparse
 
 from logger_lfd import logger
+import paths
 
 def create_detres(config, simname, detresname, detxbins=10, detybins=10, detzbins=10, method="PDF", nevents=-1, datadir=""):
 	#saves a detector response list of pdfs- 1 for each pixel- given a simulation file of photons emitted isotropically throughout the detector.
@@ -165,8 +167,8 @@ def idx_check(lst, ind):
 	else:
 		return lst[ind]
 
-def check_detres_sigmas(config, detres, datadir=""):
-	det_res = DetectorResponseGaussAngle(config, infile=(datadir+detres))
+def check_detres_sigmas(config, detres, calibration_dir=""):
+	det_res = DetectorResponseGaussAngle(config, infile=(calibration_dir + detres))
 	sig_test = det_res.sigmas[np.where(det_res.sigmas>0.0001)]
 	print "Total PMT bins: " + str(np.shape(det_res.sigmas))
 	print "Calibrated PMT bins: " + str(np.shape(sig_test))
@@ -309,12 +311,20 @@ def plot_event(ev, num_ph=-1):
 	plt.show()
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('cfg', help='detector configuration')
+    args = parser.parse_args()
+
+    datadir = paths.data_files_path #"/home/miladmalek/TestData/"#"/home/skravitz/TestData/"#
     
-    datadir = "/home/miladmalek/TestData/"#"/home/skravitz/TestData/"#
-    
-    fileinfo = 'cfJiani3_3'#'configpc6-meniscus6-fl1_027-confined'#'configpc7-pcrad09dia-fl2-confined'#'configview-meniscus6-fl2_113-confined'
-    
-    #plot_events_from_file('sim-'+fileinfo+'_100million.root', num_events=1, num_ph=100)
+    #fileinfo = 'cfJiani3_3'#'configpc6-meniscus6-fl1_027-confined'#'configpc7-pcrad09dia-fl2-confined'#'configview-meniscus6-fl2_113-confined'
+
+    check_detres_sigmas(args.cfg, 'detresang-' + args.cfg +'_1DVariance_100million.root', calibration_dir=paths.detector_calibration_path)
+
+    reconstruct_perfect_res_event('args.cfg', args.cfg +'_1DVariance_100million.root', 'event-configpc7-f_l-1-(3-3-3)-01-100000.root', event_pos=(3,3,3))
+
+
+	#plot_events_from_file('sim-'+fileinfo+'_100million.root', num_events=1, num_ph=100)
 
     #print testing('configpc7')
 
@@ -341,7 +351,7 @@ if __name__ == '__main__':
 
     #reconstruct_event_AVF('cfJiani3_2', 'event-cfJiani3_2-(0-0-0)-100000.root', detres='detresang-cfJiani3_2_noreflect_100million.root', event_pos=(0,0,0), chiC=3., n_ph=100, debug=True)
 
-    create_detres('cfJiani3_3', 'sim-'+fileinfo+'_100million.root', 'detresang-'+fileinfo+'_noreflect_100million.root', method="GaussAngle", nevents=-1)
+    #create_detres('cfJiani3_3', 'sim-'+fileinfo+'_100million.root', 'detresang-'+fileinfo+'_noreflect_100million.root', method="GaussAngle", nevents=-1)
     
     #check_detres_sigmas('cfJiani3_2', 'detresang-'+fileinfo+'_noreflect_100million.root')
 

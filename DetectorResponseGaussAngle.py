@@ -1,4 +1,4 @@
-from ShortIO.root_short import GaussAngleRootWriter, GaussAngleRootReader, ShortRootReader
+#from ShortIO.root_short import GaussAngleRootWriter, GaussAngleRootReader, ShortRootReader
 from chroma.transform import normalize
 import numpy as np
 import matplotlib.pyplot as plt
@@ -304,6 +304,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
 
     def read_from_ROOT(self, filename):
         # Read the means and sigmas from a ROOT file
+        logger.info('Loading root calibration file: %s' % filename)
         self.is_calibrated = True
         reader = GaussAngleRootReader(filename)
         for bin_ind, mean, sigma in reader:
@@ -311,3 +312,4 @@ class DetectorResponseGaussAngle(DetectorResponse):
             self.sigmas[bin_ind] = sigma
             if np.isnan(sigma):
                 print "Nan read in for bin index " + str(bin_ind)
+        logger.info('Last bin_index: %d' % bin_ind)

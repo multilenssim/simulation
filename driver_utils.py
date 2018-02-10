@@ -342,6 +342,57 @@ def print_tracks(tracks, count):
         if index >= count:
             break
 
+# Stolen from EventAnalyzer
+def plot_tracks_from_endpoints(begin_pos, end_pos, pts=None, highlight_pt=None, path=None, show=True, skip_interval=50):
+    # Returns a 3D plot of tracks (a Tracks object), as lines extending from their
+    # PMT hit position to the inscribed diameter of the detector.
+    # If pts is not None, will also draw them (should be a (3,n) numpy array).
+    # If highlight_pt exists, it will be colored differently.
+    # If path exists, a path will be drawn between its points (should be shape (3,n)).
+
+    hit_pos = end_pos[0::skip_interval].T
+    source_pos = begin_pos[0::skip_interval].T
+
+    print('plotting %d tracks' % len(hit_pos[0]))
+
+    xs = np.vstack((hit_pos[0, :], source_pos[0, :]))
+    ys = np.vstack((hit_pos[1, :], source_pos[1, :]))
+    zs = np.vstack((hit_pos[2, :], source_pos[2, :]))
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    # Draw track hit positions
+    ax.scatter(hit_pos[0, :], hit_pos[1, :], hit_pos[2, :], color='red')
+    # Draw tracks as lines
+    for ii in range(len(hit_pos[0])):
+        ax.plot(xs[:, ii], ys[:, ii], zs[:, ii], color='red')
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    # plt.title(plot_title)
+
+    # Draw pts
+    if pts is not None:
+        ax.scatter(pts[0, :], pts[1, :], pts[2, :], color='blue')
+
+    # Draw highlight_pt, larger and different color
+    if highlight_pt is not None:
+        ax.scatter(highlight_pt[0], highlight_pt[1], highlight_pt[2], color='green', s=50)
+
+    # Draw path between points in path
+    if path is not None:
+        ax.plot(path[0, :], path[1, :], path[2, :], color='blue')
+        plt.title('Vertex position record')
+
+    if show:
+        plt.show()
+
+    return fig
+
+
+CALIBRATED = False
+
 if __name__=='__main__':
     import DetectorResponseGaussAngle
     import EventAnalyzer
@@ -355,29 +406,38 @@ if __name__=='__main__':
     vertices = None
     if event.tracks is not None:
         logger.info('Track count: ' + str(len(event.tracks)))
-        cal_file = paths.get_calibration_file_name(event.config_name)
-        logger.info('Calibration file: ' + cal_file)
-
         print_tracks(event.tracks, 20)
+        if CALIBRATED:
+            cal_file = paths.get_calibration_file_name(event.config_name)
+            logger.info('Calibration file: ' + cal_file)
 
-        det_res = DetectorResponseGaussAngle.DetectorResponseGaussAngle(event.config_name, 10, 10, 10, cal_file)  # What are the 10s??
-        '''
-        tester_triangles = np.arange(1200)
-        pixel_result = det_res.scaled_pmt_arr_surf(tester_triangles)
-        for i in range(1200):
-            logger.info('%d\t%d\t%d\t%d\t%d' % (tester_triangles[i], pixel_result[0][i], pixel_result[1][i], pixel_result[2][i], pixel_result[3][i]))
-        '''
-        analyzer = EventAnalyzer.EventAnalyzer(det_res)
-        vertices_from_original_run = AVF_analyze_tracks(analyzer, event.tracks, debug=True)
-        '''
-        logger.info("==================================================================")
-        logger.info("==================================================================")
-        for qe in [None]:  # 1./3.]: # , 1.0]:
-            for i in range(1):
-                new_tracks = analyzer.generate_tracks(event.full_event, qe=qe, debug=True)
-                print_tracks(new_tracks, 20)
-                new_vertices = AVF_analyze_tracks(analyzer, new_tracks)
 
-                plot_vertices(event.track_tree, title + ', QE: ' + str(qe), reconstructed_vertices=vertices_from_original_run, reconstructed_vertices2=new_vertices)
-        '''
-        plot_vertices(event.track_tree, title, reconstructed_vertices=vertices_from_original_run)
+            det_res = DetectorResponseGaussAngle.DetectorResponseGaussAngle(event.config_name, 10, 10, 10, cal_file)  # What are the 10s??
+            '''
+            tester_triangles = np.arange(1200)
+            pixel_result = det_res.scaled_pmt_arr_surf(tester_triangles)
+            for i in range(1200):
+                logger.info('%d\t%d\t%d\t%d\t%d' % (tester_triangles[i], pixel_result[0][i], pixel_result[1][i], pixel_result[2][i], pixel_result[3][i]))
+            '''
+            analyzer = EventAnalyzer.EventAnalyzer(det_res)
+            vertices_from_original_run = AVF_analyze_tracks(analyzer, event.tracks, debug=True)
+            '''
+            logger.info("==================================================================")
+            logger.info("==================================================================")
+            for qe in [None]:  # 1./3.]: # , 1.0]:
+                for i in range(1):
+                    new_tracks = analyzer.generate_tracks(event.full_event, qe=qe, debug=True)
+                    print_tracks(new_tracks, 20)
+                    new_vertices = AVF_analyze_tracks(analyzer, new_tracks)
+    
+                    plot_vertices(event.track_tree, title + ', QE: ' + str(qe), reconstructed_vertices=vertices_from_original_run, reconstructed_vertices2=new_vertices)
+            '''
+            plot_vertices(event.track_tree, title, reconstructed_vertices=vertices_from_original_run)
+        else:
+            det_res = DetectorResponseGaussAngle.DetectorResponseGaussAngle(event.config_name, 10, 10, 10)#, cal_file)  # What are the 10s??
+            plot_tracks_from_endpoints(event.full_event.photons_beg.pos, event.full_event.photons_end.pos, skip_interval=150)
+            analyzer = EventAnalyzer.EventAnalyzer(det_res)
+            new_tracks = analyzer.generate_tracks(event.full_event, qe=None, debug=True)
+            print_tracks(new_tracks, 20)
+            analyzer.plot_tracks(new_tracks)
+            #plot_vertices(event.track_tree, title) # , reconstructed_vertices=vertices_from_original_run)

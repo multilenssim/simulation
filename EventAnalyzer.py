@@ -8,10 +8,8 @@ import mpl_toolkits.axisartist as AA
 from mpl_toolkits.axes_grid1 import host_subplot
 from chroma.transform import normalize
 from chroma.sample import uniform_sphere
-from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader
 import time as time
 from DetectorResponse import DetectorResponse      # Ick - some weird import loop due to detectorconfig importing utils
-from DetectorResponsePDF import DetectorResponsePDF
 from DetectorResponseGAKW import DetectorResponseGAKW
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 from Tracks import Tracks, Vertex
@@ -31,6 +29,9 @@ class EventAnalyzer(object):
         self.set_style()
         
     def analyze_event_PDF(self, eventfile, event_pos=None):
+        from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader
+        from DetectorResponsePDF import DetectorResponsePDF
+
         #takes an event and constructs the pdf based upon which pmts were hit.
         if not isinstance(self.det_res, DetectorResponsePDF):
             print "Detector response must be of the class DetectorResponsePDF to use this method! Exiting."

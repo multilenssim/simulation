@@ -3,15 +3,15 @@ from chroma.transform import make_rotation_matrix, normalize
 #from chroma.detector import Detector, G4DetectorParameters
 from chroma.demo.optics import glass, black_surface
 from chroma.detector import Detector
-from chroma.detector import G4DetectorParameters
-from ShortIO.root_short import ShortRootWriter
+#from chroma.detector import G4DetectorParameters
+#from ShortIO.root_short import ShortRootWriter
 from chroma.sample import uniform_sphere
 from matplotlib.tri import Triangulation
 from mpl_toolkits.mplot3d import Axes3D
-from chroma import make, view, sample
+from chroma import make, sample
 #from contextlib import contextmanager
 #from chroma.generator import vertex
-from chroma.loader import load_bvh
+#from chroma.loader import load_bvh
 #from chroma.sim import Simulation
 import detectorconfig, lenssystem
 #from chroma.pmt import build_pmt
