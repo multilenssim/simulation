@@ -1,6 +1,8 @@
 from chroma.geometry import Material
 from chroma.geometry import Surface
 
+from Geant4.hepunit import *
+
 import numpy as np
 
 lensmat_refractive_index = 2.0
@@ -120,11 +122,12 @@ def create_scintillation_material():
 		# Required for scintillation yield per particle
 		#_ls.set_scintillation_property('ELECTRONSCINTILLATIONYIELD', 7000. / MeV)
 
-		electron_energy_scint = list([1. * MeV, 10. * MeV, 100. * MeV])
-		electron_yield = list([7000., 8000., 9000.])
+		# Commenting out these three lines causes a "malloc: *** error for object 0x1298c02d0: pointer being freed was not allocated" WTF?
+		electron_energy_scint = list([0., 1. * MeV, 10. * MeV, 100. * MeV])
+		electron_yield = list([0, 7000., 8000., 9000.])
 		_ls.set_scintillation_property('ELECTRONSCINTILLATIONYIELD', electron_energy_scint, electron_yield)
-		proton_energy_scint = list([0.5 * MeV, 1. * MeV, 5. * MeV, 10. * MeV, 20. * MeV, 50. * MeV, 100. * MeV])
-		proton_yield = list([2500., 3000., 4000., 4200., 4400., 6000., 10000.])
+		proton_energy_scint = list([0 * MeV, 0.1 * MeV, 0.5 * MeV, 1 * MeV, 1.5 * MeV, 2 * MeV, 2.5 * MeV, 3 * MeV, 3.5 * MeV, 4 * MeV, 4.4 * MeV, 5 * MeV, 6 * MeV, 7 * MeV, 8 * MeV, 9 * MeV, 10 * MeV, 12 * MeV, 14 * MeV, 16 * MeV, 18 * MeV, 19.9])
+		proton_yield = list([0, 428, 1161, 1637, 1992, 2281, 2527, 2740, 2928, 3097, 3221, 3389, 3635, 3846, 4030, 4193, 4338, 4588, 4796, 4973, 5126, 5254])
 		_ls.set_scintillation_property('PROTONSCINTILLATIONYIELD', proton_energy_scint , proton_yield)
 
 	return _ls

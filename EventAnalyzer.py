@@ -323,31 +323,33 @@ class EventAnalyzer(object):
             #     v_pos_max = np.array(self.det_res.bin_to_position(max_bin_com))
             #max_bin = self.find_max_starting_bin(bin_array, final_pdf, np.shape(final_pdf))
 
+            # Force the initial starting position
+            v_pos_max = np.asarray([1000., 0., 0.])
             print "Initial vertex position: " + str(v_pos_max)
             if debug:
                 self.plot_tracks(tracks,highlight_pt=v_pos_max)
-                '''
-                if doNLL:
-                    plotpdf = 1./final_pdf # Take inverse if using NLL method (since values close to 0 are better)
-                else:
-                    plotpdf = final_pdf
-                plotpdf = np.float32(plotpdf/float(np.sum(plotpdf))) #normalize, for plotting purposes
+                if True:    # Plot the grid of closest approach hits
+                    if doNLL:
+                        plotpdf = 1./final_pdf # Take inverse if using NLL method (since values close to 0 are better)
+                    else:
+                        plotpdf = final_pdf
+                    plotpdf = np.float32(plotpdf/float(np.sum(plotpdf))) #normalize, for plotting purposes
 
-                fig=self.det_res.plot_pdf(plotpdf, "Initial vtx position finding", bin_pos=bin_pos_array, show=False)
-                #plt.show()
-                ax = fig.gca()
-                ax.scatter(v_pos_max[0],v_pos_max[1],v_pos_max[2],color='green')
+                    fig=self.det_res.plot_pdf(plotpdf, "Initial vtx position finding", bin_pos=bin_pos_array, show=False)
+                    #plt.show()
+                    ax = fig.gca()
+                    ax.scatter(v_pos_max[0],v_pos_max[1],v_pos_max[2],color='green')
 
-                # codethis = raw_input('Do some code tweaks>')
-                # while codethis not in ['','q','exit'] : 
-                #     exec(codethis)
-                #     codethis = raw_input()
-                     
-                plt.figure(fig.number)
-                plt.show()
-                #raw_input("Waiting for input")
-                #plt.show(fig)
-                '''
+                    # codethis = raw_input('Do some code tweaks>')
+                    # while codethis not in ['','q','exit'] :
+                    #     exec(codethis)
+                    #     codethis = raw_input()
+
+                    plt.figure(fig.number)
+                    plt.show()
+                    #raw_input("Waiting for input")
+                    #plt.show(fig)
+
             # Temporary, for testing; try AVF with several different initial locations near that found above
             # Pick from a uniform sphere of radius rad_frac*inscribed_radius
             n_pos0 = 0
@@ -408,7 +410,15 @@ class EventAnalyzer(object):
                     
                     wt_rec.append(wt0) # Record current weights
                     obj_rec.append(obj0) # Record current objective function value
-                    
+                    '''
+                    plt.hist(d0, bins=100)
+                    plt.xlabel('Distance from test vertex')
+                    plt.show()
+
+                    plt.hist(wt0, bins=100)
+                    plt.xlabel('Weights')
+                    plt.show()
+                    '''
                     if debug:
                         print_max = min(len(d0), 50)
                         print_max_pts = min(len(d0), 15)

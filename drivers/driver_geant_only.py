@@ -371,7 +371,7 @@ def fire_particles(particle, count, energy, position, momentum):
         # print('Photon count: ' + str(len(output.dir)))
         # Geant4.HepRandom.setTheSeed(9876)
         # print("Random seed: ", Geant4.HepRandom.getTheSeed()
-        driver_utils.plot_vertices(track_tree, title, file_name='vertices' + '-' + particle + '-' + str(i) + '.pickle', with_electrons=False)
+        # driver_utils.plot_vertices(track_tree, title, file_name='vertices' + '-' + particle + '-' + str(i) + '.pickle', with_electrons=False)
         compute_scatter_angle(track_tree, len(output.dir), i , energy)
 
         # Need to add: config name, matrials config
@@ -386,7 +386,6 @@ def fire_particles(particle, count, energy, position, momentum):
     print(np.std(photon_counts))
 
 if __name__ == '__main__':
-
     '''
     Geant4.gApplyUICommand("/run/verbose 2")
     Geant4.gApplyUICommand("/event/verbose 2")
@@ -430,4 +429,4 @@ if __name__ == '__main__':
     # fire_particles(['mu-','mu+'], 2, 1.*1000.)   # mu+ is the anti-particle (but I think it has negative charge)
     #fire_particles(['e-','gamma'], 2, 2.)
     for energy in [2.]:  # ,20.,200.]:
-        fire_particles('neutron', 2, energy, (0,0,0), (1,0,0))        # Can the momentum override the energy???
+        fire_particles('neutron', 1, energy, (0,0,0), (1,0,0))        # Can the momentum override the energy???

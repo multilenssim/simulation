@@ -38,8 +38,8 @@ class Tracks(object):
         # TODO: Need to cull the other things as well!
 
     def closest_pts_sigmas(self, v):
-        if self.lens_rad == 0: 
-			print "lens_rad is still 0!!!" 
+        #if self.lens_rad == 0:
+		#	print "lens_rad is still 0!!!"
         #else: 
 			#print "right lens_rad used:	", self.lens_rad 
         # Returns an array of positions along the tracks closest to Vertex v, along with

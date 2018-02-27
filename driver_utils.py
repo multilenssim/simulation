@@ -329,9 +329,10 @@ class DIEventFile(object):
         if self.full_event is not None:
             event['full_event'] = self.full_event
         event['tracks'] = self.tracks
-        event['hit_pos'] = self.tracks.hit_pos      # Note: these are the center of the lens that the photon hit
-        event['means'] = self.tracks.means
-        event['sigmas'] = self.tracks.sigmas
+        if hasattr(self.tracks, 'hit_pos'):
+            event['hit_pos'] = self.tracks.hit_pos      # Note: these are the center of the lens that the photon hit
+            event['means'] = self.tracks.means
+            event['sigmas'] = self.tracks.sigmas
         logger.info('Writing deepdish file: ' + file_name)
         dd.io.save(file_name, event)
 
@@ -343,7 +344,7 @@ def print_tracks(tracks, count):
             break
 
 # Stolen from EventAnalyzer
-def plot_tracks_from_endpoints(begin_pos, end_pos, pts=None, highlight_pt=None, path=None, show=True, skip_interval=50):
+def plot_tracks_from_endpoints(begin_pos, end_pos, pts=None, highlight_pt=None, path=None, show=True, skip_interval=50, plot_title="Tracks"):
     # Returns a 3D plot of tracks (a Tracks object), as lines extending from their
     # PMT hit position to the inscribed diameter of the detector.
     # If pts is not None, will also draw them (should be a (3,n) numpy array).
@@ -370,7 +371,7 @@ def plot_tracks_from_endpoints(begin_pos, end_pos, pts=None, highlight_pt=None, 
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    # plt.title(plot_title)
+    plt.title(plot_title)
 
     # Draw pts
     if pts is not None:
@@ -435,9 +436,12 @@ if __name__=='__main__':
             plot_vertices(event.track_tree, title, reconstructed_vertices=vertices_from_original_run)
         else:
             det_res = DetectorResponseGaussAngle.DetectorResponseGaussAngle(event.config_name, 10, 10, 10)#, cal_file)  # What are the 10s??
-            plot_tracks_from_endpoints(event.full_event.photons_beg.pos, event.full_event.photons_end.pos, skip_interval=150)
+            #plot_tracks_from_endpoints(event.full_event.photons_beg.pos, event.full_event.photons_end.pos, skip_interval=150, plot_title="All photon tracks")
             analyzer = EventAnalyzer.EventAnalyzer(det_res)
+            vertices_from_original_run = AVF_analyze_tracks(analyzer, event.tracks, debug=True)
+            '''
             new_tracks = analyzer.generate_tracks(event.full_event, qe=None, debug=True)
             print_tracks(new_tracks, 20)
             analyzer.plot_tracks(new_tracks)
+            '''
             #plot_vertices(event.track_tree, title) # , reconstructed_vertices=vertices_from_original_run)

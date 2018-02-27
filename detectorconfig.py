@@ -152,3 +152,15 @@ def configdict(conf_name):
     fname  =  '%sconf_file.p'%detector_pickled_path
     config_dict = get_dict_param(fname,conf_name)
     return driver_utils.detector_config_from_parameter_array(conf_name, config_dict, lens_system_name='Sam1', light_confinement=True)
+
+    ''' Some old out of date code (I think)
+    return DetectorConfig(get_dict_param(fname,conf_name)[0],
+                          get_dict_param(fname,conf_name)[1],
+                          get_dict_param(fname,conf_name)[2],
+                          get_dict_param(fname,conf_name)[3], 0, 0, 1.0,
+                          lens_system_name='Sam1',
+                          EPD_ratio = get_dict_param(fname,conf_name)[4],
+                          light_confinement=True,
+                          nsteps=get_dict_param(fname,conf_name)[5],
+                          b_pixel=get_dict_param(fname,conf_name)[6])
+    '''
