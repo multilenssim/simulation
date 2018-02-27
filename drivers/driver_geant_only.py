@@ -371,7 +371,7 @@ def fire_particles(particle, count, energy, position, momentum):
         # print('Photon count: ' + str(len(output.dir)))
         # Geant4.HepRandom.setTheSeed(9876)
         # print("Random seed: ", Geant4.HepRandom.getTheSeed()
-        # driver_utils.plot_vertices(track_tree, title, file_name='vertices' + '-' + particle + '-' + str(i) + '.pickle', with_electrons=False)
+        driver_utils.plot_vertices(track_tree, title, file_name='vertices' + '-' + particle + '-' + str(i) + '.pickle', with_electrons=True)
         compute_scatter_angle(track_tree, len(output.dir), i , energy)
 
         # Need to add: config name, matrials config

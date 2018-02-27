@@ -116,7 +116,6 @@ def plot_vertices(track_tree, title, with_electrons=True, file_name=None, recons
                 energies[particle] = []
             particles[particle].append(value['position'])
             energies[particle].append(100.*value['energy'])
-
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     #ax = fig.gca(projection='3d')
@@ -125,7 +124,7 @@ def plot_vertices(track_tree, title, with_electrons=True, file_name=None, recons
         if with_electrons or key != 'e-':
             the_array = np.array(value)
             #ax.plot(the_array[:,0], the_array[:,1], the_array[:,2], '.', markersize=5.0)
-            ax.scatter(the_array[:,0], the_array[:,1], the_array[:,2], marker='o', s=energies[particle], label=key) #), markersize=5.0)
+            ax.scatter(the_array[:,0], the_array[:,1], the_array[:,2], marker='o', s=energies[key], label=key) #), markersize=5.0)
     if reconstructed_vertices is not None:
         vertex_positions = []
         for v in reconstructed_vertices:

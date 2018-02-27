@@ -120,14 +120,12 @@ def create_scintillation_material():
 		_ls.set_scintillation_property('YIELDRATIO', 1.0)  # Was 0.8 - I think this is all fast
 
 		# Required for scintillation yield per particle
-		#_ls.set_scintillation_property('ELECTRONSCINTILLATIONYIELD', 7000. / MeV)
-
 		# Commenting out these three lines causes a "malloc: *** error for object 0x1298c02d0: pointer being freed was not allocated" WTF?
 		electron_energy_scint = list([0., 1. * MeV, 10. * MeV, 100. * MeV])
-		electron_yield = list([0, 7000., 8000., 9000.])
+		electron_yield = list([0, 8000., 80000., 800000.])
 		_ls.set_scintillation_property('ELECTRONSCINTILLATIONYIELD', electron_energy_scint, electron_yield)
 		proton_energy_scint = list([0 * MeV, 0.1 * MeV, 0.5 * MeV, 1 * MeV, 1.5 * MeV, 2 * MeV, 2.5 * MeV, 3 * MeV, 3.5 * MeV, 4 * MeV, 4.4 * MeV, 5 * MeV, 6 * MeV, 7 * MeV, 8 * MeV, 9 * MeV, 10 * MeV, 12 * MeV, 14 * MeV, 16 * MeV, 18 * MeV, 19.9])
-		proton_yield = list([0, 428, 1161, 1637, 1992, 2281, 2527, 2740, 2928, 3097, 3221, 3389, 3635, 3846, 4030, 4193, 4338, 4588, 4796, 4973, 5126, 5254])
+		proton_yield = list([0, 43, 581, 1637, 2988, 4562, 6316, 8219, 10249, 12389, 14171, 16946, 21809, 26921, 32240, 37736, 43383, 55059, 67150, 79575, 92277, 104558])
 		_ls.set_scintillation_property('PROTONSCINTILLATIONYIELD', proton_energy_scint , proton_yield)
 
 	return _ls
