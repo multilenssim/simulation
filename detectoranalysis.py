@@ -62,7 +62,7 @@ def create_perfect_res_dir_list(config, detxbins, detybins, detzbins, simname, f
 def reconstruct_perfect_res_event(config, perfect_res_dir_list_file, event, event_pos=None, detbins=10, recon_mode='angle', sig_cone=0.01, n_ph=0):
 	nextperfecttest = DetectorResponse(config, detbins, detbins, detbins)
 	analyzer = EventAnalyzer(nextperfecttest)
-	analyzer.analyse_perfect_res_event(datadir + event, datadir + perfect_res_dir_list_file, event_pos, recon_mode, sig_cone, n_ph)
+	analyzer.analyse_perfect_res_event(datadir + event, perfect_res_dir_list_file, event_pos, recon_mode, sig_cone, n_ph)
 
 def reconstruct_event_AVF(config, event, detres=None, detbins=10, event_pos=None, sig_cone=0.01, n_ph=0, min_tracks=4, chiC=3., temps=[256, 0.25], tol=1.0, debug=False, lens_dia=None, datadir=""):
 	if detres is None:
@@ -311,20 +311,22 @@ def plot_event(ev, num_ph=-1):
 	plt.show()
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('cfg', help='detector configuration')
-    args = parser.parse_args()
 
-    datadir = paths.data_files_path #"/home/miladmalek/TestData/"#"/home/skravitz/TestData/"#
-    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config', help='detector configuration', nargs='?', default='cfSam1_K200_10')
+    _args = parser.parse_args()
+
+    # This is really a global
+    cal_file = paths.get_calibration_file_name(_args.config)
+    datadir = paths.get_data_file_path_no_raw(_args.config)  # "/home/miladmalek/TestData/"#"/home/skravitz/TestData/"#
+
     #fileinfo = 'cfJiani3_3'#'configpc6-meniscus6-fl1_027-confined'#'configpc7-pcrad09dia-fl2-confined'#'configview-meniscus6-fl2_113-confined'
 
-    check_detres_sigmas(args.cfg, 'detresang-' + args.cfg +'_1DVariance_100million.root', calibration_dir=paths.detector_calibration_path)
+    check_detres_sigmas(_args.config, cal_file)
 
-    reconstruct_perfect_res_event('args.cfg', args.cfg +'_1DVariance_100million.root', 'event-configpc7-f_l-1-(3-3-3)-01-100000.root', event_pos=(3,3,3))
+    reconstruct_perfect_res_event(_args.config, cal_file, 'event-configpc7-f_l-1-(3-3-3)-01-100000.root', event_pos=(3,3,3), detbins=50, recon_mode='cos', sig_cone=0.01)
 
-
-	#plot_events_from_file('sim-'+fileinfo+'_100million.root', num_events=1, num_ph=100)
+    #plot_events_from_file('sim-'+fileinfo+'_100million.root', num_events=1, num_ph=100)
 
     #print testing('configpc7')
 

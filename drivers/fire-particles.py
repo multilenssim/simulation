@@ -102,7 +102,8 @@ if __name__=='__main__':
             #generate_events_old_but_working(_sample, args.config, args.particle, energy, int(args.s_d[0]), int(args.s_d[1]))
             #generate_events(_sample, config, particle, energy, int(args.s_d[0]), int(args.s_d[1]))
             driver_utils.fire_g4_particles(_sample_count, config, particle, energy,
-                                           inner_radius, outer_radius, fname, di_file_base=fname_base, qe=qe)#, location=[0,0,0])
+                                           inner_radius, outer_radius, fname, di_file_base=fname_base, qe=qe,
+                                           location=np.array([0.,0.,0.]), momentum=np.array([1.,0.,0.]))
 
     else:  # Photons only - need to clean this up - what optiona?  Single vs. double site?
         for dist in [2000.]: # 1., 500.,1000.,1500.,2000.]:

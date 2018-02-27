@@ -17,7 +17,7 @@ import paths
 from logger_lfd import logger
 
 # Do something smarter with the seed?
-def sim_setup(config,in_file, useGeant4=False, geant4_processes=4, seed=12345, cuda_device=None):
+def sim_setup(config,in_file, useGeant4=False, geant4_processes=4, seed=12345, cuda_device=None, no_gpu=False):
     # Imports are here both to avoind loading Geant4 when unnecessary, and to avoid circular imports
     import kabamland2 as kbl2
     from chroma.detector import G4DetectorParameters
@@ -30,9 +30,13 @@ def sim_setup(config,in_file, useGeant4=False, geant4_processes=4, seed=12345, c
 
     g4_detector_parameters = G4DetectorParameters(orb_radius=7., world_material='G4_Galactic') if useGeant4 else None
     kabamland = kbl2.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
-    sim = Simulation(kabamland, seed=seed, geant4_processes=geant4_processes if useGeant4 else 0, cuda_device=cuda_device)
     det_res = DetectorResponseGaussAngle.DetectorResponseGaussAngle(config,10,10,10,in_file)
     analyzer = EventAnalyzer.EventAnalyzer(det_res)
+    if no_gpu:
+        sim = None
+        print('**** No GPU.  Not initializing CUDA ****')
+    else:
+        sim = Simulation(kabamland, seed=seed, geant4_processes=geant4_processes if useGeant4 else 0, cuda_device=cuda_device)
     return sim, analyzer
 
 def sph_scatter(sample_count,in_shell,out_shell):
@@ -51,7 +55,7 @@ def sph_scatter(sample_count,in_shell,out_shell):
 def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius, outer_radius, h5_file, location=None, momentum=None, di_file_base=None, qe=None):
     from chroma.generator import vertex
 
-    sim, analyzer = sim_setup(config_name, paths.get_calibration_file_name(config_name), useGeant4=True, geant4_processes=1)
+    sim, analyzer = sim_setup(config_name, paths.get_calibration_file_name(config_name), useGeant4=True, geant4_processes=1, no_gpu=True)
 
     logger.info('Configuration:\t%s' % config_name)
     logger.info('Particle:\t\t%s ' % particle)
@@ -71,8 +75,9 @@ def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius,
             if location is None:
                 gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.999, float(energy) * 1.001))
             else:
-                gun = vertex.particle_gun([particle], vertex.constant(loc_array), vertex.constant(np.array(momentum)), vertex.constant(energy))
-            print('Gun: %s' % str(gun.next()))
+                gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.constant(momentum), vertex.constant(energy)) #(np.array(momentum)), vertex.constant(energy))
+            gun1 = gun.next()
+            print('Gun: %s' % str(gun1))
 
             events = sim.simulate(gun, keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100)
             for ev in events:
@@ -92,35 +97,6 @@ def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius,
             logger.info('============')
 
 
-def detector_config_from_parameter_array(config_name,
-                                         config_dict,
-                                         thickness_ratio=0.25,
-                                         blockers=True,
-                                         blocker_thickness_ratio=1.0/1000,
-                                         lens_system_name=None,
-                                         focal_length=1.0,
-                                         light_confinement=True):
-
-    return detectorconfig.DetectorConfig(
-                config_dict[0],
-                config_dict[1],
-                config_dict[2],
-                config_dict[3],
-                0, 0, 1.0,        # pmtxbins, pmtybins, diameter_ratio
-                thickness_ratio=thickness_ratio,
-                blockers=blockers,
-                blocker_thickness_ratio=blocker_thickness_ratio,
-                lens_system_name=lens_system_name,
-                focal_length=focal_length,
-                EPD_ratio = config_dict[4],
-                light_confinement=light_confinement,
-                nsteps=config_dict[5],
-                b_pixel=config_dict[6],
-                tot_pixels=config_dict[7] if len(config_dict) > 7 else None,
-                uuid=config_dict[8] if len(config_dict) > 8 else None,
-                config_name=config_name)
-
-
 def save_config_file(cfg, file_name, dict):
     config_path = paths.get_data_file_path(cfg)
     if not os.path.exists(config_path):
@@ -132,25 +108,24 @@ def save_config_file(cfg, file_name, dict):
 def plot_vertices(track_tree, title, with_electrons=True, file_name=None, reconstructed_vertices=None, reconstructed_vertices2=None):
     particles = {}
     energies = {}
+    for key, value in track_tree.iteritems():
+        if 'particle' in value:
+            particle = value['particle']
+            if particle not in particles:
+                particles[particle] = []
+                energies[particle] = []
+            particles[particle].append(value['position'])
+            energies[particle].append(100.*value['energy'])
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     #ax = fig.gca(projection='3d')
 
-    if track_tree is not None:
-        for key, value in track_tree.iteritems():
-            if 'particle' in value:
-                particle = value['particle']
-                if particle not in particles:
-                    particles[particle] = []
-                    energies[particle] = []
-                particles[particle].append(value['position'])
-                energies[particle].append(100.*value['energy'])
-        for key, value in particles.iteritems():
-            if with_electrons or key != 'e-':
-                the_array = np.array(value)
-                #ax.plot(the_array[:,0], the_array[:,1], the_array[:,2], '.', markersize=5.0)
-                ax.scatter(the_array[:,0], the_array[:,1], the_array[:,2], marker='o', s=energies[particle], label=key) #), markersize=5.0)
+    for key, value in particles.iteritems():
+        if with_electrons or key != 'e-':
+            the_array = np.array(value)
+            #ax.plot(the_array[:,0], the_array[:,1], the_array[:,2], '.', markersize=5.0)
+            ax.scatter(the_array[:,0], the_array[:,1], the_array[:,2], marker='o', s=energies[particle], label=key) #), markersize=5.0)
     if reconstructed_vertices is not None:
         vertex_positions = []
         for v in reconstructed_vertices:
@@ -354,7 +329,7 @@ def plot_tracks_from_endpoints(begin_pos, end_pos, pts=None, highlight_pt=None, 
     hit_pos = end_pos[0::skip_interval].T
     source_pos = begin_pos[0::skip_interval].T
 
-    print('plotting %d tracks' % len(hit_pos[0]))
+    logger.info('Plotting %d tracks' % len(hit_pos[0]))
 
     xs = np.vstack((hit_pos[0, :], source_pos[0, :]))
     ys = np.vstack((hit_pos[1, :], source_pos[1, :]))
@@ -403,7 +378,7 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     event = DIEventFile.load_from_file(args.h5_file)
-    title = str(event.gun_specs['energy']) + ' MeV ' + str(event.gun_specs['particle'])     # 'str(particle)' in case it's None
+    title = str(event.gun_specs['energy']) + ' MeV ' + str(event.gun_specs['particle'])
     vertices = None
     if event.tracks is not None:
         logger.info('Track count: ' + str(len(event.tracks)))
@@ -411,7 +386,6 @@ if __name__=='__main__':
         if CALIBRATED:
             cal_file = paths.get_calibration_file_name(event.config_name)
             logger.info('Calibration file: ' + cal_file)
-
 
             det_res = DetectorResponseGaussAngle.DetectorResponseGaussAngle(event.config_name, 10, 10, 10, cal_file)  # What are the 10s??
             '''
@@ -439,9 +413,9 @@ if __name__=='__main__':
             #plot_tracks_from_endpoints(event.full_event.photons_beg.pos, event.full_event.photons_end.pos, skip_interval=150, plot_title="All photon tracks")
             analyzer = EventAnalyzer.EventAnalyzer(det_res)
             vertices_from_original_run = AVF_analyze_tracks(analyzer, event.tracks, debug=True)
-            '''
-            new_tracks = analyzer.generate_tracks(event.full_event, qe=None, debug=True)
-            print_tracks(new_tracks, 20)
-            analyzer.plot_tracks(new_tracks)
-            '''
+
+            #new_tracks = analyzer.generate_tracks(event.full_event, qe=None, debug=True)
+            #print_tracks(new_tracks, 20)
+            #analyzer.plot_tracks(new_tracks)
+
             #plot_vertices(event.track_tree, title) # , reconstructed_vertices=vertices_from_original_run)

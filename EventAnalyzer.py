@@ -8,6 +8,7 @@ import mpl_toolkits.axisartist as AA
 from mpl_toolkits.axes_grid1 import host_subplot
 from chroma.transform import normalize
 from chroma.sample import uniform_sphere
+
 import time as time
 from DetectorResponse import DetectorResponse      # Ick - some weird import loop due to detectorconfig importing utils
 from DetectorResponseGAKW import DetectorResponseGAKW
@@ -245,7 +246,7 @@ class EventAnalyzer(object):
             are fed back to the algorithm to find the next vertex.
             If min_tracks<1, use as a fraction of the total event's tracks.
         '''
-        WEIGHT_CUT = 0.5  # Initially was 0.50
+        WEIGHT_CUT = 0.56  # Initially was 0.50
 
         # Get an array of voxel positions within the detector, for repeated use
         bin_pos_array = np.array(self.det_res.bin_to_position_array())  # Returns 10x10x10 = 1000 coordinate positions
@@ -515,7 +516,7 @@ class EventAnalyzer(object):
                     print "Objective function record: " + str(obj_rec)
                     # Make plot of vtx pos vs iteration, weights and obj function vs iteration
                     self.plot_tracks(tracks,path=np.array(v_pos_rec).T)
-                    self.plot_weights(np.array(wt_rec),obj=np.array(obj_rec))
+                    #self.plot_weights(np.array(wt_rec),obj=np.array(obj_rec))
                     #self.plot_weights(np.random.random_sample(np.shape(np.array(wt_rec))),obj=np.array(obj_rec))
                 # TODO: calculate error
                 # TODO: check that final associated tracks are at least min_tracks, else break
@@ -837,8 +838,8 @@ class EventAnalyzer(object):
 
         hit_pos = _tracks.hit_pos.T[0::skip_interval].T
         means = _tracks.means.T[0::skip_interval].T
-        print('plotting %d tracks' % len(hit_pos[0]))
-        end_pts = hit_pos + self.det_res.inscribed_radius * means
+        print('Plotting %d tracks' % len(hit_pos[0]))
+        end_pts = hit_pos + (1.5 * self.det_res.inscribed_radius * means)  # Shouldn't need to go to 1.5 here to get the tracks to cross?
         xs = np.vstack((hit_pos[0, :], end_pts[0, :]))
         ys = np.vstack((hit_pos[1, :], end_pts[1, :]))
         zs = np.vstack((hit_pos[2, :], end_pts[2, :]))

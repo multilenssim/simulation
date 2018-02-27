@@ -18,6 +18,3 @@ logger.setLevel(logging.DEBUG)
 
 #from chroma.log import logger as chroma_logger
 #chroma_logger.setLevel(logging.DEBUG)
-
-
-# + '%(process)-7s %(module)-20s %(message)s'

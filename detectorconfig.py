@@ -2,8 +2,6 @@ from lenssystem import get_system_measurements, get_half_EPD
 from paths import detector_pickled_path
 import pickle
 
-import driver_utils
-
 class DetectorConfig(object):
     def __init__ (self, sph_rad, n_lens, max_radius, vtx,
                   pmtxbins, pmtybins,
@@ -56,6 +54,35 @@ class DetectorConfig(object):
         self.tot_pixels = tot_pixels
         self.uuid = uuid
         self.config_name = config_name
+
+def detector_config_from_parameter_array(config_name,
+                                         config_dict,
+                                         thickness_ratio=0.25,
+                                         blockers=True,
+                                         blocker_thickness_ratio=1.0/1000,
+                                         lens_system_name=None,
+                                         focal_length=1.0,
+                                         light_confinement=True):
+
+    return DetectorConfig(
+                config_dict[0],
+                config_dict[1],
+                config_dict[2],
+                config_dict[3],
+                0, 0, 1.0,        # pmtxbins, pmtybins, diameter_ratio
+                thickness_ratio=thickness_ratio,
+                blockers=blockers,
+                blocker_thickness_ratio=blocker_thickness_ratio,
+                lens_system_name=lens_system_name,
+                focal_length=focal_length,
+                EPD_ratio = config_dict[4],
+                light_confinement=light_confinement,
+                nsteps=config_dict[5],
+                b_pixel=config_dict[6],
+                tot_pixels=config_dict[7] if len(config_dict) > 7 else None,
+                uuid=config_dict[8] if len(config_dict) > 8 else None,
+                config_name=config_name)
+
 
 
 # All configpc diameters given are for kabamlandpc packing (different for kabamland2) 
@@ -151,16 +178,5 @@ def configdict(conf_name):
 
     fname  =  '%sconf_file.p'%detector_pickled_path
     config_dict = get_dict_param(fname,conf_name)
-    return driver_utils.detector_config_from_parameter_array(conf_name, config_dict, lens_system_name='Sam1', light_confinement=True)
 
-    ''' Some old out of date code (I think)
-    return DetectorConfig(get_dict_param(fname,conf_name)[0],
-                          get_dict_param(fname,conf_name)[1],
-                          get_dict_param(fname,conf_name)[2],
-                          get_dict_param(fname,conf_name)[3], 0, 0, 1.0,
-                          lens_system_name='Sam1',
-                          EPD_ratio = get_dict_param(fname,conf_name)[4],
-                          light_confinement=True,
-                          nsteps=get_dict_param(fname,conf_name)[5],
-                          b_pixel=get_dict_param(fname,conf_name)[6])
-    '''
+    return detector_config_from_parameter_array(conf_name, config_dict, lens_system_name='Sam1', light_confinement=True)

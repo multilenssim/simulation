@@ -72,7 +72,7 @@ def run_simulation(file, sim, events, analyzer, first=False):
 
 def myhack():
     while True:
-        yield driver_utils.uniform_sphere()
+        yield uniform_sphere()
         #yield [-1,0,0]
 
 # Generate photons from a set of random locations within a spherical shell
