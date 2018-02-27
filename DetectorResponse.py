@@ -69,7 +69,7 @@ class DetectorResponse(object):
         # Temporarily comment out to allow access to old calibration files
         self.lens_centers = get_lens_triangle_centers(config.vtx, self.lns_rad, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
         self.lens_rad = config.half_EPD 
-        
+
         #self.calc1 = self.pmtxbins/self.pmt_side_length
         #self.calc2 = self.pmtxbins/2.0
         #self.calc3 = 2*self.pmtybins/(np.sqrt(3)*self.pmt_side_length)

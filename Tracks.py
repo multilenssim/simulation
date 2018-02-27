@@ -17,7 +17,8 @@ class Tracks(object):
         self.pixels_in_rings = pixels_in_ring
         self.lens_rad = lens_rad
         self.qe = qe
-        
+        self.printed_warning = False
+
     def __len__(self):
         #Returns the number of tracks in self.
         return len(self.sigmas)
@@ -38,9 +39,10 @@ class Tracks(object):
         # TODO: Need to cull the other things as well!
 
     def closest_pts_sigmas(self, v):
-        #if self.lens_rad == 0:
-		#	print "lens_rad is still 0!!!"
-        #else: 
+        if self.lens_rad == 0 and (not hasattr(self,'printed_warning') or not self.printed_warning):
+            print "lens_rad is still 0!!!"
+            self.printed_warning = True
+        #else:
 			#print "right lens_rad used:	", self.lens_rad 
         # Returns an array of positions along the tracks closest to Vertex v, along with
         # an array of the sigmas scaled by the distance along the track to that point

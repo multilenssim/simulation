@@ -382,6 +382,7 @@ if __name__=='__main__':
     vertices = None
     if event.tracks is not None:
         logger.info('Track count: ' + str(len(event.tracks)))
+        event.tracks.sigmas.fill(0.01)  # Temporary hack because I think I forced 0.0001 into the tracks in the file.  Sigmas too small really screw up teh machine!!
         print_tracks(event.tracks, 20)
         if CALIBRATED:
             cal_file = paths.get_calibration_file_name(event.config_name)
@@ -409,13 +410,23 @@ if __name__=='__main__':
             '''
             plot_vertices(event.track_tree, title, reconstructed_vertices=vertices_from_original_run)
         else:
+            print('Photons in file: %d' % len(event.full_event.photons_end))
             det_res = DetectorResponseGaussAngle.DetectorResponseGaussAngle(event.config_name, 10, 10, 10)#, cal_file)  # What are the 10s??
-            #plot_tracks_from_endpoints(event.full_event.photons_beg.pos, event.full_event.photons_end.pos, skip_interval=150, plot_title="All photon tracks")
-            analyzer = EventAnalyzer.EventAnalyzer(det_res)
-            vertices_from_original_run = AVF_analyze_tracks(analyzer, event.tracks, debug=True)
 
+            #plot_tracks_from_endpoints(event.full_event.photons_beg.pos, event.full_event.photons_end.pos, skip_interval=150, plot_title="All photon tracks")
+
+            print('Tracks in file: %d' % len(event.tracks))
+            analyzer = EventAnalyzer.EventAnalyzer(det_res)
+            analyzer.plot_tracks(event.tracks)
+
+            print('=== Analyzing tracks from event tracks in file ===')
+            vertices_from_file_tracks = AVF_analyze_tracks(analyzer, event.tracks, debug=True)
+
+            # Why aren't these tracks the same as the tracks in the event in the file?
             #new_tracks = analyzer.generate_tracks(event.full_event, qe=None, debug=True)
             #print_tracks(new_tracks, 20)
             #analyzer.plot_tracks(new_tracks)
+
+            #vertices_from_file_tracks = AVF_analyze_tracks(analyzer, new_tracks, debug=True)
 
             #plot_vertices(event.track_tree, title) # , reconstructed_vertices=vertices_from_original_run)

@@ -294,6 +294,15 @@ class EventAnalyzer(object):
                 final_pdf += gp
                 #final_pdf *= gp
                 #f_squared += gp**2
+                if ii % 1000 == 0:
+                    plotpdf = final_pdf
+                    plotpdf = np.float32(plotpdf / float(np.sum(plotpdf)))  # normalize, for plotting purposes
+
+                    fig = self.det_res.plot_pdf(plotpdf, "Initial vtx position finding", bin_pos=bin_pos_array, show=False)
+                    ax = fig.gca()
+                    # ax.scatter(v_pos_max[0], v_pos_max[1], v_pos_max[2], color='green')
+                    plt.figure(fig.number)
+                    plt.show()
             # Replace any value divided by 0 with 0, replace negative values with 0
             #zero_mask = 1.0*(final_pdf == 0.)
             #final_pdf_mask = np.ma.masked_array(final_pdf, zero_mask, fill_value=0.)
@@ -370,6 +379,8 @@ class EventAnalyzer(object):
             vtx_list = []
             obj_list = []
             wt_list = []
+
+            #### Finished determining starting vertex (or vertices - if debugging) ####
             
             # For each starting position, find vtx position and associated tracks; keep one with best obj
             for ii in range(n_pos0+1):
@@ -601,6 +612,10 @@ class EventAnalyzer(object):
             dists[ii,:] = vtx.dist(r)/sig # distance (in sigma) from tracks to current vtx
 
         # Find index of closest vertex for each track
+        if len(dists) == 0:
+            print('AVF: no vertices found')
+            return None
+
         vtx_closest = np.argmin(dists, axis=0)
         
         # Associate tracks and recalculate n_ph, err
@@ -758,7 +773,7 @@ class EventAnalyzer(object):
                 u_noise = np.random.normal(scale=sig_u,size=np.shape(end_direction_array[0,:]))
                 v_noise = np.random.normal(scale=sig_u,size=np.shape(end_direction_array[0,:]))
                 hit_noise = u_noise*u_dir_array.T + v_noise*v_dir_array.T # (3, n)
-                hit_pos = event_pmt_pos_array + hit_noise                 
+                hit_pos = event_pmt_pos_array + hit_noise
                 if debug:
                     print "sig_u: " + str(sig_u)
                     print "sig_th: " + str(sig_th)
@@ -840,6 +855,7 @@ class EventAnalyzer(object):
         means = _tracks.means.T[0::skip_interval].T
         print('Plotting %d tracks' % len(hit_pos[0]))
         end_pts = hit_pos + (1.5 * self.det_res.inscribed_radius * means)  # Shouldn't need to go to 1.5 here to get the tracks to cross?
+
         xs = np.vstack((hit_pos[0, :], end_pts[0, :]))
         ys = np.vstack((hit_pos[1, :], end_pts[1, :]))
         zs = np.vstack((hit_pos[2, :], end_pts[2, :]))
