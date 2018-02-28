@@ -273,15 +273,15 @@ class DetectorResponse(object):
         return detector_dir_list
 
     def scaled_pmt_arr_surf(self,closest_triangle_index):
-	closest_triangle_index = np.asarray(closest_triangle_index)
-	curved_surface_index = (closest_triangle_index/self.n_triangles_per_surf).astype(int)
-	renorm_triangle = closest_triangle_index % self.n_triangles_per_surf
-	c_rings = np.cumsum(self.ring)
-	c_rings = np.roll(c_rings,1)
-	c_rings[0] = 0
-	mtx = (np.tile(2*c_rings,(len(renorm_triangle),1)).T - renorm_triangle).T
-	stop_arr = c_rings[np.argmax(mtx>0,axis=1)-1]
-	return ((renorm_triangle - 2*stop_arr) % self.ring[np.argmax(mtx>0,axis=1)-1]) + stop_arr + curved_surface_index*self.n_pmts_per_surf
+        closest_triangle_index = np.asarray(closest_triangle_index)
+        curved_surface_index = (closest_triangle_index/self.n_triangles_per_surf).astype(int)
+        renorm_triangle = closest_triangle_index % self.n_triangles_per_surf
+        c_rings = np.cumsum(self.ring)
+        c_rings = np.roll(c_rings,1)
+        c_rings[0] = 0
+        mtx = (np.tile(2*c_rings,(len(renorm_triangle),1)).T - renorm_triangle).T
+        stop_arr = c_rings[np.argmax(mtx>0,axis=1)-1]
+        return ((renorm_triangle - 2*stop_arr) % self.ring[np.argmax(mtx>0,axis=1)-1]) + stop_arr + curved_surface_index*self.n_pmts_per_surf
 
     def find_pmt_bin_array(self, pos_array):
         
@@ -400,34 +400,34 @@ class DetectorResponse(object):
         #init_coord is the initial coordinate of the pmt center before it is rotated and displaced 
         #onto the correct pmtface. 
         if(self.detector_r==0):
-			facebin, xbin, ybin = self.pmt_bin_to_tuple(pmtbin, self.pmtxbins, self.pmtybins)
-			init_xcoord = self.pmt_side_length/(2.0*self.pmtxbins)*(2*xbin+1) - self.pmt_side_length/2.0
-			init_ycoord = np.sqrt(3)*self.pmt_side_length/(4.0*self.pmtybins)*(2*ybin+1) - np.sqrt(3)*self.pmt_side_length/6.0
-			init_coord = np.array([init_xcoord, init_ycoord, np.zeros(np.shape(init_xcoord))])
-			if len(np.shape(init_coord)) == 1: # Handle a single bin differently, as it has fewer dimensions
-				bin_coord = np.dot(self.rotation_matrices[facebin], init_coord) + self.displacement_matrix[facebin]
-			else:
-				bin_coord = np.einsum('ijk,ki->ij',self.rotation_matrices[facebin], init_coord) + self.displacement_matrix[facebin]
-			return bin_coord
+            facebin, xbin, ybin = self.pmt_bin_to_tuple(pmtbin, self.pmtxbins, self.pmtybins)
+            init_xcoord = self.pmt_side_length/(2.0*self.pmtxbins)*(2*xbin+1) - self.pmt_side_length/2.0
+            init_ycoord = np.sqrt(3)*self.pmt_side_length/(4.0*self.pmtybins)*(2*ybin+1) - np.sqrt(3)*self.pmt_side_length/6.0
+            init_coord = np.array([init_xcoord, init_ycoord, np.zeros(np.shape(init_xcoord))])
+            if len(np.shape(init_coord)) == 1: # Handle a single bin differently, as it has fewer dimensions
+                bin_coord = np.dot(self.rotation_matrices[facebin], init_coord) + self.displacement_matrix[facebin]
+            else:
+                bin_coord = np.einsum('ijk,ki->ij',self.rotation_matrices[facebin], init_coord) + self.displacement_matrix[facebin]
+            return bin_coord
         else:
-			# Get indices of curved surfaces hit, then translate to first of two triangles hit
-			#print self.n_triangles_per_surf
-			#print self.n_pmts_per_surf
-			curved_surf_bin = (pmtbin/self.n_pmts_per_surf) # Integer division - drops remainder
-			#print curved_surf_bin
-			#print max(curved_surf_bin)
+            # Get indices of curved surfaces hit, then translate to first of two triangles hit
+            #print self.n_triangles_per_surf
+            #print self.n_pmts_per_surf
+            curved_surf_bin = (pmtbin/self.n_pmts_per_surf) # Integer division - drops remainder
+            #print curved_surf_bin
+            #print max(curved_surf_bin)
 
-			triangle_bin1 = curved_surf_bin*self.n_triangles_per_surf + (pmtbin % self.n_pmts_per_surf)
-			triangle_bin2 = triangle_bin1+self.n_pmts_per_surf # Second triangle for this PMT
-			
-			triangle_pos1 = self.triangle_centers[triangle_bin1]
-			triangle_pos2 = self.triangle_centers[triangle_bin2]
+            triangle_bin1 = curved_surf_bin*self.n_triangles_per_surf + (pmtbin % self.n_pmts_per_surf)
+            triangle_bin2 = triangle_bin1+self.n_pmts_per_surf # Second triangle for this PMT
 
-			#print triangle_bin1
-			#print triangle_pos1
-			bin_pos = (triangle_pos1+triangle_pos2)/2.0
+            triangle_pos1 = self.triangle_centers[triangle_bin1]
+            triangle_pos2 = self.triangle_centers[triangle_bin2]
 
-			return bin_pos
+            #print triangle_bin1
+            #print triangle_pos1
+            bin_pos = (triangle_pos1+triangle_pos2)/2.0
+
+            return bin_pos
    
     def bin_to_position(self, bintup):
         #takes a detector bin tuple and outputs the coordinate position tuple at the CENTER of the bin
