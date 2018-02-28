@@ -22,6 +22,7 @@ import numpy as np
 
 import paths
 import driver_utils
+from logger_lfd import logger
 
 def plot_vertices(origin, vertices):  # track_tree, title, with_electrons=True, file_name='vertex_plot.pickle'):
 
@@ -82,6 +83,8 @@ def eff_test(config,
 
 		ROOT.gROOT.Reset()
 		#f1 = ROOT.TFile(rootdir+str(now)+"_"+config+"_rep-"+str(repetition)+"_npos-"+str(n_pos)+".root", "RECREATE")
+                logger.info('Writing: %s' % rootdir+'rep-'+str(repetition)+'_npos-'+str(n_pos)+'.root')
+
 		f1 = ROOT.TFile(rootdir+'rep-'+str(repetition)+'_npos-'+str(n_pos)+'.root', 'RECREATE')
 		ttree = ROOT.TTree("data","data")
 
@@ -104,7 +107,7 @@ def eff_test(config,
 
 		print('Simulation started.')
 
-		sim, analyzer = driver_utils.sim_setup(config, detres)   # KW: where did this line come from?  It seems to do nothing
+		sim, analyzer = driver_utils.sim_setup(config, detres)
 
 		if detres is None:
 			det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins)
@@ -120,6 +123,7 @@ def eff_test(config,
 
 		# Get equally seperated radii within the detector up to the maximum radius max_rad
 		rads = [ii*max_rad/n_pos for ii in range(n_pos+1)]
+                logger.info('Radial locations: %s' % str(rads))
 
 		recon = np.zeros((len(n_ph_sim), repetition, n_pos+1, 6))
 
@@ -269,13 +273,13 @@ if __name__ == '__main__':
     design = [args.cfg]
     # suffix = '_1DVariance'
     energy = [5333]
-    repetition = 50
-    n_pos = 1
+    repetition = 10 # 50
+    n_pos = 4
     set_style()
 
-    simulate_and_compute_AVF(design[0], detres=None)
+    # simulate_and_compute_AVF(design[0], detres=None)
 
-    '''
+
     for detfile in design:
         rootdir = paths.data_files_path+'dev/'+detfile+'/pos_res-eff/'
         if not os.path.exists(rootdir):
@@ -286,5 +290,5 @@ if __name__ == '__main__':
         elif args.run == 'plot':
             filename = 'rep-'+str(repetition)+'_npos-'+str(n_pos)
             get_eff_from_root(filename=filename , n_ph_sim=energy, repetition=repetition, n_pos=n_pos)
-    '''
+
     print "Simulation done."

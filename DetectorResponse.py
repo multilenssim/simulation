@@ -9,6 +9,7 @@ import detectorconfig
 import numpy as np
 #import time
 
+from logger_lfd import logger
 
 class DetectorResponse(object):
     '''A DetectorResponse represents the information available to the detector
@@ -79,6 +80,7 @@ class DetectorResponse(object):
         self.c_rings_rolled = np.roll(self.c_rings, 1)
         self.c_rings_rolled[0] = 0
 
+        logger.info('Detector rings: %s, cumulative pixels in rings: %s' % (str(self.ring), str(self.c_rings)))
 
     def build_rotation_matrices(self):
         rotation_matrices = np.empty((20, 3, 3))
@@ -394,7 +396,7 @@ class DetectorResponse(object):
             #plt.show()
             #for ii in range(len(bin_array)):
                 #print ii, "\t", closest_triangle_index[ii],"\t",curved_surface_index[ii], "\t",surface_pmt_index[ii], "\t",bin_array[ii]    
-            print('bin_array: ' + str(bin_array))
+            #print('bin_array: ' + str(bin_array))
             return bin_array.astype(int)
             
     def find_closest_triangle_center(self, pos_array, max_dist = 1.):
@@ -404,7 +406,7 @@ class DetectorResponse(object):
         #max_dist = 1
         #max_dist=1000
         query_results = self.triangle_centers_tree.query(pos_array,distance_upper_bound = max_dist)
-        print('Tree query results: ' + str(query_results))
+        #print('Tree query results: ' + str(query_results))
         closest_triangle_index = query_results[1].tolist()
         closest_triangle_dist = query_results[0].tolist()
         # print('Triangle index: ' + str(closest_triangle_index))

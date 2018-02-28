@@ -197,6 +197,7 @@ class DetectorResponseGAKW(DetectorResponse):
         culprit_count = 0
         full_length = 0
         n_min = 10 # Do not calibrate a PMT if <n_min photons hit it
+        logger.info('Looking for %d / %d events' % (nevents, -300)) # len(reader)))
         if nevents < 1:
             nevents = len(reader)   # This will blow up
         total_means = np.zeros((self.npmt_bins, 3))
@@ -204,7 +205,8 @@ class DetectorResponseGAKW(DetectorResponse):
         total_u_minus_v = np.zeros((self.npmt_bins))
         amount_of_hits = np.zeros((self.npmt_bins))
 
-        max_storage = min(nevents*1000000,120000000) #600M is too much, 400M is OK (for np.float32; using 300M)
+        max_storage = min(nevents*100000,1200000000) #600M is too much, 400M is OK (for np.float32; using 300M)
+        logger.info('Max photon? storage: %d' % max_storage)
         end_direction_array = np.empty((max_storage,3),dtype=np.float32) 
         #pmt_bins = np.empty(max_storage,dtype=np.float32)
         pmt_bins = np.empty(max_storage,dtype=np.int)   # Is it OK to change this to int?  Need to explore that...
@@ -213,7 +215,7 @@ class DetectorResponseGAKW(DetectorResponse):
         pickle_name = self.configname + '-hits.pickle'
 
         try:
-            print('Loading pickle hits file: ' + directory+pickle_name);
+            logger.info('Loading pickle hits file: ' + directory+pickle_name);
             with open(directory+pickle_name, 'rb') as inf:
                 pmt_hits = pickle.load(inf)
             logger.info('Hit map pickle file loaded: ' + pickle_name)
@@ -232,6 +234,7 @@ class DetectorResponseGAKW(DetectorResponse):
             for ev in reader:
                 loops += 1
                 if loops > nevents:
+                    logger.info('Found at least %d events. Quitting.' % nevents)
                     break
                 if i % 100 == 0:
                     logger.info("Event " + str(loops) + " of " + str(nevents))
@@ -239,6 +242,7 @@ class DetectorResponseGAKW(DetectorResponse):
 
                 length = self.find_photons_for_pmt_top(ev, pmt_bins, end_direction_array, n_det, max_storage)
                 if length is None:
+                    loggin.info('No more photons found')
                     break
 
                 n_det += length

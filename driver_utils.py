@@ -56,6 +56,8 @@ def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius,
     from chroma.generator import vertex
 
     sim, analyzer = sim_setup(config_name, paths.get_calibration_file_name(config_name), useGeant4=True, geant4_processes=1, no_gpu=True)
+    #sim, analyzer = sim_setup(config_name, paths.get_calibration_file_name(config_name), useGeant4=True, geant4_processes=1)
+    #analyzer.det_res.is_calibrated=False    # Temporary to test AVF with actual photon angles
 
     logger.info('Configuration:\t%s' % config_name)
     logger.info('Particle:\t\t%s ' % particle)
@@ -76,11 +78,12 @@ def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius,
                 gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.999, float(energy) * 1.001))
             else:
                 gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.constant(momentum), vertex.constant(energy)) #(np.array(momentum)), vertex.constant(energy))
+                #gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.constant(np.array(momentum)), vertex.constant(energy))  # This line from Amazon
             gun1 = gun.next()
             print('Gun: %s' % str(gun1))
 
             events = sim.simulate(gun, keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100)
-            for ev in events:
+            for ev in events:   # Note: I think there is really only ever one event because of the 'for lg in loc_array:'
                 vert = ev.photons_beg.pos
                 tracks = analyzer.generate_tracks(ev, qe=qe)
                 write_h5_reverse_track_file_event(f, vert, tracks, first)

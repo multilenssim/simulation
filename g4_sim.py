@@ -6,11 +6,12 @@ import sys
 
 import pycuda.driver as cuda
 import paths
-import driver_utils
 
 from multiprocessing import Pool, TimeoutError
 from multiprocessing.pool import ThreadPool
 import multiprocessing          # Just for CPU count
+
+import driver_utils
 
 def cuda_stat():
     cuda.init()

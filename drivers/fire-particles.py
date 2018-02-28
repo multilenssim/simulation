@@ -8,11 +8,14 @@ from EventAnalyzer import EventAnalyzer
 import driver_utils
 from logger_lfd import logger
 
+import matplotlib.pyplot as plt
+
 def create_double_fixed_source_events(loc1, loc2, amount1, amount2):
     import kabamland2 as kbl
 
     # produces a list of Photons objects, each with two different photon sources at fixed locations
     events = []
+    # Move constant photons etc. to driver utils
     events.append(kbl.constant_photons(loc1, int(amount1)) + kbl.constant_photons(loc2, int(amount2)))
     return events
 
@@ -32,6 +35,7 @@ def run_simulation_double_fixed_source(sim, analyzer, sample, cfg, loc1, loc2, a
 
     # sim, analyzer = driver_utils.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, geant4_processes=1)
 
+    logger.info('Firing %d photons from %s and %s' % (amount, str(loc1), str(loc2)))
     logger.info('Configuration loaded: %s' % cfg)
     logger.info('Photon count: %d' % amount)
 
@@ -51,7 +55,15 @@ def run_simulation_double_fixed_source(sim, analyzer, sample, cfg, loc1, loc2, a
                 tracks = analyzer.generate_tracks(ev, qe=qe)
                 driver_utils.write_h5_reverse_track_file_event(f, vert, tracks, first)
 
-                vertices = driver_utils.AVF_analyze_event(analyzer, ev, debug=True)
+                if not UNCALIBRATE:
+                    _,bn,_ = plt.hist(tracks.rings,bins=100)
+                    #plt.yscale('log', nonposy='clip')
+                    plt.xlabel('ring')
+                    plt.show()
+
+                #vertices = driver_utils.AVF_analyze_tracks(analyzer, tracks, debug=True)
+
+                #vertices = driver_utils.AVF_analyze_event(analyzer, ev, debug=True)
                 #utilities.plot_vertices(ev.photons_beg.track_tree, 'AVF plot', reconstructed_vertices=vertices)
 
                 gun_specs = driver_utils.build_gun_specs(None, loc1, None, amount)      # TODO: Need loc2?? & using amount of photons as energy
@@ -61,14 +73,15 @@ def run_simulation_double_fixed_source(sim, analyzer, sample, cfg, loc1, loc2, a
                 first = False
                 i += 1
 
-            logger.info('Time: ' + str(time.time() - start) + '\tPhotons detected: ' + str(tracks.sigmas.shape[0]))
+            logger.info('Time: ' + str(time.time() - start))
 
+UNCALIBRATE = True
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('config', help='detector configuration', nargs='?', default='cfSam1_K200_10')
     parser.add_argument('particle', help='particle to simulate')
-    parser.add_argument('s_d', help='seed location')
+    parser.add_argument('s_d', help='seed location', nargs='?', default='01')
     _args = parser.parse_args()
 
     inner_radius = int(_args.s_d[0])
@@ -90,12 +103,12 @@ if __name__=='__main__':
 
     #for particle in ['neutron']: # ['e-']:  # ,'gamma']:
     #for dist_range in ['01']:  #,'34']:
-    _sample_count = 4
+    _sample_count = 5
 
     if not particle == 'photon':
         # Pass sim, analyzer in to avoid reloading the detector and improve improve performance
         #sim, analyzer = driver_utils.sim_setup(config, paths.get_calibration_file_name(config), useGeant4=False, geant4_processes=1)
-        for energy in [2]: # ,10,50]:
+        for energy in [20.]: # ,10,50]:
             qe=None
             fname_base = data_file_dir+seed_loc+'_'+str(energy)+'_'+particle+'_'+str(qe)+'_sim'
             fname = fname_base+'.h5'
@@ -104,9 +117,9 @@ if __name__=='__main__':
             driver_utils.fire_g4_particles(_sample_count, config, particle, energy,
                                            inner_radius, outer_radius, fname, di_file_base=fname_base, qe=qe,
                                            location=np.array([0.,0.,0.]), momentum=np.array([1.,0.,0.]))
-
     else:  # Photons only - need to clean this up - what optiona?  Single vs. double site?
         for dist in [2000.]: # 1., 500.,1000.,1500.,2000.]:
             sim, analyzer = driver_utils.sim_setup(config, paths.get_calibration_file_name(config), useGeant4=False)
+            if UNCALIBRATE:
+                analyzer.det_res.is_calibrated=False    # Temporary to test AVF with actual photon angles
             run_simulation_double_fixed_source(sim, analyzer, _sample_count, config, np.array([0.,0.,0.]), np.array([dist,0.,0.]), 16000, qe=None)
-

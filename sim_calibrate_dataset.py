@@ -42,35 +42,37 @@ def calibrate_and_simulate(cfg, particle, dist_range, energy ):
             logger.info('Failed to find: ' + paths.get_calibration_file_name(cfg))
             # We should really date stamp the directory containing the output and configuration files
             logger.info('==== Step 1: Setting up the detector ====')
-            photons_file = 'sim-'+cfg+'_100million.root'
+            photons_file = 'sim-'+cfg+'_1billion.root'
             if not os.path.exists(paths.detector_calibration_path + photons_file):
-                    logger.info('==== Strp 1.1: Building detector and simulating photons ====')
-                    full_detector_simulation(100000, cfg, photons_file, datadir=paths.detector_calibration_path)
+                    logger.info('==== Step 1.1: Building detector and simulating photons ====')
+                    full_detector_simulation(1000000, cfg, photons_file, datadir=paths.detector_calibration_path)
             logger.info("==== Step 2: Calibrating  ====")
             da.create_detres(args.cfg,
                              photons_file,
                              paths.get_calibration_file_name_without_path(cfg),
                              method="GaussAngle",
-                             nevents=1000,
+                             nevents=10000,
                              datadir=paths.detector_calibration_path)
             #os.remove(photons_file)
             logger.info("==== Calibration complete ====")
+    else:
+        print('Found calibration file: %s' % paths.get_calibration_file_name(cfg))
 
     if True:
-            all_config_info = {'configuration': detectorconfig.configdict(cfg)}
-            # all_config_info = {'configuration': detectorconfig.configdict[cfg].__dict__}  # Old design - are we suppoting anymore?
-            all_config_info['scintillator'] = lensmaterials.create_scintillation_material().__dict__
-            all_config_info['lens_material'] = lensmaterials.lensmat.__dict__
-            all_config_info['G4_config'] = 'placeholder'
-            # Note - these might override on successive runs??
-            all_config_info['particle'] = particle
-            all_config_info['energy'] = energy
-            all_config_info['distance_range'] = dist_range
-            all_config_info['quantum_efficiency'] = 'placeholder'
-            driver_utils.save_config_file(cfg, 'full_config.pickle', all_config_info)
+        all_config_info = {'configuration': detectorconfig.configdict(cfg)}
+        # all_config_info = {'configuration': detectorconfig.configdict[cfg].__dict__}  # Old design - are we suppoting anymore?
+        all_config_info['scintillator'] = lensmaterials.create_scintillation_material().__dict__
+        all_config_info['lens_material'] = lensmaterials.lensmat.__dict__
+        all_config_info['G4_config'] = 'placeholder'
+        # Note - these might override on successive runs??
+        all_config_info['particle'] = particle
+        all_config_info['energy'] = energy
+        all_config_info['distance_range'] = dist_range
+        all_config_info['quantum_efficiency'] = 'placeholder'
+        driver_utils.save_config_file(cfg, 'full_config.pickle', all_config_info)
 
-            # Write both files for now to support Jacopo's test setup
-            driver_utils.save_config_file(cfg, 'conf.pkl', detectorconfig.configdict(cfg))  # cfg].__dict__)
+        # Write both files for now to support Jacopo's test setup
+        driver_utils.save_config_file(cfg, 'conf.pkl', detectorconfig.configdict(cfg))  # cfg].__dict__)
 
     logger.info('==== Step 3: Simulation part ====')
     g4_sim.run_simulation(cfg, particle, dist_range, energy)
