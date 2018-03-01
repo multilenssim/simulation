@@ -37,28 +37,31 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
     f.close()
 
 
-def calibrate_and_simulate(cfg, particle, dist_range, energy ):
+def calibrate(cfg, particle, dist_range, energy):
     if not os.path.isfile(paths.get_calibration_file_name(cfg)):   # This is not a great structure as other configuration data may change in addition to the detector config
-            logger.info('Failed to find: ' + paths.get_calibration_file_name(cfg))
-            # We should really date stamp the directory containing the output and configuration files
-            logger.info('==== Step 1: Setting up the detector ====')
-            photons_file = 'sim-'+cfg+'_1billion.root'
-            if not os.path.exists(paths.detector_calibration_path + photons_file):
-                    logger.info('==== Step 1.1: Building detector and simulating photons ====')
-                    full_detector_simulation(1000000, cfg, photons_file, datadir=paths.detector_calibration_path)
-            logger.info("==== Step 2: Calibrating  ====")
-            da.create_detres(args.cfg,
-                             photons_file,
-                             paths.get_calibration_file_name_without_path(cfg),
-                             method="GaussAngle",
-                             nevents=10000,
-                             datadir=paths.detector_calibration_path)
-            #os.remove(photons_file)
-            logger.info("==== Calibration complete ====")
+        logger.info('Failed to find: ' + paths.get_calibration_file_name(cfg))
+        # We should really date stamp the directory containing the output and configuration files
+        logger.info('==== Step 1: Setting up the detector ====')
+        photons_file = 'sim-'+cfg+'_1billion.root'
+        if not os.path.exists(paths.detector_calibration_path + photons_file):
+                logger.info('==== Step 1.1: Building detector and simulating photons ====')
+                full_detector_simulation(1000000, cfg, photons_file, datadir=paths.detector_calibration_path)
+        logger.info("==== Step 2: Calibrating  ====")
+        da.create_detres(args.cfg,
+                         photons_file,
+                         paths.get_calibration_file_name_without_path(cfg),
+                         method="GaussAngle",
+                         nevents=10000,
+                         datadir=paths.detector_calibration_path)
+        #os.remove(photons_file)
+        logger.info("==== Calibration complete ====")
     else:
         print('Found calibration file: %s' % paths.get_calibration_file_name(cfg))
 
-    if True:
+    # Continue to write this to support Jacopo's test setup
+    driver_utils.save_config_file(cfg, 'conf.pkl', detectorconfig.configdict(cfg))  # cfg].__dict__)
+
+    if False:     # Need to reexamine this in light of what we are doing - is this a cal config, or is this a simulation config
         all_config_info = {'configuration': detectorconfig.configdict(cfg)}
         # all_config_info = {'configuration': detectorconfig.configdict[cfg].__dict__}  # Old design - are we suppoting anymore?
         all_config_info['scintillator'] = lensmaterials.create_scintillation_material().__dict__
@@ -71,9 +74,7 @@ def calibrate_and_simulate(cfg, particle, dist_range, energy ):
         all_config_info['quantum_efficiency'] = 'placeholder'
         driver_utils.save_config_file(cfg, 'full_config.pickle', all_config_info)
 
-        # Write both files for now to support Jacopo's test setup
-        driver_utils.save_config_file(cfg, 'conf.pkl', detectorconfig.configdict(cfg))  # cfg].__dict__)
-
+def simulate(cfg, particle, dist_range, energy):
     logger.info('==== Step 3: Simulation part ====')
     g4_sim.run_simulation(cfg, particle, dist_range, energy)
 
@@ -87,7 +88,8 @@ if __name__ == '__main__':
     energy = 2.
     for dist_range in ['01', '34']:
         for particle in ['e-', 'gamma']:
-            calibrate_and_simulate(cfg, particle, dist_range, energy)
+            calibrate(cfg, particle, dist_range, energy)
+            simulate(cfg, particle, dist_range, energy)
 
 def jacopos_version():
     import os, itertools
