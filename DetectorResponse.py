@@ -93,7 +93,7 @@ class DetectorResponse(object):
             lens_inverse_rotated_displacement[k] = np.dot(self.inverse_rotation_matrices[k], self.facecoords[k])
         return lens_inverse_rotated_displacement
 
-    def calibrate(self, filename, nevents=-1):
+    def calibrate(self, filename, directory=None, nevents=-1):
         # Use with a simulation file 'filename' to calibrate the detector
         self.is_calibrated = True
         print "Base class DetectorResponse has no specific calibration method - instantiate as a subclass."

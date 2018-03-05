@@ -8,11 +8,8 @@ from numba import jit
 import time
 import pickle
 
-from linalg_3 import *
+import linalg_3
 from logger_lfd import logger
-
-# Key the file writing off of this?
-FAST_CALIBRATION = True
 
 # Original is in chroma.transform
 @jit(nopython=True)
@@ -26,7 +23,7 @@ def my_dot(array1, array2):
     result = np.empty(len(array1), dtype=np.float64)      # May not need 64?
     i = 0
     for i in range(len(array1)):
-        result[i] = dot(array1[i], array2)
+        result[i] = linalg_3.dot(array1[i], array2)
         i += 1
     return result
 
@@ -50,11 +47,11 @@ def compute_pmt_calibration(angles_for_pmt, n_min):
 
     # For each PMT, get a pair of axes which form an
     # orthonormal coordinate system with the PMT mean direction
-    u_dir = cross(mean_angle,np.array([0,0,1]))
+    u_dir = linalg_3.cross(mean_angle,np.array([0,0,1]))
     if not (np.dot(u_dir, u_dir) > 0): # In case mean_angle = [0,0,1]
-        u_dir = cross(mean_angle,np.array([0,1,0]))
+        u_dir = linalg_3.cross(mean_angle,np.array([0,1,0]))
     u_dir = u_dir / norm(u_dir)
-    v_dir = cross(mean_angle, u_dir)
+    v_dir = linalg_3.cross(mean_angle, u_dir)
     u_proj = my_dot(angles_for_pmt, u_dir)
 
     u_var = np.var(u_proj)
@@ -74,10 +71,11 @@ class DetectorResponseGaussAngle(DetectorResponse):
         DetectorResponse.__init__(self, configname, detectorxbins, detectorybins, detectorzbins)
         self.means = np.zeros((3,self.npmt_bins)) 
         self.sigmas = np.zeros(self.npmt_bins)
+        self.configname = configname
         if infile is not None:
             self.read_from_ROOT(infile)
 
-    def find_photons_for_pmt(self, photons_beg_pos, photons_end_pos, detected, end_direction_array, n_det, max_storage):
+    def _find_photons_for_pmt(self, photons_beg_pos, photons_end_pos, detected, end_direction_array, n_det, max_storage):
         beginning_photons = photons_beg_pos[detected]       # Include reflected photons
         ending_photons = photons_end_pos[detected]
         length = len(ending_photons)
@@ -99,7 +97,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
     3. Loop over all photons for each pmt to compute statistics for each pmt
     The files are only meant to preserve the intermediate state.  They are not required.
     '''
-    def calibrate(self, simname, directory=".", nevents=-1):
+    def calibrate(self, simname, directory=".", nevents=-1, fast_calibration=False):
         # Use with a simulation file 'simname' to calibrate the detector
         # Creates a list of mean angles and their uncertainties (sigma for
         # a cone of unit length), one for each PMT
@@ -126,7 +124,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
 
         pickle_name = self.configname + '-hits.pickle'
         try:
-            logger.info('Loading pickle hits file: ' + directory + pickle_name);
+            logger.info('Attempting to load pickle hits file: %s%s' % (directory, pickle_name));
             with open(directory + pickle_name, 'rb') as inf:
                 pmt_hits = pickle.load(inf)
             logger.info('Hit map pickle file loaded: ' + pickle_name)
@@ -152,15 +150,16 @@ class DetectorResponseGaussAngle(DetectorResponse):
                     logger.handlers[0].flush()
 
                 detected = (ev.photons_end.flags & (0x1 <<2)).astype(bool)
+                '''
                 reflected_diffuse = (ev.photons_end.flags & (0x1 << 5)).astype(bool)
                 reflected_specular = (ev.photons_end.flags & (0x1 << 6)).astype(bool)
                 logger.info("Total detected: " + str(sum(detected * 1)))
                 logger.info("Total reflected: " + str(sum(reflected_diffuse * 1) + sum(reflected_specular * 1)))
                 good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
                 logger.info("Total detected and not reflected: " + str(sum(good_photons * 1)))
-
-                if FAST_CALIBRATION:
-                    ending_photons, length = self.find_photons_for_pmt(ev.photons_beg.pos, ev.photons_end.pos, detected,
+                '''
+                if fast_calibration: 
+                    ending_photons, length = self._find_photons_for_pmt(ev.photons_beg.pos, ev.photons_end.pos, detected,
                                                                        end_direction_array, n_det, max_storage)
                     pmt_b = self.find_pmt_bin_array(ending_photons)
                     if length is None:
@@ -197,6 +196,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
         logger.info("Time: " + str(time.time() - start_time))
         pmt_bins.resize(n_det)
 
+        # Write the pickle hits file regardless of whether using fast_calibration or not 
         pmt_hits = {'pmt_bins': pmt_bins, 'end_direction_array': end_direction_array}
         with open(directory+pickle_name, 'wb') as outf:
             pickle.dump(pmt_hits, outf)
@@ -204,7 +204,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
 
         logger.info("Finished collection photons (or loading photon list).  Time: " + str(time.time()-start_time))
 
-        if FAST_CALIBRATION:
+        if fast_calibration:
             bins_file = self.configname + '-pmt-bins.pickle'
             try:
                 with open(directory + bins_file, 'rb') as inf:
@@ -229,7 +229,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
                 logger.handlers[0].flush()
                 logger.info("Time: " + str(time.time()-start_time))
             
-            if FAST_CALIBRATION:
+            if fast_calibration:
                 photon_list = pmt_photons[i]
                 angles_for_pmt = end_direction_array[photon_list]
                 n_angles = len(angles_for_pmt)  # np.shape(angles_for_pmt)[0]
