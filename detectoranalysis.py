@@ -7,7 +7,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 
-def create_detres(config, simname, detresname, detxbins=10, detybins=10, detzbins=10, method="PDF", nevents=-1, datadir=""):
+def create_detres(config, simname, detresname, detxbins=10, detybins=10, detzbins=10, method="PDF", nevents=-1, datadir="", fast_calibration=False):
 	#saves a detector response list of pdfs- 1 for each pixel- given a simulation file of photons emitted isotropically throughout the detector.
 	if method=="PDF":
 		smalltest = DetectorResponsePDF(config, detxbins, detybins, detzbins)
@@ -16,8 +16,7 @@ def create_detres(config, simname, detresname, detxbins=10, detybins=10, detzbin
 	else:
 		print "Warning: using generic DetectorResponse base class."
 		smalltest = DetectorResponse(config)
-	smalltest.calibrate(datadir + simname, nevents)
-	#smalltest.calibrate_old(datadir + simname, nevents)
+	smalltest.calibrate(datadir + simname, datadir, nevents, fast_calibration=fast_calibration)
 	# print smalltest.means[68260]
 	# print smalltest.sigmas[68260]
 	smalltest.write_to_ROOT(datadir + detresname)
