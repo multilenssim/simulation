@@ -4,3 +4,6 @@ kabamland_erlangen.py
 *.pyc
 *~
 .idea/
+*.py~
+*.h5
+*.p

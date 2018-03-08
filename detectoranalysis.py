@@ -14,7 +14,7 @@ import argparse
 from logger_lfd import logger
 import paths
 
-def create_detres(config, simname, detresname, detxbins=10, detybins=10, detzbins=10, method="PDF", nevents=-1, datadir=""):
+def create_detres(config, simname, detresname, detxbins=10, detybins=10, detzbins=10, method="PDF", nevents=-1, datadir="", fast_calibration=False):
 	#saves a detector response list of pdfs- 1 for each pixel- given a simulation file of photons emitted isotropically throughout the detector.
 	print('Calibrating for: ' + datadir + simname)
 	if method=="PDF":
@@ -24,7 +24,8 @@ def create_detres(config, simname, detresname, detxbins=10, detybins=10, detzbin
 	else:
 		print "Warning: using generic DetectorResponse base class."
 		smalltest = DetectorResponse(config)
-	smalltest.calibrate(datadir + simname, datadir, nevents)
+
+	smalltest.calibrate(datadir + simname, datadir, nevents, fast_calibration=fast_calibration)
 	logger.info("=== Detector analysis calibration complete.  Writing calibration file")
 	#smalltest.calibrate_old(datadir + simname, nevents)
 	# print smalltest.means[68260]

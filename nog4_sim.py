@@ -1,16 +1,7 @@
-from DetectorResponseGaussAngle import DetectorResponseGaussAngle
-from EventAnalyzer import EventAnalyzer
-
-from chroma.detector import Detector, G4DetectorParameters
-from chroma.loader import load_bvh
-from chroma.sim import Simulation
-
-import time, h5py, os, argparse
-import lensmaterials as lm
+import time, h5py, argparse
 import kabamland2 as kbl
 
 import numpy as np
-from pprint import pprint
 
 from Geant4.hepunit import *
 
@@ -47,6 +38,7 @@ def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 
 # Runs the simulation and writes the HDF5 file (except the index)
 def run_simulation(file, sim, events, analyzer, first=False):
+# def fixed_dist_hist(dist,sample,amount,sim,analyzer,sigma=0.01):  # Where did this come from?
 	arr = []
 	i = 0
 	locs1, locs2, rad = fixed_dist(sample,5000,rads=dist)

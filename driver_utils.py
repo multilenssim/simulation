@@ -119,6 +119,7 @@ def plot_vertices(track_tree, title, with_electrons=True, file_name=None, recons
                 energies[particle] = []
             particles[particle].append(value['position'])
             energies[particle].append(100.*value['energy'])
+
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     #ax = fig.gca(projection='3d')

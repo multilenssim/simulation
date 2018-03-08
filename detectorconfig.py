@@ -95,6 +95,7 @@ def get_dict_param(conf_fl,conf_name):
     with open(conf_fl,'r') as f:
         dtc = pickle.load(f)
     return dtc[conf_name]
+
 '''
 # Newer configurations, including those with curved detecting surfaces and pre-made lens systems
 configdict = {'cfJiani3_2': DetectorConfig(10000.0, 6, 0, 0, 1.0, lens_system_name='Jiani3', light_confinement=True, nsteps=23)} # Should have ~100k pixels, 21 lens systems/face, 20 faces
