@@ -111,7 +111,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
 
         n_min = 10 # Do not calibrate a PMT if <n_min photons hit it
         if nevents < 1:
-            nevents = len(reader)
+            nevents = len(reader)  # This will blow up
         total_means = np.zeros((self.npmt_bins, 3))
         total_variances = np.zeros((self.npmt_bins))
         total_u_minus_v = np.zeros((self.npmt_bins))
@@ -139,7 +139,6 @@ class DetectorResponseGaussAngle(DetectorResponse):
             # Loop through events, store for each photon the index of the PMT it hit (pmt_bins)
             # and the direction pointing back to its origin (end_direction_array)
             loops = 0
-
             for ev in reader:
                 loops += 1
                 if loops > nevents:
@@ -345,7 +344,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
         print "PMTs w/ < n_min hits: " + str(len(np.where(amount_of_hits < n_min)[0])*1.0/self.npmt_bins)
         print "PMTs w/ < 100 hits: " + str(len(np.where(amount_of_hits < 100)[0])*1.0/self.npmt_bins)
         print "Mean U-V variance (abs): " + str(np.mean(total_u_minus_v))
-         
+
         # Store final calibrated values
         self.means = -total_means.astype(np.float32).T
         self.sigmas = np.sqrt(total_variances.astype(np.float32))
@@ -377,7 +376,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
             length = np.shape(ending_photons)[0]
             end_direction_array = normalize(ending_photons-beginning_photons)
             pmt_bins = self.find_pmt_bin_array(ending_photons)
-            
+
             for i in range(self.npmt_bins):
                 if i % 10000 == 0:
                     print str(i) + ' out of ' + str(self.npmt_bins) + ' PMTs'
@@ -414,7 +413,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
         print "PMTs w/ 0 hits: " + str(len(np.where(n_hits < 1)[0])*1.0/self.npmt_bins)
         print "PMTs w/ < nevents hits: " + str(len(np.where(n_hits < nevents)[0])*1.0/self.npmt_bins)
         print "PMTs w/ < 100 hits: " + str(len(np.where(n_hits < 100)[0])*1.0/self.npmt_bins)
- 
+
         m_means = np.zeros_like(total_means)
         m_means[:, bad_pmts] = 1
         m_variances = np.zeros_like(total_variances)
@@ -422,7 +421,6 @@ class DetectorResponseGaussAngle(DetectorResponse):
 
         masked_total_means = np.ma.masked_array(total_means, m_means)
         masked_total_variances = np.ma.masked_array(total_variances, m_variances)
-        
 
         reshaped_weightings = np.reshape(np.repeat(amount_of_hits, 3), (nevents, self.npmt_bins, 3))
         averaged_means = np.ma.average(masked_total_means, axis=0, weights=reshaped_weightings)

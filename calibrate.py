@@ -1,10 +1,12 @@
 import os
 import argparse
+import deepdish as dd
+import h5py
 
 import kabamland2 as kb
-import detectoranalysis as da
 import paths
 import detectorconfig
+import DetectorResponse, DetectorResponseGaussAngle, DetectorResponsePDF
 import lensmaterials as lm
 from ShortIO.root_short import ShortRootWriter
 from logger_lfd import logger
@@ -32,6 +34,29 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
             f.write_event(ev)
     f.close()
 
+# From detectoranalysis - remove it from there
+# Thsi should really be called "calibrate"
+def create_detres_aka_calibrate(config, simname, detresname, detxbins=10, detybins=10, detzbins=10, method="PDF", nevents=-1, datadir="", fast_calibration=False):
+    # saves a detector response list of pdfs- 1 for each pixel- given a simulation file of photons emitted isotropically throughout the detector.
+    print('Calibrating for: ' + datadir + simname)
+    if method == "PDF":
+        smalltest = DetectorResponsePDF(config, detxbins, detybins, detzbins)       # Do we need to continue to carry this?
+    elif method == "GaussAngle":
+        smalltest = DetectorResponseGaussAngle(config, detxbins, detybins, detzbins)
+    else:
+        print "Warning: using generic DetectorResponse base class."
+        smalltest = DetectorResponse(config)
+
+    smalltest.calibrate(datadir + simname, datadir, nevents, fast_calibration=fast_calibration)
+    logger.info("=== Detector analysis calibration complete.  Writing calibration file")
+    # smalltest.calibrate_old(datadir + simname, nevents)
+    # print smalltest.means[68260]
+    # print smalltest.sigmas[68260]
+    with open(datadir + detresname + '.pickle', 'wb') as outf:
+        pickle.dump(smalltest, outf)
+    smalltest.write_to_ROOT(datadir + detresname)
+    dd.io.save(datadir + detresname +'h5', smalltest)
+
 
 def calibrate(cfg):
     if os.path.isfile(paths.get_calibration_file_name(cfg)):
@@ -46,7 +71,7 @@ def calibrate(cfg):
         else:
             logger.info('==== Found photons file ====')            
         logger.info("==== Step 2: Calibrating  ====")
-        da.create_detres(args.cfg,
+        create_detres_aka_calibrate(args.cfg,
                          photons_file,
                          paths.get_calibration_file_name_without_path(cfg),
                          method="GaussAngle",

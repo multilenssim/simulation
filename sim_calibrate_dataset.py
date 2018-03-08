@@ -37,7 +37,7 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
     f.close()
 
 
-def calibrate(cfg, particle, dist_range, energy):
+def calibrate(cfg):
     if not os.path.isfile(paths.get_calibration_file_name(cfg)):   # This is not a great structure as other configuration data may change in addition to the detector config
         logger.info('Failed to find: ' + paths.get_calibration_file_name(cfg))
         # We should really date stamp the directory containing the output and configuration files
@@ -68,9 +68,9 @@ def calibrate(cfg, particle, dist_range, energy):
         all_config_info['lens_material'] = lensmaterials.lensmat.__dict__
         all_config_info['G4_config'] = 'placeholder'
         # Note - these might override on successive runs??
-        all_config_info['particle'] = particle
-        all_config_info['energy'] = energy
-        all_config_info['distance_range'] = dist_range
+        #all_config_info['particle'] = particle
+        #all_config_info['energy'] = energy
+        #all_config_info['distance_range'] = dist_range
         all_config_info['quantum_efficiency'] = 'placeholder'
         driver_utils.save_config_file(cfg, 'full_config.pickle', all_config_info)
 
@@ -84,11 +84,11 @@ if __name__ == '__main__':
     # parser.add_argument('s_d', help='Seed radius range in meters (e.g. "34"')
     args = parser.parse_args()
     cfg = args.cfg
+    calibrate(cfg)
     # s_d = args.s_d  # Seed radius range in meters
     energy = 2.
     for dist_range in ['01', '34']:
         for particle in ['e-', 'gamma']:
-            calibrate(cfg, particle, dist_range, energy)
             simulate(cfg, particle, dist_range, energy)
 
 def jacopos_version():
