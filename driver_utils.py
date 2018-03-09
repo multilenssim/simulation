@@ -17,7 +17,7 @@ import paths
 from logger_lfd import logger
 
 # Do something smarter with the seed?
-def sim_setup(config,in_file, useGeant4=False, geant4_processes=4, seed=12345, cuda_device=None, no_gpu=False):
+def sim_setup(config, in_file, useGeant4=False, geant4_processes=4, seed=12345, cuda_device=None, no_gpu=False):
     # Imports are here both to avoind loading Geant4 when unnecessary, and to avoid circular imports
     import kabamland2 as kbl2
     from chroma.detector import G4DetectorParameters
@@ -55,7 +55,7 @@ def sph_scatter(sample_count,in_shell,out_shell):
 def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius, outer_radius, h5_file, location=None, momentum=None, di_file_base=None, qe=None):
     from chroma.generator import vertex
 
-    sim, analyzer = sim_setup(config_name, paths.get_calibration_file_name(config_name), useGeant4=True, geant4_processes=1, no_gpu=True)
+    sim, analyzer = sim_setup(config_name, paths.get_calibration_file_name(config_name), useGeant4=True, geant4_processes=1, no_gpu=False)
     #sim, analyzer = sim_setup(config_name, paths.get_calibration_file_name(config_name), useGeant4=True, geant4_processes=1)
     #analyzer.det_res.is_calibrated=False    # Temporary to test AVF with actual photon angles
 
@@ -63,6 +63,7 @@ def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius,
     logger.info('Particle:\t\t%s ' % particle)
     logger.info('Energy:\t\t%d' % energy)
     logger.info('Sim count:\t\t%d' % sample_count)
+    logger.info('File:\t\t%s' % h5_file)
     
     if location is None: # Location is a flag
         loc_array = sph_scatter(sample_count, inner_radius * 1000, outer_radius * 1000)
@@ -80,9 +81,10 @@ def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius,
                 gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.constant(momentum), vertex.constant(energy)) #(np.array(momentum)), vertex.constant(energy))
                 #gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.constant(np.array(momentum)), vertex.constant(energy))  # This line from Amazon
             gun1 = gun.next()
-            print('Gun: %s' % str(gun1))
+            logger.info('Gun: %s' % str(gun1))
 
             events = sim.simulate(gun, keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100)
+            logger.info('Events %s' % str(events))
             for ev in events:   # Note: I think there is really only ever one event because of the 'for lg in loc_array:'
                 vert = ev.photons_beg.pos
                 tracks = analyzer.generate_tracks(ev, qe=qe)
@@ -96,7 +98,7 @@ def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius,
                     di_file = DIEventFile(config_name, gun_specs, ev.photons_beg.track_tree, tracks, ev.photons_beg)
                     di_file.write(di_file_base+'_'+str(i)+'.h5')
 
-            logger.info('Photons detected:\t' + str(tracks.sigmas.shape[0]))
+            logger.info('Photons detected:\t%s' % str(tracks.sigmas.shape[0]))
             logger.info('============')
 
 
@@ -370,7 +372,7 @@ def plot_tracks_from_endpoints(begin_pos, end_pos, pts=None, highlight_pt=None, 
     return fig
 
 
-CALIBRATED = False
+CALIBRATED = True
 
 if __name__=='__main__':
     import DetectorResponseGaussAngle

@@ -7,6 +7,8 @@ import numpy as np
 from numba import jit
 import time
 import pickle
+import h5py
+import deepdish as dd
 
 import linalg_3
 from logger_lfd import logger
@@ -71,9 +73,15 @@ class DetectorResponseGaussAngle(DetectorResponse):
         DetectorResponse.__init__(self, configname, detectorxbins, detectorybins, detectorzbins)
         self.means = np.zeros((3,self.npmt_bins)) 
         self.sigmas = np.zeros(self.npmt_bins)
-        self.configname = configname
+        # self.configname = configname # Duplicative with super class
         if infile is not None:
-            self.read_from_ROOT(infile)
+            logger.info('Creating detector response / calibration with: %s' % infile)
+            if infile.endswith('.h5'):
+                calibration = dd.io.load(infile)
+                self.means = calibration['means']
+                self.sigmas = calibration['sigmas']
+            else:
+                self.read_from_ROOT(infile)
 
     def _find_photons_for_pmt(self, photons_beg_pos, photons_end_pos, detected, end_direction_array, n_det, max_storage):
         beginning_photons = photons_beg_pos[detected]       # Include reflected photons
@@ -123,6 +131,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
         n_det = 0
 
         pickle_name = self.configname + '-hits.pickle'
+        hit_file_exists = False
         try:
             logger.info('Attempting to load pickle hits file: %s%s' % (directory, pickle_name));
             with open(directory + pickle_name, 'rb') as inf:
@@ -131,6 +140,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
             pmt_bins = pmt_hits['pmt_bins']
             end_direction_array = pmt_hits['end_direction_array']
             n_det = len(pmt_bins)
+            hit_file_exists = True
         except IOError as error:
             # Assume file not found
             logger.info('Hit map pickle file not found.  Creating: ' + pickle_name)
@@ -195,11 +205,15 @@ class DetectorResponseGaussAngle(DetectorResponse):
         logger.info("Time: " + str(time.time() - start_time))
         pmt_bins.resize(n_det)
 
-        # Write the pickle hits file regardless of whether using fast_calibration or not 
-        pmt_hits = {'pmt_bins': pmt_bins, 'end_direction_array': end_direction_array}
-        with open(directory+pickle_name, 'wb') as outf:
-            pickle.dump(pmt_hits, outf)
-            logger.info('Hit map pickle file created: ' + pickle_name)
+        if not hit_file_exists:
+            # Write the pickle hits file regardless of whether using fast_calibration or not
+            pmt_hits = {'pmt_bins': pmt_bins, 'end_direction_array': end_direction_array}
+            with open(directory+pickle_name, 'wb') as outf:
+                pickle.dump(pmt_hits, outf)
+            with h5py.File(directory + pickle_name + '.h5', 'w') as h5file:
+                _ = h5file.create_dataset('pmt_bins', data=pmt_bins, chunks=True)   # Should we assign max shape?
+                _ = h5file.create_dataset('end_direction_array', data=end_direction_array, chunks=True)   # Should we assign max shape?
+            logger.info('Hit map file created: ' + pickle_name)
 
         logger.info("Finished collection photons (or loading photon list).  Time: " + str(time.time()-start_time))
 
@@ -215,7 +229,11 @@ class DetectorResponseGaussAngle(DetectorResponse):
                 logger.info("assign_photons took: " + str(time.time() - start_assign))
                 with open(directory + bins_file, 'wb') as outf:
                     pickle.dump(pmt_photons, outf)
-                    logger.info('PMT photon list pickle file created: ' + bins_file)
+                logger.info('Type: ' + str(type(pmt_photons)) + ' ' + str(type(pmt_photons[0])))
+                dd.io.save(directory + bins_file + '.h5', pmt_photons)
+                #with h5py.File(directory + bins_file + '.h5', 'w') as h5file:
+                #    _ = h5file.create_dataset('photon_pmts', data=pmt_photons, chunks=True)   # Should we assign max shape?
+                logger.info('PMT photon list file created: ' + bins_file)
 
         logger.info("Finished listing photons by pmt.  Time: " + str(time.time() - start_time))
 

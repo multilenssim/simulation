@@ -1,31 +1,23 @@
-from chroma.geometry import Solid
-from chroma.transform import make_rotation_matrix, normalize
-#from chroma.detector import Detector, G4DetectorParameters
-from chroma.demo.optics import glass, black_surface
-from chroma.detector import Detector
-#from chroma.detector import G4DetectorParameters
-#from ShortIO.root_short import ShortRootWriter
-from chroma.sample import uniform_sphere
+import matplotlib.pyplot as plt
 from matplotlib.tri import Triangulation
 from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
+import os
+
+from chroma.geometry import Solid
+from chroma.transform import make_rotation_matrix, normalize
+from chroma.demo.optics import glass, black_surface
+from chroma.detector import Detector
+from chroma.sample import uniform_sphere
 from chroma import make, sample
-#from contextlib import contextmanager
-#from chroma.generator import vertex
-#from chroma.loader import load_bvh
-#from chroma.sim import Simulation
-import detectorconfig, lenssystem
-#from chroma.pmt import build_pmt
+from chroma.loader import load_bvh
 from chroma.event import Photons
-import matplotlib.pyplot as plt
+
+import detectorconfig, lenssystem
 import lensmaterials as lm
 import meshhelper as mh
-import numpy as np
-
-#from Geant4.hepunit import *
-
-import pickle, os
 import paths
-#from logger_lfd import logger
+from logger_lfd import logger
 
 inputn = 16.0
 
@@ -259,14 +251,17 @@ def driver_funct(configname):
 	kabamland.bvh = load_bvh(kabamland)
 	view(kabamland)
 
-def load_or_build_detector(config, detector_material, g4_detector_parameters):
-    filename = paths.detector_pickled_path + config + '.pickle'
+def load_or_build_detector(configname, detector_material, g4_detector_parameters):
+    import deepdish as dd
+    import pickle
+
+    filename = paths.detector_pickled_path + configname + '.pickle'
     if not os.path.exists(paths.detector_pickled_path):
         os.makedirs(paths.detector_pickled_path)
     # How to ensure the material and detector parameters are correct??
     try:
         with open(filename,'rb') as pickle_file:
-            print("** Loading detector configuration: " + config)
+            print("** Loading detector configuration: " + configname)
             kabamland = pickle.load(pickle_file)
             pickle_has_g4_dp = hasattr(kabamland, 'g4_detector_parameters') and kabamland.g4_detector_parameters is not None
             pickle_has_g4_dm = hasattr(kabamland, 'detector_material') and kabamland.detector_material is not None
@@ -288,9 +283,9 @@ def load_or_build_detector(config, detector_material, g4_detector_parameters):
             else:
                 print('*** No Geant4 detector material found at all ***')
     except IOError as error:
-        print("** Building detector configuration: " + config)
+        print("** Building detector configuration: " + configname)
         kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
-        build_kabamland(kabamland, config)
+        build_kabamland(kabamland, configname)
         kabamland.flatten()
         kabamland.bvh = load_bvh(kabamland)
         try:
@@ -298,7 +293,30 @@ def load_or_build_detector(config, detector_material, g4_detector_parameters):
                 pickle.dump(kabamland, pickle_file)
         except IOError as error:
             print("Error writing pickle file: " + filename)
-    return kabamland
+
+        # Prototype write h5 file with configuration data structure as well
+        # This is not tested yet and we may move to just vars(kabamland)
+        config = detectorconfig.configdict(configname)
+        logger.info('Saving h5 detector configuration.  UUID: %s' % config.uuid)
+        detector_dict = {
+            'detector_material' : kabamland.detector_material,
+            'solids' : kabamland.solids,
+            'solid_rotations' : kabamland.solid_rotations,
+            'solid_displacements' : kabamland.solid_displacements,
+            'bvh' : kabamland.bvh,
+            'g4_detector_parameters' : kabamland.g4_detector_parameters,
+            'solid_id_to_channel_index' : kabamland.solid_id_to_channel_index,
+            'channel_index_to_solid_id' : kabamland.channel_index_to_solid_id,
+            'channel_index_to_channel_id' : kabamland.channel_index_to_channel_id,
+            'channel_id_to_channel_index' : kabamland.channel_id_to_channel_index,
+            'time_cdf' : kabamland.time_cdf,
+            'charge_cdf' : kabamland.charge_cdf
+            }
+        detector_data = {'config': config, 'config_dict': vars(config), 'detector': detector_dict}
+        #detector_data = {'config': config, 'config_dict': vars(config), 'detector': vars(kabamland)}
+        dd.io.save(paths.detector_pickled_path + configname + '.h5', detector_data)
+
+        return kabamland
 
 
 if __name__ == '__main__':

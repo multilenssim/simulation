@@ -66,7 +66,8 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r, cuda_device=None):
 			first = False
                         #gun_specs = utilities.build_gun_specs(particle, position, momentum, energy_random)
                         gun_specs = driver_utils.build_gun_specs(particle, None, None, None)
-                        driver_utils.write_deep_dish_file(fname_base + '_' + str(i) + '.h5', cfg, gun_specs, ev.photons_beg.track_tree, tracks, ev.photons_beg)
+                        di_file = driver_utils.DIEventFile(cfg, gun_specs, ev.photons_beg.track_tree, tracks, photons=ev.photons_beg, full_event=ev)
+                        di_file.write(fname_base + '_' + str(i) + '.h5')
                         i += 1
 		f.create_dataset('idx_tr',data=arr_tr)
 		f.create_dataset('idx_depo',data=arr_depo)

@@ -1,6 +1,8 @@
 import platform
 
-exo_data_files = '/home/kwells/chroma_data/'
+EXO_DATA_FILES = '/home/kwells/chroma_data/'
+DEFAULT_CONFIG_DIR = 'configurations/'
+DEFAULT_SIMULATION_DIR = 'simulations/'
 JACOPO = False
 
 # Note that the code assumes that there is a trailing '/' on these
@@ -10,17 +12,20 @@ if platform.node().startswith('exo3'):
         detector_calibration_path = '/home/jacopodalmasson/Desktop/dev/sphere/calibrations/'  # Path for the calibration files
         data_files_path = '/home/jacopodalmasson/Desktop/dev/sphere/'      # Path for the simulation data files
     else:
-        detector_pickled_path = exo_data_files+'configurations/'
-        detector_calibration_path = exo_data_files+'configurations/'  # Path for the calibration files
-        data_files_path = exo_data_files+'simulations/'      	# Path for the simulation data files
+        detector_pickled_path = EXO_DATA_FILES+DEFAULT_CONFIG_DIR
+        detector_calibration_path = detector_pickled_path               # Path for the calibration files
+        data_files_path = EXO_DATA_FILES+DEFAULT_SIMULATION_DIR      	# Path for the simulation data files
 else:
-    detector_pickled_path = '/chroma-data/configurations/'
-    detector_calibration_path = '/chroma-data/configurations/'  # Path for the calibration files
-    data_files_path = '/chroma-data/simulations/'               # Path for the simulation data files
+    detector_pickled_path = '/chroma-data/'+DEFAULT_CONFIG_DIR
+    detector_calibration_path = detector_pickled_path                   # Path for the calibration files
+    data_files_path = '/chroma-data/'+DEFAULT_SIMULATION_DIR            # Path for the simulation data files
 
+# This is just for experimenting with hdf5 files
+def get_calibration_file_name_base_without_path(config):
+    return 'detresang-'+config+'_1DVariance_100million'
 
 def get_calibration_file_name_without_path(config):
-    return 'detresang-'+config+'_1DVariance_100million.root'
+    return get_calibration_file_name_base_without_path(config)+'.root'
 
 def get_calibration_file_name(config):
     return detector_calibration_path+get_calibration_file_name_without_path(config)

@@ -248,7 +248,7 @@ class EventAnalyzer(object):
             are fed back to the algorithm to find the next vertex.
             If min_tracks<1, use as a fraction of the total event's tracks.
         '''
-        WEIGHT_CUT = 0.56  # Initially was 0.50
+        WEIGHT_CUT = 0.50  # Initially was 0.50
 
         # Get an array of voxel positions within the detector, for repeated use
         bin_pos_array = np.array(self.det_res.bin_to_position_array())  # Returns 10x10x10 = 1000 coordinate positions
@@ -288,7 +288,7 @@ class EventAnalyzer(object):
                 dists_scaled = np.tan(angles) # scaled so that projection of vector onto mean angle is 1
                 #print 'dists scaled shape: ' + str(np.shape(dists_scaled)) # sig is (n,)
                 if np.isnan(sig):
-                    print "Track sig is nan - skipping."
+                    logger.info('Track sig is nan - skipping.')
                 if doNLL:
                     gp = self.gauss_nll(dists_scaled, sig)
                 else:
@@ -296,15 +296,16 @@ class EventAnalyzer(object):
                 final_pdf += gp
                 #final_pdf *= gp
                 #f_squared += gp**2
-                if ii % 1000 == 0:
-                    plotpdf = final_pdf
-                    plotpdf = np.float32(plotpdf / float(np.sum(plotpdf)))  # normalize, for plotting purposes
+                if debug:
+                    if ii % 1000 == 0:
+                        plotpdf = final_pdf
+                        plotpdf = np.float32(plotpdf / float(np.sum(plotpdf)))  # normalize, for plotting purposes
 
-                    fig = self.det_res.plot_pdf(plotpdf, "Initial vtx position finding", bin_pos=bin_pos_array, show=False)
-                    ax = fig.gca()
-                    # ax.scatter(v_pos_max[0], v_pos_max[1], v_pos_max[2], color='green')
-                    plt.figure(fig.number)
-                    plt.show()
+                        fig = self.det_res.plot_pdf(plotpdf, "Initial vtx position finding", bin_pos=bin_pos_array, show=False)
+                        ax = fig.gca()
+                        # ax.scatter(v_pos_max[0], v_pos_max[1], v_pos_max[2], color='green')
+                        plt.figure(fig.number)
+                        plt.show()
             # Replace any value divided by 0 with 0, replace negative values with 0
             #zero_mask = 1.0*(final_pdf == 0.)
             #final_pdf_mask = np.ma.masked_array(final_pdf, zero_mask, fill_value=0.)
@@ -336,11 +337,11 @@ class EventAnalyzer(object):
             #max_bin = self.find_max_starting_bin(bin_array, final_pdf, np.shape(final_pdf))
 
             # Force the initial starting position
-            v_pos_max = np.asarray([1000., 0., 0.])
-            print "Initial vertex position: " + str(v_pos_max)
+            #v_pos_max = np.asarray([1000., 0., 0.])
+            logger.info('Initial vertex position: ' + str(v_pos_max))
             if debug:
                 self.plot_tracks(tracks,highlight_pt=v_pos_max)
-                if True:    # Plot the grid of closest approach hits
+                if False:    # Plot the grid of closest approach hits
                     if doNLL:
                         plotpdf = 1./final_pdf # Take inverse if using NLL method (since values close to 0 are better)
                     else:
@@ -388,8 +389,8 @@ class EventAnalyzer(object):
             for ii in range(n_pos0+1):
                 v_pos = v_pos0[ii,:]            
                 # Initialize this vertex
-                print('===============================')
-                print('=== AVF starting vertex: %s (%d)===' % (str(v_pos), ii))
+                logger.info('===============================')
+                logger.info('=== AVF starting vertex: %s (%d)===' % (str(v_pos), ii))
                 vtx = Vertex(v_pos, -1., 0)
             
                 # # Temporary, for testing; just use initial vtx position
@@ -503,7 +504,7 @@ class EventAnalyzer(object):
                     max_tries = 10
                     while np.linalg.norm(v_opt) > self.det_res.inscribed_radius and obj1 > obj0 and n_tries < max_tries: 
                         n_tries += 1
-                        print "Vertex placed outside of detector, or objective failed to improve - trying again, try "+str(n_tries)
+                        logger.warning('Vertex placed outside of detector, or objective failed to improve - trying again, try '+str(n_tries))
                         ddir_opt = uniform_sphere()
                         # Shift by a distance of up to 10% of the inscribed radius, in a random direction
                         drad_opt = 0.1*self.det_res.inscribed_radius*np.random.uniform(0.0, 1.0, 1)**(1.0/3)
@@ -557,8 +558,8 @@ class EventAnalyzer(object):
                 obj_list.append(obj0)
                 wt_list.append(wt0)
 
-                print('=== AVF finished starting vertex: %s (%d), result: %s ===' % (str(v_pos0[ii, :]), ii, str(vtx.pos)))
-                print('===============================')
+                logger.info('=== AVF finished starting vertex: %s (%d), result: %s ===' % (str(v_pos0[ii, :]), ii, str(vtx.pos)))
+                logger.info('===============================')
             # print [vt.pos for vt in vtx_list]
             # print v_pos_max
             #print [np.linalg.norm(vt.pos-vtx_list[0].pos) for vt in vtx_list]

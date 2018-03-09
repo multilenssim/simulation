@@ -1,7 +1,7 @@
 from DetectorResponse import DetectorResponse
 from DetectorResponsePDF import DetectorResponsePDF
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
-from DetectorResponseGAKW import DetectorResponseGAKW
+#from DetectorResponseGAKW import DetectorResponseGAKW
 from ShortIO.root_short import ShortRootReader
 from EventAnalyzer import EventAnalyzer
 
@@ -14,13 +14,14 @@ import argparse
 from logger_lfd import logger
 import paths
 
+# This is deprecated - see calibrate.py
 def create_detres(config, simname, detresname, detxbins=10, detybins=10, detzbins=10, method="PDF", nevents=-1, datadir="", fast_calibration=False):
 	#saves a detector response list of pdfs- 1 for each pixel- given a simulation file of photons emitted isotropically throughout the detector.
-	print('Calibrating for: ' + datadir + simname)
+	logger.info('Calibrating for: ' + datadir + simname + ' --- ' + method)
 	if method=="PDF":
 		smalltest = DetectorResponsePDF(config, detxbins, detybins, detzbins)
 	elif method=="GaussAngle":
-		smalltest = DetectorResponseGAKW(config, detxbins, detybins, detzbins)
+		smalltest = DetectorResponseGaussAngle(config, detxbins, detybins, detzbins)
 	else:
 		print "Warning: using generic DetectorResponse base class."
 		smalltest = DetectorResponse(config)

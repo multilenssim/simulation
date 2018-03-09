@@ -32,7 +32,7 @@ class Tracks(object):
     def cull(self, ind_remain):
         # Reduces tracks to only those with indices in ind_remain
         ind_remain = np.unique(ind_remain)
-        logger.info('Culling: %d tracks' % (len(self.hit_pos[0]) - len(ind_remain)))
+        #logger.info('Culling: %d tracks' % (len(self.hit_pos[0]) - len(ind_remain)))
         self.hit_pos = self.hit_pos[:,ind_remain]
         self.means = self.means[:,ind_remain]
         self.sigmas = self.sigmas[ind_remain]

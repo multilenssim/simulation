@@ -22,15 +22,15 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
     #simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron. Note that viewing may crash if there are too many lenses. (try using configview)
 
     config = detectorconfig.configdict(configname)
-    print('Starting to build')
+    logger.info('Starting to build: %s' % configname)
     g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
     kabamland = kb.load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
-    print('Detector was built')
+    logger.info('Detector was built')
 
     f = ShortRootWriter(datadir + simname)
-    sim = Simulation(kabamland,geant4_processes=0)
+    sim = Simulation(kabamland, geant4_processes=0)  # For now, does not take advantage of multiple cores
     for j in range(100):
-        print j
+        logger.info('%d of 100 event sets' % j)
         sim_events = [kb.uniform_photons(config.edge_length, amount) for i in range(10)]
         for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
             f.write_event(ev)

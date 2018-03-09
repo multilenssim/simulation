@@ -114,7 +114,7 @@ def eff_test(config,
 		else:
 			det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins, infile=detres)
 		analyzer = EventAnalyzer(det_res)
-        
+
 		# Previous definition of rads
 		#rads = [max_rad*float(ii+1)/n_pos for ii in range(n_pos)]
 
@@ -131,11 +131,12 @@ def eff_test(config,
                 print('Inner loop count: ' + str(len(rads)))
                 print('Radii: ' + str(rads))
                 vertices = []
+                events_positions = []
 		for ii, amount in enumerate(n_ph_sim):
 			for iy, rad in enumerate(rads):
-				print "Energy: " + str(amount) + ", radius: " + str(rad)
-					
-				events, points = create_single_source_events(rad, sig_pos, amount, repetition)	
+				logger.info('Energy: ' + str(amount) + ', radius: ' + str(rad))
+
+				events, points = create_single_source_events(rad, sig_pos, amount, repetition)
 				
 				for ind, ev in enumerate(sim.simulate(events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100)):
 					
@@ -152,7 +153,8 @@ def eff_test(config,
 						n_ph_total = np.sum(photons)
 						n_ph_max = np.max(photons)  
 						event_pos = points[ind,:]
-                                                print('AVF event #: ' + str(ind))
+                                                events_positions.append([event_pos[0], event_pos[1], event_pos[2]])
+                                                logger.info('AVF event #: ' + str(ind))
 						if event_pos is not None:
 							min_errs = []
 							weights = []
@@ -160,7 +162,7 @@ def eff_test(config,
 
 								#Skip vertex with smaller amount of photon tracks associated with 
 								if ii != np.argmax(n_ph_total):
-									print "Two vertices found! Smaller vertex with ", photons[ii],"photons out of ", n_ph_total
+									logger.warning("Two vertices found! Smaller vertex with ", photons[ii],"photons out of ", n_ph_total)
 									break
 
 								# Skip vertices outside detector
@@ -175,7 +177,8 @@ def eff_test(config,
 
 								# Get distance to true event location 
 								vtx_dist = np.linalg.norm(errs)
-
+                                                                logger.info('Event position: %s' % str(event_pos))
+                                                                logger.info('AVF position error: %f' % vtx_dist)
 								recon[ii,ind,iy,:] = [rad/10, r_recon/10, n_ph_total, errs[0], errs[1], errs[2]]
 								
 								# Fill TTree 
@@ -194,8 +197,8 @@ def eff_test(config,
 								#print run[0], pos[0], xpos_true[0], ypos_true[0], zpos_true[0], xpos[0], ypos[0], zpos[0], multiplicity[0], photon_sim[0], photon_true[0], dist_event[0]
 								#print iy, ind, r_recon, vtx_dist, float(n_ph_total)/float(amount), len(vtcs)
 								ttree.Fill()
-
-                                plot_vertices([rad,0,0], vertices)
+                        # Moved this out one level to try to plot all of the vertices and solutions at once (but it's not working)
+                        plot_vertices([rad,0,0], vertices)
 		f1.Write()
 		f1.Close()
 		#plot_double_yaxis(recon, n_ph_sim, n_pos, max_rad)
@@ -273,7 +276,7 @@ if __name__ == '__main__':
     design = [args.cfg]
     # suffix = '_1DVariance'
     energy = [5333]
-    repetition = 10 # 50
+    repetition = 1 # 50
     n_pos = 4
     set_style()
 

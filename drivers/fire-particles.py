@@ -75,7 +75,7 @@ def run_simulation_double_fixed_source(sim, analyzer, sample, cfg, loc1, loc2, a
 
             logger.info('Time: ' + str(time.time() - start))
 
-UNCALIBRATE = True
+UNCALIBRATE = False
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
