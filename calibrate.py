@@ -3,6 +3,7 @@ import argparse
 import deepdish as dd
 import h5py
 import pickle
+import numpy as np  # Just for float32 (currently)
 
 import kabamland2 as kb
 import paths
@@ -17,7 +18,7 @@ from logger_lfd import logger
 from chroma.detector import G4DetectorParameters
 from chroma.sim import Simulation
 
-# TOTO: Move this ,ethod and uniform_photons to driver_utils?
+# TOTO: Move this method and uniform_photons to driver_utils?
 def full_detector_simulation(amount, configname, simname, datadir=""):
     # simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron.
     # Note that viewing may crash if there are too many lenses. (try using configview)
@@ -28,14 +29,20 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
     kabamland = kb.load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
     logger.info('Detector was loaded/built')
 
-    f = ShortRootWriter(datadir + simname)
+    events = []
+    file_name_base = datadir + simname
+    f = ShortRootWriter(file_name_base)
     sim = Simulation(kabamland, geant4_processes=0)  # For now, does not take advantage of multiple cores
     for j in range(100):
         logger.info('%d of 100 event sets' % j)
         sim_events = [kb.uniform_photons(config.edge_length, amount) for i in range(10)]
         for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
             f.write_event(ev)
+            events.append(ev)
     f.close()
+    # Centralize this sort of stuff
+    h5_dict = {'config': config, 'photons_start': ev.photons_beg, 'photons_stop': ev.photons_end}
+    dd.io.save(file_name_base +'.h5', h5_dict)
 
 # From detectoranalysis - remove it from there
 # This should really be called "calibrate"

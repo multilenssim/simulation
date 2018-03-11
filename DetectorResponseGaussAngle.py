@@ -253,7 +253,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
                 # skipping pmts with <2 photon hits (in which case the variance will be undefined with ddof=1)
                 # also skipping if <n_min photon hits
                 if n_angles < 2 or n_angles < n_min:
-                    print("Not enough angles for PMT: " + str(i))
+                    logger.warning('Not enough angles for PMT: %d, %d' % (i, n_angles))
                     continue
 
                 mean_angle, variance, uvvar = compute_pmt_calibration(angles_for_pmt, n_min)

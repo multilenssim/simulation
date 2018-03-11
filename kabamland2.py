@@ -255,44 +255,54 @@ def load_or_build_detector(configname, detector_material, g4_detector_parameters
     import deepdish as dd
     import pickle
 
-    filename = paths.detector_pickled_path + configname + '.pickle'
+    filename_base = paths.detector_pickled_path + configname
     if not os.path.exists(paths.detector_pickled_path):
         os.makedirs(paths.detector_pickled_path)
+
+    kabamland = None
     # How to ensure the material and detector parameters are correct??
     try:
-        with open(filename,'rb') as pickle_file:
-            print("** Loading detector configuration: " + configname)
-            kabamland = pickle.load(pickle_file)
-            pickle_has_g4_dp = hasattr(kabamland, 'g4_detector_parameters') and kabamland.g4_detector_parameters is not None
-            pickle_has_g4_dm = hasattr(kabamland, 'detector_material') and kabamland.detector_material is not None
-            if g4_detector_parameters is not None:
-                print('*** Using Geant4 detector parameters specified' +
-                      (' - replacement' if pickle_has_g4_dp else '') + ' ***')
-                kabamland.g4_detector_parameters = g4_detector_parameters
-            elif pickle_has_g4_dp:
-                print('*** Using Geant4 detector parameters found in loaded file ***')
-            else:
-                print('*** No Geant4 detector parameters found at all ***')
+        detector_config = dd.io.load(filename_base+'.h5')
+        kabamland = detector_config['detector']
+        logger.info("** Loaded HDF5 detector configuration: " + configname)
+    except IOError as error:  # Will dd throw an exception?
+        try:
+            with open(filename_base+'.pickle','rb') as pickle_file:
+                kabamland = pickle.load(pickle_file)
+                logger.info("** Loaded pickle detector configuration: " + configname)
+        except IOError as error:
+            pass
+    if kabamland is not None:
+        pickle_has_g4_dp = hasattr(kabamland, 'g4_detector_parameters') and kabamland.g4_detector_parameters is not None
+        pickle_has_g4_dm = hasattr(kabamland, 'detector_material') and kabamland.detector_material is not None
+        if g4_detector_parameters is not None:
+            logger.info('*** Using Geant4 detector parameters specified' +
+                  (' - replacement' if pickle_has_g4_dp else '') + ' ***')
+            kabamland.g4_detector_parameters = g4_detector_parameters
+        elif pickle_has_g4_dp:
+            logger.info('*** Using Geant4 detector parameters found in loaded file ***')
+        else:
+            logger.info('*** No Geant4 detector parameters found at all ***')
 
-            if detector_material is not None:
-                print('*** Using Geant4 detector material specified' +
-                      (' - replacement' if pickle_has_g4_dm else '') + ' ***')
-                kabamland.detector_material = detector_material
-            elif pickle_has_g4_dm:
-                print('*** Using Geant4 detector material found in loaded file ***')
-            else:
-                print('*** No Geant4 detector material found at all ***')
-    except IOError as error:
-        print("** Building detector configuration: " + configname)
+        if detector_material is not None:
+            logger.info('*** Using Geant4 detector material specified' +
+                  (' - replacement' if pickle_has_g4_dm else '') + ' ***')
+            kabamland.detector_material = detector_material
+        elif pickle_has_g4_dm:
+            logger.info('*** Using Geant4 detector material found in loaded file ***')
+        else:
+            logger.info('*** No Geant4 detector material found at all ***')
+    else:
+        logger.info("** Building detector configuration: " + configname)
         kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
         build_kabamland(kabamland, configname)
         kabamland.flatten()
         kabamland.bvh = load_bvh(kabamland)
         try:
-            with open(filename,'wb') as pickle_file:
+            with open(filename_base+'.pickle','wb') as pickle_file:
                 pickle.dump(kabamland, pickle_file)
         except IOError as error:
-            print("Error writing pickle file: " + filename)
+            logger.info("Error writing pickle file: " + filename_base+'.pickle')
 
         # Prototype write h5 file with configuration data structure as well
         # This is not tested yet and we may move to just vars(kabamland)
@@ -312,11 +322,11 @@ def load_or_build_detector(configname, detector_material, g4_detector_parameters
             'time_cdf' : kabamland.time_cdf,
             'charge_cdf' : kabamland.charge_cdf
             }
-        detector_data = {'config': config, 'config_dict': vars(config), 'detector': detector_dict}
+        detector_data = {'config': config, 'config_dict': vars(config), 'detector': kabamland} # detector_dict}
         #detector_data = {'config': config, 'config_dict': vars(config), 'detector': vars(kabamland)}
-        dd.io.save(paths.detector_pickled_path + configname + '.h5', detector_data)
+        dd.io.save(filename_base + '.h5', detector_data)
 
-        return kabamland
+    return kabamland
 
 
 if __name__ == '__main__':
