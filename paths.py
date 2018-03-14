@@ -5,6 +5,8 @@ DEFAULT_CONFIG_DIR = 'configurations/'
 DEFAULT_SIMULATION_DIR = 'simulations/'
 JACOPO = False
 
+sherlock_data_files = '/home/groups/gratta/kwells/chroma-data/'
+
 # Note that the code assumes that there is a trailing '/' on these
 if platform.node().startswith('exo3'):
     if JACOPO:
@@ -16,9 +18,9 @@ if platform.node().startswith('exo3'):
         detector_calibration_path = detector_pickled_path               # Path for the calibration files
         data_files_path = EXO_DATA_FILES+DEFAULT_SIMULATION_DIR      	# Path for the simulation data files
 else:
-    detector_pickled_path = '/chroma-data/'+DEFAULT_CONFIG_DIR
+    detector_pickled_path = sherlock_data_files+DEFAULT_CONFIG_DIR
     detector_calibration_path = detector_pickled_path                   # Path for the calibration files
-    data_files_path = '/chroma-data/'+DEFAULT_SIMULATION_DIR            # Path for the simulation data files
+    data_files_path = sherlock_data_files+DEFAULT_SIMULATION_DIR        # Path for the simulation data files
 
 # This is just for experimenting with hdf5 files
 def get_calibration_file_name_base_without_path(config):

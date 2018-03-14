@@ -12,43 +12,50 @@ from DetectorResponse import DetectorResponse
 from DetectorResponsePDF import DetectorResponsePDF
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 import lensmaterials as lm
-from ShortIO.root_short import ShortRootWriter
 from logger_lfd import logger
 
 from chroma.detector import G4DetectorParameters
-from chroma.sim import Simulation
 
-# TOTO: Move this method and uniform_photons to driver_utils?
+# TODO: Move this method and uniform_photons to driver_utils?
 def full_detector_simulation(amount, configname, simname, datadir=""):
     # simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron.
     # Note that viewing may crash if there are too many lenses. (try using configview)
 
+    from chroma.sim import Simulation     # Require CUDA, so only import when necessary
+    #from ShortIO.root_short import ShortRootWriter
     config = detectorconfig.configdict(configname)
     logger.info('Starting to load/build: %s' % configname)
     g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
     kabamland = kb.load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
     logger.info('Detector was loaded/built')
 
-    events = []
+    photons_start_pos = []
+    photons_stop_pos = []
+    photon_flags = []
     file_name_base = datadir + simname
-    f = ShortRootWriter(file_name_base)
-    sim = Simulation(kabamland, geant4_processes=0)  # For now, does not take advantage of multiple cores
+    #f = ShortRootWriter(datadir + simname+'.root')
+    # Have to set the seed because Sherlock compute machines blow up if we use chroma's algorithm!!!!
+    sim = Simulation(kabamland, geant4_processes=0, seed=65432)  # For now, does not take advantage of multiple cores  # should use sim_setup()
     for j in range(100):
         logger.info('%d of 100 event sets' % j)
         sim_events = [kb.uniform_photons(config.edge_length, amount) for i in range(10)]
         for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
-            f.write_event(ev)
-            events.append(ev)
-    f.close()
+            #f.write_event(ev)
+            photons_start_pos.append(ev.photons_beg.pos)   # What exactly will this do?  Append an array of pos?  Or not?
+            photons_stop_pos.append(ev.photons_end.pos)
+            photon_flags.append(ev.photons_end.flags)
+    #f.close()
     # Centralize this sort of stuff
-    h5_dict = {'config': config, 'photons_start': ev.photons_beg, 'photons_stop': ev.photons_end}
+    h5_dict = {'config': config, 'photons_start': photons_start_pos, 'photons_stop': photons_stop_pos, 'photon_flags': photon_flags}
+    # Can probably move back to a straight hdf5 file?
     dd.io.save(file_name_base +'.h5', h5_dict)
+
 
 # From detectoranalysis - remove it from there
 # This should really be called "calibrate"
 def create_detres_aka_calibrate(config, photons_file, detresname, detxbins=10, detybins=10, detzbins=10, method="PDF", nevents=-1, datadir="", fast_calibration=False):
     # saves a detector response list of pdfs- 1 for each pixel- given a simulation file of photons emitted isotropically throughout the detector.
-    logger.info('Calibrating for: ' + datadir + photons_file)
+    logger.info('Calibrating with: ' + datadir + photons_file)
     if method == "PDF":
         dr = DetectorResponsePDF(config, detxbins, detybins, detzbins)       # Do we need to continue to carry this?
     elif method == "GaussAngle":
@@ -62,7 +69,8 @@ def create_detres_aka_calibrate(config, photons_file, detresname, detxbins=10, d
     # dr.calibrate_old(datadir + simname, nevents)
     # print dr.means[68260]
     # print dr.sigmas[68260]
-    dr.write_to_ROOT(datadir + detresname + '.root')
+
+    ##dr.write_to_ROOT(datadir + detresname + '.root')
 
     # Config dict is just for human readability (currently)
     detector_data = {'config': dr.config, 'config_dict': vars(dr.config), 'means': dr.means, 'sigmas': dr.sigmas}
@@ -77,21 +85,26 @@ def calibrate(cfg):
     else:
         logger.info('Failed to find calibration file: ' + paths.get_calibration_file_name(cfg))
         logger.info('==== Step 1: Setting up the detector ====')
-        photons_file = 'sim-'+cfg+'_100million.root'
-        if not os.path.exists(paths.detector_calibration_path + photons_file):
-            logger.info('==== Building detector and simulating photons: %s  ====' % photons_file)
-            full_detector_simulation(100000, cfg, photons_file, datadir=paths.detector_calibration_path)
-        else:
-            logger.info('==== Found photons file: %s ====' % photons_file)
+        photons_file_base = 'sim-'+cfg+'_100million'
+        photons_file_full_path_base = paths.detector_calibration_path + photons_file_base
+        if not (os.path.exists(photons_file_full_path_base+'.root') or os.path.exists(photons_file_full_path_base+'.h5')):
+            logger.info('==== Building detector and simulating photons: %s  ====' % photons_file_base)
+            full_detector_simulation(100000, cfg, photons_file_base, datadir=paths.detector_calibration_path)
+            simulation_file = photons_file_base + '.h5'
+        elif os.path.exists(photons_file_full_path_base+'.h5'):  # TODO: The double check and the constantly adding extensions sort of sucks....
+            simulation_file = photons_file_base+ '.h5'
+        else:     # Fall back to root
+            simulation_file = photons_file_base+ '.root'
+        logger.info('==== Found/built photons file: %s ====' % simulation_file)
         logger.info("==== Step 2: Calibrating  ====")
         create_detres_aka_calibrate(args.cfg,
-                         photons_file,
+                         simulation_file,
                          paths.get_calibration_file_name_base_without_path(cfg),
                          method="GaussAngle",
                          nevents=10000,
                          datadir=paths.detector_calibration_path,
                          fast_calibration=True)
-        #os.remove(photons_file)
+        #os.remove(photons_file)  # Woudl need to potentially remove two
         logger.info("==== Calibration complete ====")
 
 if __name__ == '__main__':

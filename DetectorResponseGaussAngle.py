@@ -1,4 +1,3 @@
-from ShortIO.root_short import GaussAngleRootWriter, GaussAngleRootReader, ShortRootReader
 from DetectorResponse import DetectorResponse
 from chroma.transform import normalize
 
@@ -115,20 +114,6 @@ class DetectorResponseGaussAngle(DetectorResponse):
         # Will not calibrate PMTs with <n_min hits
         self.is_calibrated = True
         start_time = time.time()
-        reader = ShortRootReader(simname)
-
-        n_min = 10 # Do not calibrate a PMT if <n_min photons hit it
-        if nevents < 1:
-            nevents = len(reader)  # This will blow up
-        total_means = np.zeros((self.npmt_bins, 3))
-        total_variances = np.zeros((self.npmt_bins))
-        total_u_minus_v = np.zeros((self.npmt_bins))
-        amount_of_hits = np.zeros((self.npmt_bins))
-
-        max_storage = min(nevents*1000000,120000000) #600M is too much, 400M is OK (for np.float32; using 300M)
-        end_direction_array = np.empty((max_storage,3),dtype=np.float32)
-        pmt_bins = np.empty(max_storage,dtype=np.int)
-        n_det = 0
 
         pickle_name = self.configname + '-hits.pickle'
         hit_file_exists = False
@@ -144,12 +129,46 @@ class DetectorResponseGaussAngle(DetectorResponse):
         except IOError as error:
             # Assume file not found
             logger.info('Hit map pickle file not found.  Creating: ' + pickle_name)
-            reader = ShortRootReader(simname)
+
+            using_h5 = False
+            if simname.endswith('.h5'):
+                using_h5 = True
+                ev_file = dd.io.load(simname)
+                # TODO: Check the UUID!!
+                events_in_file = len(ev_file['photons_start'])
+            else:
+                from ShortIO.root_short import GaussAngleRootWriter, GaussAngleRootReader, ShortRootReader
+                reader = ShortRootReader(simname)
+                events_in_file = len(reader)
+            logger.info('Simulation event count: %d' % events_in_file)
+
+            n_min = 10 # Do not calibrate a PMT if <n_min photons hit it
+            if nevents < 1:
+                nevents = events_in_file
+            total_means = np.zeros((self.npmt_bins, 3))
+            total_variances = np.zeros((self.npmt_bins))
+            total_u_minus_v = np.zeros((self.npmt_bins))
+            amount_of_hits = np.zeros((self.npmt_bins))
+
+            max_storage = min(nevents*1000000,120000000) #600M is too much, 400M is OK (for np.float32; using 300M)
+            end_direction_array = np.empty((max_storage,3),dtype=np.float32)
+            pmt_bins = np.empty(max_storage,dtype=np.int)
+            n_det = 0
 
             # Loop through events, store for each photon the index of the PMT it hit (pmt_bins)
             # and the direction pointing back to its origin (end_direction_array)
             loops = 0
-            for ev in reader:
+            event_source = ev_file['photons_start_pos'] if using_h5 else reader
+            for index, ev_proxy in enumerate(event_source):  # Not sure if we can enumerate a reader????
+                # total hackery
+                if (using_h5):
+                    # Highly doubt this will work
+                    photons_beg = Photons(ev_proxy, [], [], [])
+                    photons_end = Photons(ev_file[index]['photons_end_pos'], [], [], [], flags=ev_file[index]['photon_flags'])
+                else:
+                    photons_beg = ev_proxy.photons_beg
+                    photons_end = ev_proxy.photons_end
+
                 loops += 1
                 if loops > nevents:
                     break
@@ -158,7 +177,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
                     logger.info("Event " + str(loops) + " of " + str(nevents))
                     logger.handlers[0].flush()
 
-                detected = (ev.photons_end.flags & (0x1 <<2)).astype(bool)
+                detected = (photons_end.flags & (0x1 <<2)).astype(bool)
                 '''
                 reflected_diffuse = (ev.photons_end.flags & (0x1 << 5)).astype(bool)
                 reflected_specular = (ev.photons_end.flags & (0x1 << 6)).astype(bool)
@@ -168,14 +187,14 @@ class DetectorResponseGaussAngle(DetectorResponse):
                 logger.info("Total detected and not reflected: " + str(sum(good_photons * 1)))
                 '''
                 if fast_calibration: 
-                    ending_photons, length = self._find_photons_for_pmt(ev.photons_beg.pos, ev.photons_end.pos, detected,
+                    ending_photons, length = self._find_photons_for_pmt(photons_beg.pos, photons_end.pos, detected,
                                                                        end_direction_array, n_det, max_storage)
                     pmt_b = self.find_pmt_bin_array(ending_photons)
                     if length is None:
                         break
                 else:
-                    beginning_photons = ev.photons_beg.pos[detected] # Include reflected photons
-                    ending_photons = ev.photons_end.pos[detected]
+                    beginning_photons = photons_beg.pos[detected] # Include reflected photons
+                    ending_photons = photons_end.pos[detected]
                     length = np.shape(ending_photons)[0]
                     pmt_b = self.find_pmt_bin_array(ending_photons)
                     end_point = self.lens_centers[pmt_b/self.n_pmts_per_surf]

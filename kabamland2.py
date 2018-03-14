@@ -10,7 +10,6 @@ from chroma.demo.optics import glass, black_surface
 from chroma.detector import Detector
 from chroma.sample import uniform_sphere
 from chroma import make, sample
-from chroma.loader import load_bvh
 from chroma.event import Photons
 
 import detectorconfig, lenssystem
@@ -240,6 +239,8 @@ def build_kabamland(kabamland, configname):
     build_pmt_icosahedron(kabamland, np.linalg.norm(config.vtx[0]), focal_length=config.focal_length) # Built further out, just as a way of stopping photons    
 
 def driver_funct(configname):
+        from chroma.loader import load_bvh  # Requires CUDA so only import it when necessary
+
 	kabamland = Detector(lm.create_scintillation_material())
 	config = detectorconfig.configdict(configname)
 	#get_lens_triangle_centers(vtx, rad_assembly, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
@@ -293,6 +294,8 @@ def load_or_build_detector(configname, detector_material, g4_detector_parameters
         else:
             logger.info('*** No Geant4 detector material found at all ***')
     else:
+        from chroma.loader import load_bvh  # Requires CUDA so only import it when necessary
+
         logger.info("** Building detector configuration: " + configname)
         kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
         build_kabamland(kabamland, configname)
