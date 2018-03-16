@@ -6,6 +6,8 @@ import uuid
 from lenssystem import get_system_measurements
 from paths import detector_pickled_path
 
+TOTAL_PIXEL_TARGET = 1000000
+
 def calc_steps(x_value,y_value,detector_r,n_lens_pixel):
         x_coord = np.asarray([x_value,np.roll(x_value,-1)]).T[:-1]
         y_coord = np.asarray([y_value,np.roll(y_value,-1)]).T[:-1]
@@ -30,7 +32,6 @@ def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=20,n_lens_pxl=4):
 #   Compute the total number of pixels each for from 2 to 45 rings
 #   And then pick the closest one to 100,000 pixels total
 def param_arr(n_lens,b_pxl,l_sys,detec_r,max_rad):
-	tot_px = 100000.0
 	if l_sys == 'Jiani3':
 		scal_lens = 488.0/643.0
 	elif l_sys == 'Sam1':
@@ -40,8 +41,8 @@ def param_arr(n_lens,b_pxl,l_sys,detec_r,max_rad):
 		ix.append(i)
 		arr.append(sum(curved_surface2(detec_r,2*max_rad,i,b_pxl)[2]))
 	arr = np.asarray(arr)
-	nstep = ix[np.argmin(np.absolute(arr*n_lens-tot_px))]
-	t_px = arr[np.argmin(np.absolute(arr*n_lens-tot_px))]*n_lens
+	nstep = ix[np.argmin(np.absolute(arr*n_lens-TOTAL_PIXEL_TARGET))]
+	t_px = arr[np.argmin(np.absolute(arr*n_lens-TOTAL_PIXEL_TARGET))]*n_lens
 	#dct = np.stack((ix,scal_lens*edge_len/(2*(np.sqrt(2*px_per_face/arr).astype(int)+np.sqrt(3)-1))))
 	#sel_arr = np.absolute(((n_lens*(n_lens+1))/2*arr-px_per_face)/px_per_face)<0.3
 	#dct = dct[:,sel_arr]
@@ -155,7 +156,9 @@ if __name__ == '__main__':
     vtx,max_rad,geom_eff = calc_rad(fibonacci_sphere(n_lens),sph_rad)
     dtc_r = get_system_measurements(lens_system_name,max_rad)[1]
     n_step,tot_pxl = param_arr(n_lens,b_pxl,lens_system_name,dtc_r,max_rad)
-    conf_name = 'cf%s_K%i_%i'%(lens_system_name,n_lens,int(EPD_ratio*10))
+
+    # The K here should go away
+    conf_name = 'cf%s_K%i_%i_t%i_b%i' % (lens_system_name,n_lens,int(EPD_ratio*10),tot_pxl,b_pxl)
 
     config = [sph_rad, n_lens, max_rad, vtx, EPD_ratio, n_step, b_pxl, tot_pxl, uuid.uuid1()]
     config_map_entry = {conf_name: config}

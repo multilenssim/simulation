@@ -16,13 +16,15 @@ from logger_lfd import logger
 
 from chroma.detector import G4DetectorParameters
 
+import psutil
+
 # TODO: Move this method and uniform_photons to driver_utils?
 def full_detector_simulation(amount, configname, simname, datadir=""):
     # simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron.
     # Note that viewing may crash if there are too many lenses. (try using configview)
 
     from chroma.sim import Simulation     # Require CUDA, so only import when necessary
-    #from ShortIO.root_short import ShortRootWriter
+    from ShortIO.root_short import ShortRootWriter
     config = detectorconfig.configdict(configname)
     logger.info('Starting to load/build: %s' % configname)
     g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
@@ -33,22 +35,41 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
     photons_stop_pos = []
     photon_flags = []
     file_name_base = datadir + simname
-    #f = ShortRootWriter(datadir + simname+'.root')
+    f = ShortRootWriter(datadir + simname+'.root')
     # Have to set the seed because Sherlock compute machines blow up if we use chroma's algorithm!!!!
     sim = Simulation(kabamland, geant4_processes=0, seed=65432)  # For now, does not take advantage of multiple cores  # should use sim_setup()
-    for j in range(100):
-        logger.info('%d of 100 event sets' % j)
-        sim_events = [kb.uniform_photons(config.edge_length, amount) for i in range(10)]
-        for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
-            #f.write_event(ev)
-            photons_start_pos.append(ev.photons_beg.pos)   # What exactly will this do?  Append an array of pos?  Or not?
-            photons_stop_pos.append(ev.photons_end.pos)
-            photon_flags.append(ev.photons_end.flags)
-    #f.close()
+    with h5py.File(file_name_base + '.h5','w') as h5_file:
+        LOOP_COUNT = 100
+        EVENT_COUNT = 10
+        start_pos = h5_file.create_dataset('photons_start', shape=(LOOP_COUNT*EVENT_COUNT, amount, 3), dtype=np.float32, chunks=True)
+        end_pos = h5_file.create_dataset('photons_end', shape=(LOOP_COUNT*EVENT_COUNT, amount, 3), dtype=np.float32, chunks=True)
+        photon_flags = h5_file.create_dataset('photons_flage', shape=(LOOP_COUNT*EVENT_COUNT, amount,), dtype=np.uint32, chunks=True)
+
+        process = psutil.Process(os.getpid())
+        print('Memory size: %d MB' % int(process.memory_info().rss) // 1000000)
+        for j in range(LOOP_COUNT):
+            logger.info('%d of %d event sets' % (j, LOOP_COUNT))
+            ev_index = 0
+            sim_events = [kb.uniform_photons(config.edge_length, amount) for i in range(EVENT_COUNT)]
+            for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
+                f.write_event(ev)
+                if j == 0:
+                    print('Type %s %s' % (str(type(ev.photons_beg.pos)), np.shape(ev.photons_beg.pos)))
+                start_pos[(j* EVENT_COUNT) + ev_index] = ev.photons_beg.pos
+                end_pos[(j* EVENT_COUNT) + ev_index] = ev.photons_end.pos
+                photon_flags[(j* EVENT_COUNT) + ev_index] = ev.photons_end.flags
+                #photons_start_pos.append(ev.photons_beg.pos)   # What exactly will this do?  Append an array of pos?  Or not?
+                #photons_stop_pos.append(ev.photons_end.pos)
+                #photon_flags.append(ev.photons_end.flags)
+                ev_index += 1
+            print('Memory size: %d MB' % int(process.memory_info().rss) // 1000000)
+
+    f.close()
     # Centralize this sort of stuff
-    h5_dict = {'config': config, 'photons_start': photons_start_pos, 'photons_stop': photons_stop_pos, 'photon_flags': photon_flags}
+
+    #h5_dict = {'config': config, 'photons_start': photons_start_pos, 'photons_stop': photons_stop_pos, 'photon_flags': photon_flags}
     # Can probably move back to a straight hdf5 file?
-    dd.io.save(file_name_base +'.h5', h5_dict)
+    #dd.io.save(file_name_base +'.h5', h5_dict)
 
 
 # From detectoranalysis - remove it from there

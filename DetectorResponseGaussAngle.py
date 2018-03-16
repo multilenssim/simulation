@@ -1,5 +1,6 @@
 from DetectorResponse import DetectorResponse
 from chroma.transform import normalize
+from chroma.event import Photons
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -117,6 +118,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
 
         pickle_name = self.configname + '-hits.pickle'
         hit_file_exists = False
+        n_min = 10 # Do not calibrate a PMT if <n_min photons hit it
         try:
             logger.info('Attempting to load pickle hits file: %s%s' % (directory, pickle_name));
             with open(directory + pickle_name, 'rb') as inf:
@@ -142,7 +144,6 @@ class DetectorResponseGaussAngle(DetectorResponse):
                 events_in_file = len(reader)
             logger.info('Simulation event count: %d' % events_in_file)
 
-            n_min = 10 # Do not calibrate a PMT if <n_min photons hit it
             if nevents < 1:
                 nevents = events_in_file
             total_means = np.zeros((self.npmt_bins, 3))
@@ -158,13 +159,13 @@ class DetectorResponseGaussAngle(DetectorResponse):
             # Loop through events, store for each photon the index of the PMT it hit (pmt_bins)
             # and the direction pointing back to its origin (end_direction_array)
             loops = 0
-            event_source = ev_file['photons_start_pos'] if using_h5 else reader
+            event_source = ev_file['photons_start'] if using_h5 else reader
             for index, ev_proxy in enumerate(event_source):  # Not sure if we can enumerate a reader????
                 # total hackery
                 if (using_h5):
                     # Highly doubt this will work
                     photons_beg = Photons(ev_proxy, [], [], [])
-                    photons_end = Photons(ev_file[index]['photons_end_pos'], [], [], [], flags=ev_file[index]['photon_flags'])
+                    photons_end = Photons(ev_file['photons_stop'][index], [], [], [], flags=ev_file['photon_flags'][index])
                 else:
                     photons_beg = ev_proxy.photons_beg
                     photons_end = ev_proxy.photons_end
