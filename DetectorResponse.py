@@ -411,20 +411,19 @@ class DetectorResponse(object):
             return bin_coord
         else:
             # Get indices of curved surfaces hit, then translate to first of two triangles hit
-            #print self.n_triangles_per_surf
-            #print self.n_pmts_per_surf
             curved_surf_bin = (pmtbin/self.n_pmts_per_surf) # Integer division - drops remainder
-            #print curved_surf_bin
-            #print max(curved_surf_bin)
-
-            triangle_bin1 = curved_surf_bin*self.n_triangles_per_surf + (pmtbin % self.n_pmts_per_surf)
-            triangle_bin2 = triangle_bin1+self.n_pmts_per_surf # Second triangle for this PMT
-
+            ring_div = np.einsum('i,j->ij',pmtbin % self.n_pmts_per_surf,1./np.cumsum(self.ring)).astype(int)
+            zero_sel = np.where(ring_div==0)
+            label, counts = np.unique(zero_sel[0],return_index=True)
+            ring_label = zero_sel[1][counts]
+            cumulative_ring = np.roll(np.cumsum(self.ring),1)
+            cumulative_ring[0] = 0
+            ring_offset = cumulative_ring[ring_label]
+            triangle_bin1 = curved_surf_bin*self.n_triangles_per_surf + ring_offset + (pmtbin % self.n_pmts_per_surf)
+            triangle_bin2 = triangle_bin1+self.ring[ring_label] # Second triangle for this PMT
             triangle_pos1 = self.triangle_centers[triangle_bin1]
             triangle_pos2 = self.triangle_centers[triangle_bin2]
 
-            #print triangle_bin1
-            #print triangle_pos1
             bin_pos = (triangle_pos1+triangle_pos2)/2.0
 
             return bin_pos

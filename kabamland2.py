@@ -59,7 +59,7 @@ def gaussian_sphere(pos, sigma, n):
 def uniform_photons(edge_length, n):
     #constructs photons uniformly throughout the detector inside of the inscribed sphere.
     inscribed_radius = edge_length
-    radius_root = inscribed_radius*np.random.uniform(0.0, 1.0, n)**(1.0/3)
+    radius_root = inscribed_radius*np.power(np.random.rand(n),1.0/3.0)
     theta = np.arccos(np.random.uniform(-1.0, 1.0, n))
     phi = np.random.uniform(0.0, 2*np.pi, n)
     points = np.empty((n,3))
@@ -242,7 +242,7 @@ def driver_funct(configname):
 	kabamland.bvh = load_bvh(kabamland)
 	view(kabamland)
 
-def full_detector_simulation(amount, configname, simname, datadir=""):
+def full_detector_simulation(amount, configname, simname, datadir="",cal=''):
         #simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron. Note that viewing may crash if there are too many lenses. (try using configview)
 
         config = detectorconfig.configdict(configname)
@@ -253,9 +253,12 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 
         f = ShortRootWriter(datadir + simname)
         sim = Simulation(kabamland,geant4_processes=0)
+	scale_factor = 1
+	if cal == '_narrow':
+		scale_factor = 0.2
         for j in range(100):
                 print j
-                sim_events = [uniform_photons(config.edge_length, amount) for i in range(10)]
+                sim_events = [uniform_photons(config.edge_length*scale_factor, amount) for i in range(10)]
                 for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
                         f.write_event(ev)
         f.close()
@@ -303,4 +306,4 @@ def load_or_build_detector(config, detector_material, g4_detector_parameters):
 
 
 if __name__ == '__main__':
-	driver_funct('cfSam1_K200_8')
+	driver_funct('cfSam1_K20_8_small')

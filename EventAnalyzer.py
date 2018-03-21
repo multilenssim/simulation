@@ -645,7 +645,7 @@ class EventAnalyzer(object):
 		pass
 	else:
 		event_pmt_bin_array = self.QE(event_pmt_bin_array,qe)
-        event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T
+        #event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T
         
         event_lens_bin_array = np.array(event_pmt_bin_array/self.det_res.n_pmts_per_surf)
         event_lens_pos_array = np.array([self.det_res.lens_centers[x] for x in event_lens_bin_array]).T

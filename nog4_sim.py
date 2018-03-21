@@ -12,7 +12,7 @@ import paths
 def fixed_dist(sample, radius, in_shell, out_shell, rads=None):
 	loc1 = sph_scatter(sample,in_shell,out_shell)
 	loc2 = sph_scatter(sample,in_shell,out_shell)
-	if rads == None:
+	if np.array_equal(rads,None):
 		rads = np.linspace(50,500,sample)
 	else:
 		rads = np.full(sample,rads)
@@ -35,9 +35,9 @@ def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 	# locs1 and locs2 are lists of locations (tuples)
 	# other parameters are single numbers
 	events = []
-	if len(locs1.shape) == 1:
-		locs1 = locs1.reshape((1,-1))
-		locs2 = locs2.reshape((1,-1))
+	if len(np.shape(locs1)) == 1:
+		locs1 = np.reshape(locs1,(1,-1))
+		locs2 = np.reshape(locs2,(1,-1))
 	for loc1,loc2 in zip(locs1,locs2):
 	    event1 = kbl.gaussian_sphere(loc1, sigma, int(amount1))
 	    event2 = kbl.gaussian_sphere(loc2, sigma, int(amount2))

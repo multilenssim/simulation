@@ -4,14 +4,6 @@ import nog4_sim as setup
 import numpy as np
 import paths
 
-'''                        db = DBSCAN(eps=3, min_samples=10).fit(vert)
-                        label =  db.labels_
-                        labels = label[label!=-1]
-                        vert = vert[label!=-1]
-                        unique, counts = np.unique(labels, return_counts=True)
-                        main_cluster = vert[labels==unique[np.argmax(counts)],:]
-'''
-
 
 def sim_ev(particle,lg,energy):
 	gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(energy*0.999, energy*1.001))
@@ -101,5 +93,5 @@ for i in xrange(1):
 	dist,err,rcn_pos = track_dist(trx.hit_pos.T,trx.means.T,trx.sigmas,trx.lens_rad)
 	dct['vtx%i'%i] = rcn_pos
 
-with open('dataset_%s.p'%particle,'w') as f:
+with open('%s_dataset_%s.p'%(cfg,particle),'w') as f:
 	pickle.dump(dct,f,pickle.HIGHEST_PROTOCOL)
