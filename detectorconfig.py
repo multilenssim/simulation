@@ -1,11 +1,17 @@
-from lenssystem import get_system_measurements, get_half_EPD
-from paths import detector_pickled_path
 import pickle
+import argparse
+import pprint
+import uuid
+
+from logger_lfd import logger
+from lenssystem import get_system_measurements, get_half_EPD
+import paths
 
 class DetectorConfig(object):
     def __init__ (self, sph_rad, n_lens, max_radius, vtx,
-                  pmtxbins, pmtybins,
                   diameter_ratio,
+                  ring_count,
+                  pmtxbins=None, pmtybins=None,   # Only used for flat detector surface
                   thickness_ratio=0.25,
                   blockers=True,
                   blocker_thickness_ratio=1.0/1000,
@@ -13,10 +19,9 @@ class DetectorConfig(object):
                   EPD_ratio=1.0,
                   focal_length=1.0,
                   light_confinement=False,
-                  nsteps=10,
                   b_pixel=4,
                   tot_pixels=None,
-                  uuid=None,
+                  the_uuid=None,
                   config_name=None):
         # Spherical geometry the focal surface is considered curve (planar surface not considered).
         # The parameters of the lens system defined in lenssystem.py for any given name. 
@@ -24,9 +29,9 @@ class DetectorConfig(object):
         # parameters override it).
         # The attributes' names are the same of the icosahedron to have the scripts compatible
         self.EPD_ratio = EPD_ratio
-        self.edge_length = sph_rad # Radius of the detector
-        self.base = n_lens # Total number of lenses
-        self.pmtxbins = pmtxbins # If planar detector, bins in x for each plane; if curved, does nothing
+        self.detector_radius = sph_rad  # Radius of the detector
+        self.lens_count = n_lens        # Total number of lenses
+        self.pmtxbins = pmtxbins        # If planar detector, bins in x for each plane; if curved, does nothing
         self.pmtybins = pmtybins
         # For planar detector, diameter_ratio is the ratio of lens system diameter that for max packing 
         # For curved detecting surfaces, all lens system distances will be scaled by diameter_ratio 
@@ -37,6 +42,7 @@ class DetectorConfig(object):
         self.blockers = blockers # Toggles blocking surfaces at the lens plane between lenses
         self.blocker_thickness_ratio = blocker_thickness_ratio # Sets thickness of blockers; should have no effect
         self.lens_system_name = lens_system_name
+        self.max_radius = max_radius
         if lens_system_name:
             # Get focal length and radius of curvature of detecting surfaces; detecting surface will
             # extend to the maximum allowable radius, but its radius of curvature (and all other lens
@@ -48,14 +54,40 @@ class DetectorConfig(object):
             self.detector_r = 0. # Flat detector
             self.half_EPD = diameter_ratio*max_radius # Just uses diameter_ratio instead of EPD_ratio, for backwards compatibility
         self.light_confinement = light_confinement
-        self.nsteps = nsteps # number of steps to generate curved detecting surface - sets number of PMTs
-        self.b_pixel = b_pixel # number of pixels in the first ring (active only with NEW PIXELIZATION)
+        self.ring_count = ring_count # number of steps to generate curved detecting surface - sets number of PMTs - I think this is now the number of rings
+        self.base_pixels = b_pixel # number of pixels in the first ring (active only with NEW PIXELIZATION)
         self.vtx = vtx
         self.tot_pixels = tot_pixels
-        self.uuid = uuid
-        self.config_name = config_name
+        if the_uuid is None:
+            self.uuid = uuid.uuid1()
+        else:
+            self.uuid = the_uuid
+        if config_name is None:
+            # Note: lens_system_name could be None
+            self.config_name = 'cf%s_l%i_p%i_b%i_e%i' % (self.lens_system_name, self.lens_count, self.tot_pixels, self.base_pixels, int(self.EPD_ratio*10))
+        else:
+            self.config_name = config_name
 
-def detector_config_from_parameter_array(config_name,
+    def display_configuration(self):
+        print('=== Config: %s =====' % self.config_name)
+        print ('  Detector radius:\t%0.2f'  % self.detector_radius)
+        print ('  Number of lenses:\t%d'    % self.lens_count)
+        print ('  Max radius:\t\t%0.2f'     % self.max_radius)
+        print ('  EPD ratio:\t\t%0.2f'      % self.EPD_ratio)
+        print ('  Number of rings (+1):\t%d' % self.ring_count)
+        print ('  Central pixels:\t%d'      % self.base_pixels)
+        print ('  UUID:\t\t\t\t%s'          % str(self.uuid))
+        print ('  Total pixels in detector:\t%s)'  % '{:,}'.format(self.tot_pixels))
+
+        #lens_system_name = config_name.split('_')[0][2:]
+        #dtc_r = get_system_measurements(lens_system_name, max_rad)[1]
+        #n_step, tot_pxl = param_arr(n_lens, b_pxl, lens_system_name, dtc_r, max_rad)
+        #print ('  Total pixels (computed):\t%d'       % tot_pxl)
+
+        print('-------------------------')
+
+    '''
+    def detector_config_from_parameter_array(config_name,
                                          config_dict,
                                          thickness_ratio=0.25,
                                          blockers=True,
@@ -64,7 +96,7 @@ def detector_config_from_parameter_array(config_name,
                                          focal_length=1.0,
                                          light_confinement=True):
 
-    return DetectorConfig(
+        return DetectorConfig(
                 config_dict[0],
                 config_dict[1],
                 config_dict[2],
@@ -82,8 +114,48 @@ def detector_config_from_parameter_array(config_name,
                 tot_pixels=config_dict[7] if len(config_dict) > 7 else None,
                 uuid=config_dict[8] if len(config_dict) > 8 else None,
                 config_name=config_name)
+    '''
 
+_config_list = None
+_configs_pickle_file = '%sconf_file_obj.pickle' % paths.detector_config_path
 
+# Maintains the detector configuration file
+class DetectorConfigurationList(object):
+    def __init__(self):
+        global _config_list, _config_pickle_file
+
+        if _config_list is None:
+            try:
+                with open(_configs_pickle_file,'r') as f:
+                    _config_list = pickle.load(f)
+                logger.info('Loaded config list: %s' % _configs_pickle_file)
+            except IOError:
+                _config_list = {}
+                self._save_config_list()
+
+    def _save_config_list(self):
+        try:
+            with open(_configs_pickle_file,'w') as f:
+                pickle.dump(_config_list, f, protocol=pickle.HIGHEST_PROTOCOL)
+        except IOError:  # Needs to be tested
+            logger.critical('Unable to read or write configuration list: %s.  Quitting.' % _config_pickle_file)
+            exit(-1)
+
+    def save_configuration(self, config):
+        global _config_list
+
+        conf_name = config.config_name
+        if conf_name in _config_list:
+            logger.info('Replacing configuration: ' + conf_name)
+        _config_list[conf_name] = config
+        self._save_config_list()
+        logger.info('Configuration saved: ' + conf_name)
+
+    def get_configuration(self, name):
+        return _config_list[name]
+
+    def _get_dict(self):  # Only intended for use by the display routine below!
+        return _config_list
 
 # All configpc diameters given are for kabamlandpc packing (different for kabamland2) 
 # Up to configpc4, focal_length=diameter
@@ -91,85 +163,9 @@ def detector_config_from_parameter_array(config_name,
 # The other configpc cases do not set focal_length or light_confinement here due to historical reasons;
 # filenames using them should specify both of these parameters; future runs should just create new configs
 
-def get_dict_param(conf_fl,conf_name):
-    with open(conf_fl,'r') as f:
-        dtc = pickle.load(f)
-    return dtc[conf_name]
-
-'''
-# Newer configurations, including those with curved detecting surfaces and pre-made lens systems
-configdict = {'cfJiani3_2': DetectorConfig(10000.0, 6, 0, 0, 1.0, lens_system_name='Jiani3', light_confinement=True, nsteps=23)} # Should have ~100k pixels, 21 lens systems/face, 20 faces
-configdict['cfJiani3_4'] = DetectorConfig(10000.0, 4, 0, 0, 1.0, lens_system_name='Jiani3', light_confinement=True, nsteps=32) # Should have ~100k pixels, 10 lens systems/face, 20 faces
-configdict['cfJiani3_8'] = DetectorConfig(10000.0, 4, 0, 0, 1.0, lens_system_name='Jiani3', light_confinement=True, nsteps=11, b_pixel=5) #94600 pxl,10 system/face,l_radius: 80cm NP
-configdict['cfJiani3_9'] = DetectorConfig(10000.0, 3, 0, 0, 1.0, lens_system_name='Jiani3', light_confinement=True, nsteps=16, b_pixel=4) #102120 pxl,6 system/face,l_radius: 102cm NP
-configdict['cfSam1_1'] = DetectorConfig(10000.0, 6, 0, 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=23) # Should have ~100k pixels, 21 lens systems/face, 20 faces
-configdict['cfSam1_2'] = DetectorConfig(10000.0, 4, 0, 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=23) # Should have ~100k pixels, 10 lens systems/face, 20 faces
-configdict['cfSam1_3'] = DetectorConfig(10000.0, 9, 0, 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=12) # Should have ~100k pixels, 45 lens systems/face, 20 faces
-configdict['cfSam1_4'] = DetectorConfig(10000.0, 10, 0, 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=12) # Should have ~100k pixels, 55 lens systems/face, 20 faces
-configdict['cfSam1_5'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=11, b_pixel=5) #93800plx, 10 system/face, l_radius: 105cm np
-
-configdict['cfSam1_K4_10'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=13, b_pixel=4) #107600plx, 10 system/face, l_radius: 105cm np
-configdict['cfSam1_K2_10'] = DetectorConfig(10000.0, 2, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=22, b_pixel=4) #99420plx, 3 system/face, l_radius: 183cm np
-configdict['cfSam1_K6_10'] = DetectorConfig(10000.0, 6, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=9, b_pixel=4) #99960plx, 21 system/face, l_radius: 74cm np
-configdict['cfSam1_K1_10'] = DetectorConfig(10000.0, 1, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=37, b_pixel=4) #97620plx, 1 system/face, l_radius: 289cm np
-configdict['cfSam1_K8_10'] = DetectorConfig(10000.0, 8, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=7, b_pixel=4) #95760plx, 1 system/face, l_radius: 57cm np
-configdict['cfSam1_K10_10'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=6, b_pixel=4) #101200plx, 55 system/face, l_radius: 46cm np
-configdict['cfSam1_K10_8'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=6, b_pixel=4) #101200plx, 55 system/face, l_radius: 46cm np
-configdict['cfSam1_K2_8'] = DetectorConfig(10000.0, 2, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=22, b_pixel=4)
-configdict['cfSam1_K6_8'] = DetectorConfig(10000.0, 6, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=9, b_pixel=4)
-configdict['cfSam1_K8_8'] = DetectorConfig(10000.0, 8, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=7, b_pixel=4)
-configdict['cfSam1_K4_8'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=13, b_pixel=4)
-configdict['cfSam1_K12_10'] = DetectorConfig(10000.0, 12, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=5, b_pixel=4) #92040plx, 78 system/face, l_radius: 36cm np
-configdict['cfSam1_K12_8'] = DetectorConfig(10000.0, 12, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=5, b_pixel=4) #92040plx, 78 system/face, l_radius: 36cm np
-configdict['cfSam1_K4_5'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.5, light_confinement=True, nsteps=13, b_pixel=4)
-configdict['cfSam1_K1_8'] = DetectorConfig(10000.0, 1, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=37, b_pixel=4)
-
-configdict['cfSam1_k1_10'] = DetectorConfig(10000.0, 1, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=13, b_pixel=4) #10760plx, 1 system/face, l_radius: 289cm np
-configdict['cfSam1_k2_10'] = DetectorConfig(10000.0, 2, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=8, b_pixel=4) #10980plx, 3 system/face, l_radius: 183cm np
-configdict['cfSam1_k3_10'] = DetectorConfig(10000.0, 3, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=6, b_pixel=4) #11040plx, 6 system/face, l_radius: 134cm np
-configdict['cfSam1_k4_10'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=5, b_pixel=4) #11800plx, 10 system/face, l_radius: 106cm np
-configdict['cfSam1_k6_10'] = DetectorConfig(10000.0, 6, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=3, b_pixel=6) #9660plx, 21 system/face, l_radius: 74cm np
-configdict['cfSam1_k1_8'] = DetectorConfig(10000.0, 1, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=13, b_pixel=4) #10760plx, 1 system/face, l_radius: 289cm np
-configdict['cfSam1_k2_8'] = DetectorConfig(10000.0, 2, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=8, b_pixel=4) #10980plx, 3 system/face, l_radius: 183cm np
-configdict['cfSam1_k3_8'] = DetectorConfig(10000.0, 3, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=6, b_pixel=4) #11040plx, 6 system/face, l_radius: 134cm np
-configdict['cfSam1_k4_8'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=5, b_pixel=4) #11800plx, 10 system/face, l_radius: 106cm np
-configdict['cfSam1_k6_8'] = DetectorConfig(10000.0, 6, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=3, b_pixel=6) #9660plx, 21 system/face, l_radius: 74cm np
-
-configdict['cfSam1_M4_10'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=37, b_pixel=4)
-configdict['cfSam1_M20_10'] = DetectorConfig(10000.0, 20, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=9, b_pixel=4)
-configdict['cfSam1_M20_8'] = DetectorConfig(10000.0, 20, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=9, b_pixel=4)
-configdict['cfSam1_M4_8'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=37, b_pixel=4) #976200plx, 10 system/face, l_radius: 1056cm np
-configdict['cfSam1_M10_10'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=17, b_pixel=4) #1056000 plx, 55 system/face, l_radius: 465 cm np
-configdict['cfSam1_M10_8'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=17, b_pixel=4) #1056000 plx, 55 system/face, l_radius: 465 cm np
-'''
-''' Old configuration names - maintained here for reference so that we can rename the config files
-configdict['cfSam1_6'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=13, b_pixel=4) #107600plx, 10 system/face, l_radius: 105cm np
-configdict['cfSam1_7'] = DetectorConfig(10000.0, 2, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=22, b_pixel=4) #99420plx, 3 system/face, l_radius: 183cm np
-configdict['cfSam1_8'] = DetectorConfig(10000.0, 6, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=9, b_pixel=4) #99960plx, 21 system/face, l_radius: 74cm np
-configdict['cfSam1_9'] = DetectorConfig(10000.0, 1, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=37, b_pixel=4) #97620plx, 1 system/face, l_radius: 289cm np
-configdict['cfSam1_10'] = DetectorConfig(10000.0, 8, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=7, b_pixel=4) #95760plx, 1 system/face, l_radius: 57cm np
-configdict['cfSam1_11'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=6, b_pixel=4) #101200plx, 55 system/face, l_radius: 46cm np
-configdict['cfSam1_12'] = DetectorConfig(10000.0, 2, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=22, b_pixel=4) #99420plx, 3 system/face, l_radius: 183cm np
-configdict['cfSam1_13'] = DetectorConfig(10000.0, 6, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=9, b_pixel=4) #99960plx, 21 system/face, l_radius: 74cm np
-configdict['cfSam1_14'] = DetectorConfig(10000.0, 8, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=7, b_pixel=4) #95760plx, 1 system/face, l_radius: 57cm np
-configdict['cfSam1_15'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=6, b_pixel=4) #101200plx, 55 system/face, l_radius: 46cm np
-configdict['cfSam1_16'] = DetectorConfig(10000.0, 12, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=5, b_pixel=4) #92040plx, 78 system/face, l_radius: 36cm np
-configdict['cfSam1_17'] = DetectorConfig(10000.0, 12, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=5, b_pixel=4) #92040plx, 78 system/face, l_radius: 36cm np
-configdict['cfSam1_18'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=6, b_pixel=4) #101200plx, 55 system/face, l_radius: 46cm np
-configdict['cfSam1_21'] = DetectorConfig(10000.0, 20, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=9, b_pixel=4) #~1 Million, 20 lens at base
-# Note that Sam1_22 corresponds to Sam1_19
-configdict['cfSam1_22'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=37, b_pixel=4) #976200plx, 10 system/face, l_radius: 1056cm np
-''''''
-configdict['cfSam1_19'] = DetectorConfig(10000.0, 4, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=37, b_pixel=4) #976200plx, 10 system/face, l_radius: 1056cm np
-configdict['cfSam1_20'] = DetectorConfig(10000.0, 20, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=9, b_pixel=4) #~1 Million, 20 lens at base
-configdict['cfSam1_23'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', light_confinement=True, nsteps=17, b_pixel=4) #1056000 plx, 55 system/face, l_radius: 465 cm np
-''''''
-configdict['cfSam1_24'] = DetectorConfig(10000.0, 10, 0 , 0, 1.0, lens_system_name='Sam1', EPD_ratio = 0.8, light_confinement=True, nsteps=17, b_pixel=4) #1056000 plx, 55 system/face, l_radius: 465 cm np
-'''
-
-
 # The old parameters:    edge_length, base, pmtxbins, pmtybins, diameter_ratio,
 
+# This is deprecated....
 def configdict(conf_name):
     # Temportary to access the old config files for checking sigmas
     if conf_name == 'cfSam1_K10_8':
@@ -177,7 +173,51 @@ def configdict(conf_name):
                                                     light_confinement=True, nsteps=6,
                                                     b_pixel=4)  # 101200plx, 55 system/face, l_radius: 46cm np
 
-    fname  =  '%sconf_file.p'%detector_pickled_path
-    config_dict = get_dict_param(fname,conf_name)
+    fname  =  '%sconf_file.p'%paths.detector_config_path
+    config_dict = _get_dict_param(fname,conf_name)
 
     return detector_config_from_parameter_array(conf_name, config_dict, lens_system_name='Sam1', light_confinement=True)
+
+if __name__ == '__main__':
+    global _configs_pickle_file
+
+    parser = argparse.ArgumentParser('Display detector configurations')
+    parser.add_argument('--simple_list', '-s', action='store_true', help='List only the detector configuration names in the configuration file')
+    parser.add_argument('--full_list', '-f', action='store_true', help='List the full detector configurations')
+    parser.add_argument('--convert', '-c', action='store_true', help='Convert from old style array based configuration, to new styleobject-based')
+    args = parser.parse_args()
+
+    if args.convert:
+        _configs_pickle_file = '%sconf_file.p' % paths.detector_config_path
+        new_config_dict = {}
+        with open(_configs_pickle_file, 'r') as f:
+            dct = pickle.load(f)
+            for key, value in dct.iteritems():
+                det_config = DetectorConfig(value[0],
+                                    value[1],
+                                    value[2],
+                                    value[3],
+                                    1.0,
+                                    value[5],
+                                    lens_system_name='Sam1',
+                                    EPD_ratio=value[4],
+                                    light_confinement=True,
+                                    b_pixel=value[6],
+                                    tot_pixels=value[7] if len(value) > 7 else None,
+                                    the_uuid=value[8] if len(value) > 8 else None,
+                                    config_name=key)
+                new_config_dict[key] = det_config
+        with open(_configs_pickle_file+'.2.pickle','w') as f:
+            pickle.dump(new_config_dict, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    else:
+        cl = DetectorConfigurationList()
+        dct = cl._get_dict()
+        for key, value in dct.iteritems():
+            if args.simple_list:
+                print(key)
+            else:
+                value.display_configuration()
+                if args.full_list:
+                    pprint.pprint(vars(value))
+                    print('========================')

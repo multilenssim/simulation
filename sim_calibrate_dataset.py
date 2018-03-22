@@ -1,7 +1,6 @@
 import os
 import argparse
 
-import kabamland2 as kb
 import detectoranalysis as da
 import paths
 import g4_sim
@@ -16,6 +15,13 @@ from chroma.sim import Simulation
 
 from logger_lfd import logger
 
+def save_config_file(cfg, file_name, dict):
+    config_path = paths.get_data_file_path(cfg)
+    if not os.path.exists(config_path):
+        os.makedirs(config_path)
+    with open(config_path + file_name, 'w') as outf:
+        pickle.dump(dict, outf)
+
 # Move/Use driver_utils for this?
 # And for uniform_photoms?
 def full_detector_simulation(amount, configname, simname, datadir=""):
@@ -24,7 +30,7 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
     config = detectorconfig.configdict(configname)
     logger.info('Starting to build: %s' % configname)
     g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
-    kabamland = kb.load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+    kabamland = driver_utils.load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
     logger.info('Detector was built')
 
     f = ShortRootWriter(datadir + simname)
@@ -59,7 +65,7 @@ def calibrate(cfg):
         print('Found calibration file: %s' % paths.get_calibration_file_name(cfg))
 
     # Continue to write this to support Jacopo's test setup
-    driver_utils.save_config_file(cfg, 'conf.pkl', detectorconfig.configdict(cfg))  # cfg].__dict__)
+    save_config_file(cfg, 'conf.pkl', detectorconfig.configdict(cfg))  # cfg].__dict__)
 
     if False:     # Need to reexamine this in light of what we are doing - is this a cal config, or is this a simulation config
         all_config_info = {'configuration': detectorconfig.configdict(cfg)}
@@ -72,7 +78,7 @@ def calibrate(cfg):
         #all_config_info['energy'] = energy
         #all_config_info['distance_range'] = dist_range
         all_config_info['quantum_efficiency'] = 'placeholder'
-        driver_utils.save_config_file(cfg, 'full_config.pickle', all_config_info)
+        save_config_file(cfg, 'full_config.pickle', all_config_info)
 
 def simulate(cfg, particle, dist_range, energy):
     logger.info('==== Step 3: Simulation part ====')

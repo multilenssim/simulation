@@ -745,10 +745,8 @@ class EventAnalyzer(object):
         #qe=1 # Just a test
         if qe == None:
             pass
-
         else:
-            mask = np.where(rings == 11)
-            #mask = self.QE(event_pmt_bin_array,qe)
+            mask = self.QE(event_pmt_bin_array,qe)
             event_pmt_bin_array = event_pmt_bin_array[mask]
             lenses = lenses[mask]
             rings = rings[mask]

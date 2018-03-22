@@ -5,6 +5,8 @@ import pickle
 import numpy as np
 import argparse
 
+from detectorconfig import DetectorConfig
+
 parser = argparse.ArgumentParser()
 parser.add_argument('pickle_file', help='Pickle file name')
 args = parser.parse_args()
@@ -31,7 +33,11 @@ with open(args.pickle_file, 'rb') as f:
         try:
             pprint.pprint(data.__dict__)
         except AttributeError:  # We had this as TypeError - but that may have been speculative for DMR
-            print('Not a dict')
+            for key, value in data.iteritems():
+                print('Key: %s' % key)
+                pprint.pprint(vars(value))
+                print('====================')
+            # print('Not a dict')   # Needs cleaning up!!
             pprint.pprint(data)
     else:
         print("No data in file: " + args.pickle_file)

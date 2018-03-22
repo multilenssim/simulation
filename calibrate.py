@@ -2,10 +2,9 @@ import os
 import argparse
 import deepdish as dd
 import h5py
-import pickle
 import numpy as np  # Just for float32 (currently)
+import psutil
 
-import kabamland2 as kb
 import paths
 import detectorconfig
 from DetectorResponse import DetectorResponse
@@ -13,22 +12,21 @@ from DetectorResponsePDF import DetectorResponsePDF
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 import lensmaterials as lm
 from logger_lfd import logger
+import kabamland2 as kb   # Move uniform photons out of kabamland
+import driver_utils
 
 from chroma.detector import G4DetectorParameters
-
-import psutil
 
 # TODO: Move this method and uniform_photons to driver_utils?
 def full_detector_simulation(amount, configname, simname, datadir=""):
     # simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron.
     # Note that viewing may crash if there are too many lenses. (try using configview)
-
     from chroma.sim import Simulation     # Require CUDA, so only import when necessary
     from ShortIO.root_short import ShortRootWriter
-    config = detectorconfig.configdict(configname)
+
     logger.info('Starting to load/build: %s' % configname)
     g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
-    kabamland = kb.load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+    kabamland = driver_utils.load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
     logger.info('Detector was loaded/built')
 
     photons_start_pos = []
@@ -39,18 +37,25 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
     # Have to set the seed because Sherlock compute machines blow up if we use chroma's algorithm!!!!
     sim = Simulation(kabamland, geant4_processes=0, seed=65432)  # For now, does not take advantage of multiple cores  # should use sim_setup()
     with h5py.File(file_name_base + '.h5','w') as h5_file:
+        # Total photons will be LOOP_COUNT * EVENT_COUNT * amount
         LOOP_COUNT = 100
         EVENT_COUNT = 10
         start_pos = h5_file.create_dataset('photons_start', shape=(LOOP_COUNT*EVENT_COUNT, amount, 3), dtype=np.float32, chunks=True)
-        end_pos = h5_file.create_dataset('photons_end', shape=(LOOP_COUNT*EVENT_COUNT, amount, 3), dtype=np.float32, chunks=True)
-        photon_flags = h5_file.create_dataset('photons_flage', shape=(LOOP_COUNT*EVENT_COUNT, amount,), dtype=np.uint32, chunks=True)
+        end_pos = h5_file.create_dataset('photons_stop', shape=(LOOP_COUNT*EVENT_COUNT, amount, 3), dtype=np.float32, chunks=True)
+        photon_flags = h5_file.create_dataset('photon_flags', shape=(LOOP_COUNT*EVENT_COUNT, amount,), dtype=np.uint32, chunks=True)
+
+        cl = detectorconfig.DetectorConfigurationList()
+        config = cl.get_configuration(configname)
+        # Store the UUID and name to enable matching of the configuration, calibration, and simulation files
+        h5_file.attrs['config_name'] = config.config_name
+        h5_file.attrs['config_UUID'] = str(config.uuid)
 
         process = psutil.Process(os.getpid())
-        print('Memory size: %d MB' % int(process.memory_info().rss) // 1000000)
+        logger.info('Memory size: %d MB' % (process.memory_info().rss // 1000000))
         for j in range(LOOP_COUNT):
             logger.info('%d of %d event sets' % (j, LOOP_COUNT))
             ev_index = 0
-            sim_events = [kb.uniform_photons(config.edge_length, amount) for i in range(EVENT_COUNT)]
+            sim_events = [kb.uniform_photons(config.detector_radius, amount) for i in range(EVENT_COUNT)]
             for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
                 f.write_event(ev)
                 if j == 0:
@@ -62,7 +67,7 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
                 #photons_stop_pos.append(ev.photons_end.pos)
                 #photon_flags.append(ev.photons_end.flags)
                 ev_index += 1
-            print('Memory size: %d MB' % int(process.memory_info().rss) // 1000000)
+            logger.info('Memory size: %d MB' % (process.memory_info().rss // 1000000))
 
     f.close()
     # Centralize this sort of stuff
@@ -91,14 +96,11 @@ def create_detres_aka_calibrate(config, photons_file, detresname, detxbins=10, d
     # print dr.means[68260]
     # print dr.sigmas[68260]
 
-    ##dr.write_to_ROOT(datadir + detresname + '.root')
+    dr.write_to_ROOT(datadir + detresname + '.root')
 
     # Config dict is just for human readability (currently)
     detector_data = {'config': dr.config, 'config_dict': vars(dr.config), 'means': dr.means, 'sigmas': dr.sigmas}
     dd.io.save(datadir + detresname +'.h5', detector_data)
-    with open(datadir + detresname + '.pickle', 'wb') as outf:
-        pickle.dump(dr, outf)
-
 
 def calibrate(cfg):
     if os.path.isfile(paths.get_calibration_file_name(cfg)):

@@ -19,7 +19,8 @@ class DetectorResponse(object):
     its geometry is known.    
     '''
     def __init__(self, configname, detectorxbins=10, detectorybins=10, detectorzbins=10):
-        config = detectorconfig.configdict(configname)
+        cl = detectorconfig.DetectorConfigurationList()  # XX TODO: need a better way than having to initialize an object every time...
+        config = cl.get_configuration(configname)
         self.config = config   # To enable saving configuration with the calibration file
         self.configname = configname  # Adding this for intermediate calibration file writing
         self.is_calibrated = False
@@ -30,9 +31,9 @@ class DetectorResponse(object):
         #self.edge_length, self.facecoords, self.direction, self.axis, self.angle, self.spin_angle = return_values(config.edge_length, config.base)
         self.pmtxbins = config.pmtxbins
         self.pmtybins = config.pmtybins
-        self.n_lens_sys = config.base # Number of lens systems per face
+        self.n_lens_sys = config.lens_count # Number of lens systems per face - XX TODO: not trus anymore
         self.detector_r = config.detector_r
-        self.nsteps = config.nsteps
+        self.nsteps = config.ring_count
 
         self.n_triangles_per_surf = int(2*self.nsteps*int((self.nsteps-2)/2.))
         self.n_pmts_per_surf = int(self.n_triangles_per_surf/2.)
@@ -49,7 +50,7 @@ class DetectorResponse(object):
 
         ##end changed
         #self.pmt_side_length = np.sqrt(3)*(3-np.sqrt(5))*self.focal_length
-        self.inscribed_radius = config.edge_length
+        self.inscribed_radius = config.detector_radius
         #self.rotation_matrices = self.build_rotation_matrices()
         #self.inverse_rotation_matrices = np.linalg.inv(self.rotation_matrices)
         #self.displacement_matrix = self.build_displacement_matrix()
@@ -58,7 +59,7 @@ class DetectorResponse(object):
         #new properties for curved surface detectors
 
         # Temporarily comment out to allow access to old calibration files
-        self.triangle_centers,self.n_triangles_per_surf,self.ring = get_curved_surf_triangle_centers(config.vtx, self.lns_rad, self.detector_r, self.focal_length, self.nsteps, config.b_pixel)
+        self.triangle_centers,self.n_triangles_per_surf,self.ring = get_curved_surf_triangle_centers(config.vtx, self.lns_rad, self.detector_r, self.focal_length, self.nsteps, config.base_pixels)
         self.triangle_centers_tree = spatial.cKDTree(self.triangle_centers)
         self.n_pmts_per_surf = int(self.n_triangles_per_surf/2.)
 

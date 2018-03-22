@@ -7,19 +7,97 @@ import argparse
 import h5py
 import os
 import pprint
-
 #import traceback
+
+from chroma.detector import Detector
+import kabamland2 as kbl2
 
 import detectorconfig  # No longer pulls in Geant4 by commenting out a LOT of imports
 import lensmaterials as lm
-
 import paths
 from logger_lfd import logger
 
+def load_or_build_detector(configname, detector_material, g4_detector_parameters):
+    filename_base = paths.detector_config_path + configname
+    if not os.path.exists(paths.detector_config_path):
+        os.makedirs(paths.detector_config_path)
+
+    kabamland = None
+    # How to ensure the material and detector parameters are correct??
+    try:
+        detector_config = dd.io.load(filename_base+'.h5')
+        kabamland = detector_config['detector']
+        logger.info("** Loaded HDF5 (deepdish) detector configuration: " + configname)
+    except IOError as error:  # Will dd throw an exception?
+        try:
+            with open(filename_base+'.pickle','rb') as pickle_file:
+                kabamland = pickle.load(pickle_file)
+                logger.info("** Loaded pickle detector configuration: " + configname)
+        except IOError as error:
+            pass
+    if kabamland is not None:
+        config_has_g4_dp = hasattr(kabamland, 'g4_detector_parameters') and kabamland.g4_detector_parameters is not None
+        config_has_g4_dm = hasattr(kabamland, 'detector_material') and kabamland.detector_material is not None
+        if g4_detector_parameters is not None:
+            logger.info('*** Using Geant4 detector parameters specified' +
+                        (' - replacement' if config_has_g4_dp else '') + ' ***')
+            kabamland.g4_detector_parameters = g4_detector_parameters
+        elif config_has_g4_dp:
+            logger.info('*** Using Geant4 detector parameters found in loaded file ***')
+        else:
+            logger.info('*** No Geant4 detector parameters found at all ***')
+
+            if detector_material is not None:
+                logger.info('*** Using Geant4 detector material specified' +
+                            (' - replacement' if config_has_g4_dm else '') + ' ***')
+                kabamland.detector_material = detector_material
+            elif config_has_g4_dm:
+                logger.info('*** Using Geant4 detector material found in loaded file ***')
+            else:
+                logger.info('*** No Geant4 detector material found at all ***')
+    else:
+        from chroma.loader import load_bvh  # Requires CUDA so only import it when necessary
+
+        logger.info("** Building detector configuration: " + configname)
+        kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+        kbl2.build_kabamland(kabamland, configname)
+        kabamland.flatten()
+        kabamland.bvh = load_bvh(kabamland)
+        try:
+            with open(filename_base+'.pickle','wb') as pickle_file:
+                pickle.dump(kabamland, pickle_file)
+        except IOError as error:
+            logger.info("Error writing pickle file: " + filename_base+'.pickle')
+
+        # Write h5 file with configuration data structure
+        cl = detectorconfig.DetectorConfigurationList()
+        config = cl.get_configuration(configname)
+        logger.info('Saving h5 detector configuration.  UUID: %s' % config.uuid)
+        # Note - this is deprecated
+        detector_dict = {
+            'detector_material' : kabamland.detector_material,
+            'solids' : kabamland.solids,
+            'solid_rotations' : kabamland.solid_rotations,
+            'solid_displacements' : kabamland.solid_displacements,
+            'bvh' : kabamland.bvh,
+            'g4_detector_parameters' : kabamland.g4_detector_parameters,
+            'solid_id_to_channel_index' : kabamland.solid_id_to_channel_index,
+            'channel_index_to_solid_id' : kabamland.channel_index_to_solid_id,
+            'channel_index_to_channel_id' : kabamland.channel_index_to_channel_id,
+            'channel_id_to_channel_index' : kabamland.channel_id_to_channel_index,
+            'time_cdf' : kabamland.time_cdf,
+            'charge_cdf' : kabamland.charge_cdf
+        }
+        # TODO: decide what to do here - saving all of kabamland increases the file size by about 1 Meg (I think)
+        detector_data = {'config': config, 'config_dict': vars(config), 'detector': kabamland} # detector_dict
+        #detector_data = {'config': config, 'config_dict': vars(config), 'detector': vars(kabamland)}
+        dd.io.save(filename_base + '.h5', detector_data)
+
+    return kabamland
+
 # Do something smarter with the seed?
 def sim_setup(config, in_file, useGeant4=False, geant4_processes=4, seed=12345, cuda_device=None, no_gpu=False):
-    # Imports are here both to avoind loading Geant4 when unnecessary, and to avoid circular imports
-    import kabamland2 as kbl2
+    # Imports are here both to avoid loading Geant4 when unnecessary, and to avoid circular imports
     from chroma.detector import G4DetectorParameters
     from chroma.sim import Simulation
     import DetectorResponseGaussAngle
@@ -29,14 +107,14 @@ def sim_setup(config, in_file, useGeant4=False, geant4_processes=4, seed=12345, 
     #traceback.print_stack()
 
     g4_detector_parameters = G4DetectorParameters(orb_radius=7., world_material='G4_Galactic') if useGeant4 else None
-    kabamland = kbl2.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+    detector = load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
     det_res = DetectorResponseGaussAngle.DetectorResponseGaussAngle(config,10,10,10,in_file)
     analyzer = EventAnalyzer.EventAnalyzer(det_res)
     if no_gpu:
         sim = None
         print('**** No GPU.  Not initializing CUDA ****')
     else:
-        sim = Simulation(kabamland, seed=seed, geant4_processes=geant4_processes if useGeant4 else 0, cuda_device=cuda_device)
+        sim = Simulation(detector, seed=seed, geant4_processes=geant4_processes if useGeant4 else 0, cuda_device=cuda_device)
     return sim, analyzer
 
 def sph_scatter(sample_count,in_shell,out_shell):
@@ -100,15 +178,6 @@ def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius,
 
             logger.info('Photons detected:\t%s' % str(tracks.sigmas.shape[0]))
             logger.info('============')
-
-
-def save_config_file(cfg, file_name, dict):
-    config_path = paths.get_data_file_path(cfg)
-    if not os.path.exists(config_path):
-        os.makedirs(config_path)
-    with open(config_path + file_name, 'w') as outf:
-        pickle.dump(dict, outf)
-
 
 def plot_vertices(track_tree, title, with_electrons=True, file_name=None, reconstructed_vertices=None, reconstructed_vertices2=None):
     particles = {}
@@ -303,7 +372,8 @@ class DIEventFile(object):
     def write(self, file_name):
         event = {'track_tree': self.track_tree, 'gun': self.gun_specs, 'config_name': self.config_name}
         if self.config_name is not None:
-            event['config'] = detectorconfig.configdict(self.config_name)
+            cl = detectorconfig.DetectorConfigList()  # Needs testing!!
+            event['config'] = cl.get_configuration(self.config_name)
         if self.photons is not None:
             event['photons'] = self.photons
         if self.full_event is not None:

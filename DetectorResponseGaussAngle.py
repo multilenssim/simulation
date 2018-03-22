@@ -77,9 +77,13 @@ class DetectorResponseGaussAngle(DetectorResponse):
         if infile is not None:
             logger.info('Creating detector response / calibration with: %s' % infile)
             if infile.endswith('.h5'):
-                calibration = dd.io.load(infile)
-                self.means = calibration['means']
-                self.sigmas = calibration['sigmas']
+                self.read_from_hdf5(infile)
+                if self.config.uuid != self.config_in_cal_file.uuid:
+                    logger.critical('UUID from calibration file does not match configuration: %s %s' % (self.config.uuid, self.config_in_cal_file.uuid))
+                    exit(-1)
+                    # Raise an exception
+                else:
+                    logger.info('Calibration file UUID matches')
             else:
                 self.read_from_ROOT(infile)
 
@@ -116,7 +120,8 @@ class DetectorResponseGaussAngle(DetectorResponse):
         self.is_calibrated = True
         start_time = time.time()
 
-        pickle_name = self.configname + '-hits.pickle'
+        base_hits_file_name = self.configname + '-hits'
+        pickle_name = base_hits_file_name + '.pickle'
         hit_file_exists = False
         n_min = 10 # Do not calibrate a PMT if <n_min photons hit it
         try:
@@ -130,7 +135,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
             hit_file_exists = True
         except IOError as error:
             # Assume file not found
-            logger.info('Hit map pickle file not found.  Creating: ' + pickle_name)
+            logger.info('Hit map pickle file not found.  Creating: ' + base_hits_file_name)
 
             using_h5 = False
             if simname.endswith('.h5'):
@@ -142,14 +147,11 @@ class DetectorResponseGaussAngle(DetectorResponse):
                 from ShortIO.root_short import GaussAngleRootWriter, GaussAngleRootReader, ShortRootReader
                 reader = ShortRootReader(simname)
                 events_in_file = len(reader)
+            logger.info('Loaded simulation file: %s' % simname)
             logger.info('Simulation event count: %d' % events_in_file)
 
             if nevents < 1:
                 nevents = events_in_file
-            total_means = np.zeros((self.npmt_bins, 3))
-            total_variances = np.zeros((self.npmt_bins))
-            total_u_minus_v = np.zeros((self.npmt_bins))
-            amount_of_hits = np.zeros((self.npmt_bins))
 
             max_storage = min(nevents*1000000,120000000) #600M is too much, 400M is OK (for np.float32; using 300M)
             end_direction_array = np.empty((max_storage,3),dtype=np.float32)
@@ -221,6 +223,11 @@ class DetectorResponseGaussAngle(DetectorResponse):
                     # logger.info('Sample pmt bins: ' + str(pmt_bins[n_det:(n_det+length)]))
                     logger.info("Time: " + str(time.time() - start_time))
 
+        total_means = np.zeros((self.npmt_bins, 3))
+        total_variances = np.zeros((self.npmt_bins))
+        total_u_minus_v = np.zeros((self.npmt_bins))
+        amount_of_hits = np.zeros((self.npmt_bins))
+
         end_direction_array.resize((n_det,3))
         logger.info("Time: " + str(time.time() - start_time))
         pmt_bins.resize(n_det)
@@ -228,32 +235,33 @@ class DetectorResponseGaussAngle(DetectorResponse):
         if not hit_file_exists:
             # Write the pickle hits file regardless of whether using fast_calibration or not
             pmt_hits = {'pmt_bins': pmt_bins, 'end_direction_array': end_direction_array}
-            with open(directory+pickle_name, 'wb') as outf:
-                pickle.dump(pmt_hits, outf)
-            with h5py.File(directory + pickle_name + '.h5', 'w') as h5file:
+            #with open(directory+pickle_name, 'wb') as outf:
+            #    pickle.dump(pmt_hits, outf)
+            with h5py.File(directory + base_hits_file_name + '.h5', 'w') as h5file:
                 _ = h5file.create_dataset('pmt_bins', data=pmt_bins, chunks=True)   # Should we assign max shape?
                 _ = h5file.create_dataset('end_direction_array', data=end_direction_array, chunks=True)   # Should we assign max shape?
             logger.info('Hit map file created: ' + pickle_name)
 
-        logger.info("Finished collection photons (or loading photon list).  Time: " + str(time.time()-start_time))
+        logger.info("Finished collecting photons (or loading photon hit list).  Time: " + str(time.time()-start_time))
 
         if fast_calibration:
-            bins_file = self.configname + '-pmt-bins.pickle'
+            bins_base_file_name = self.configname + '-pmt-bins'
+            bins_pickle_file = bins_base_file_name + '.pickle'
             try:
-                with open(directory + bins_file, 'rb') as inf:
+                with open(directory + bins_pickle_file, 'rb') as inf:
                     pmt_photons = pickle.load(inf)
                 logger.info('PMT photon list pickle file loaded: ' + bins_file)
             except IOError as error:
                 start_assign = time.time()
                 pmt_photons = assign_photons(self.npmt_bins, n_det, pmt_bins)
                 logger.info("assign_photons took: " + str(time.time() - start_assign))
-                with open(directory + bins_file, 'wb') as outf:
-                    pickle.dump(pmt_photons, outf)
+                #with open(directory + bins_pickle_file, 'wb') as outf:
+                #    pickle.dump(pmt_photons, outf)
                 logger.info('Type: ' + str(type(pmt_photons)) + ' ' + str(type(pmt_photons[0])))
-                dd.io.save(directory + bins_file + '.h5', pmt_photons)
+                dd.io.save(directory + bins_base_file_name + '.h5', pmt_photons)
                 #with h5py.File(directory + bins_file + '.h5', 'w') as h5file:
                 #    _ = h5file.create_dataset('photon_pmts', data=pmt_photons, chunks=True)   # Should we assign max shape?
-                logger.info('PMT photon list file created: ' + bins_file)
+                logger.info('PMT photon list file created: ' + bins_pickle_file)
 
         logger.info("Finished listing photons by pmt.  Time: " + str(time.time() - start_time))
 
@@ -473,6 +481,8 @@ class DetectorResponseGaussAngle(DetectorResponse):
         self.sigmas = np.sqrt(np.array(averaged_variances.astype(np.float32)))
                 
     def write_to_ROOT(self, filename):
+        from ShortIO.root_short import GaussAngleRootWriter
+
         # Write the mean angles and sigmas to a ROOT file
         writer = GaussAngleRootWriter(filename)
         for i in range(self.npmt_bins):
@@ -480,6 +490,8 @@ class DetectorResponseGaussAngle(DetectorResponse):
         writer.close()
 
     def read_from_ROOT(self, filename):
+        from ShortIO.root_short import GaussAngleRootReader
+
         # Read the means and sigmas from a ROOT file
         logger.info('Loading root calibration file: %s' % filename)
         self.is_calibrated = True
@@ -490,3 +502,10 @@ class DetectorResponseGaussAngle(DetectorResponse):
             if np.isnan(sigma):
                 print "Nan read in for bin index " + str(bin_ind)
         logger.info('Last bin_index: %d' % bin_ind)
+
+    def read_from_hdf5(self, filename):
+        calibration = dd.io.load(filename)
+        self.means = calibration['means']
+        self.sigmas = calibration['sigmas']
+        self.is_calibrated = True
+        self.config_in_cal_file = calibration['config']  # Hinky name to avoid overwriting config set in DetectorResponse.init() 

@@ -15,6 +15,8 @@ from logger_lfd import logger
 import paths
 
 # This is deprecated - see calibrate.py
+# And don't use pickle!!
+#@deprecated
 def create_detres(config, simname, detresname, detxbins=10, detybins=10, detzbins=10, method="PDF", nevents=-1, datadir="", fast_calibration=False):
 	#saves a detector response list of pdfs- 1 for each pixel- given a simulation file of photons emitted isotropically throughout the detector.
 	logger.info('Calibrating for: ' + datadir + simname + ' --- ' + method)

@@ -1,12 +1,12 @@
-import itertools,argparse,math,pickle
+import itertools,argparse,math
 import scipy.spatial
 import numpy as np
 import uuid
 
 from lenssystem import get_system_measurements
-from paths import detector_pickled_path
+import detectorconfig as dc
+from detectorconfig import DetectorConfig  # For Pickle reading ???
 
-TOTAL_PIXEL_TARGET = 1000000
 
 def calc_steps(x_value,y_value,detector_r,n_lens_pixel):
         x_coord = np.asarray([x_value,np.roll(x_value,-1)]).T[:-1]
@@ -31,7 +31,7 @@ def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=20,n_lens_pxl=4):
 # Something like: for a given number of lenses and lens radius (or max radius) and detector radius
 #   Compute the total number of pixels each for from 2 to 45 rings
 #   And then pick the closest one to 100,000 pixels total
-def param_arr(n_lens,b_pxl,l_sys,detec_r,max_rad):
+def param_arr(n_lens,b_pxl,l_sys,detec_r,max_rad,target_pixel_count):
 	if l_sys == 'Jiani3':
 		scal_lens = 488.0/643.0
 	elif l_sys == 'Sam1':
@@ -41,8 +41,8 @@ def param_arr(n_lens,b_pxl,l_sys,detec_r,max_rad):
 		ix.append(i)
 		arr.append(sum(curved_surface2(detec_r,2*max_rad,i,b_pxl)[2]))
 	arr = np.asarray(arr)
-	nstep = ix[np.argmin(np.absolute(arr*n_lens-TOTAL_PIXEL_TARGET))]
-	t_px = arr[np.argmin(np.absolute(arr*n_lens-TOTAL_PIXEL_TARGET))]*n_lens
+	nstep = ix[np.argmin(np.absolute(arr*n_lens-target_pixel_count))]
+	t_px = arr[np.argmin(np.absolute(arr*n_lens-target_pixel_count))]*n_lens
 	#dct = np.stack((ix,scal_lens*edge_len/(2*(np.sqrt(2*px_per_face/arr).astype(int)+np.sqrt(3)-1))))
 	#sel_arr = np.absolute(((n_lens*(n_lens+1))/2*arr-px_per_face)/px_per_face)<0.3
 	#dct = dct[:,sel_arr]
@@ -86,99 +86,43 @@ def calc_rad(vtx,rad_sp):
                 geom_eff = (1-np.cos(np.arctan(rd)))/2.0*vtx.shape[0]
                 i += 1
 
-def display_configuration_from_array(config_name, config):
-    n_lens = config[1]
-    max_rad = config[2]  # Get's overwritten below
-    b_pxl = config[6]
-    print('=== Config: %s =====' % config_name)
-    print ('  Detector radius:\t%0.2f'  % config[0])
-    print ('  Number of lenses:\t%d'    % n_lens)
-    print ('  Max radius:\t\t%0.2f'     % max_rad)
-    print ('  EPD ratio:\t\t%0.2f'      % config[4])
-    print ('  Number of rings (+1):\t%d' % config[5])
-    print ('  Central pixels:\t%d'      % b_pxl)
-    print ('  UUID:\t\t\t\t' + (str(config[8]) if len(config) > 8 else 'None'))
-    print ('  Total pixels (in config):\t' + (str(config[7]) if len(config) > 7 else 'Not in config file'))
-
-    lens_system_name = config_name.split('_')[0][2:]
-    dtc_r = get_system_measurements(lens_system_name, max_rad)[1]
-    n_step, tot_pxl = param_arr(n_lens, b_pxl, lens_system_name, dtc_r, max_rad)
-    print ('  Total pixels (computed):\t%d'       % tot_pxl)
-    # Focal length
-    # vtx,max_rad,geom_eff = calc_rad(fibonacci_sphere(n_lens),sph_rad)   # This is what takes the time....
-    # Cross check anything?
-    # print ('  Geometric eff.:\t' + str(geom_eff))
-    print('-------------------------')
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Calculate distributed imaging detector geometry and configuration")
-    parser.add_argument('lens_system_name', nargs='?', help='provide lens design (required unless "--list")')
-    parser.add_argument('--list', '-l', action='store_true')
+    parser.add_argument('lens_system_name', help='Lens design')
+    parser.add_argument('--target_pixels', '-t', default=100000, help='Target pixel count')
     args = parser.parse_args()
+
     lens_system_name = args.lens_system_name
-    configs_pickle_file = '%sconf_file.p' % detector_pickled_path
 
-    if args.list:
-        import detectorconfig
-        import pprint
-        with open(configs_pickle_file, 'r') as f:
-            dct = pickle.load(f)
-        for key, value in dct.iteritems():
-            display_configuration_from_array(key, value)
-            dc = detectorconfig.DetectorConfig(value[0],
-                                               value[1],
-                                               value[2],
-                                               value[3],
-                                               0, 0, 1.0,
-                                               lens_system_name='Sam1',
-                                               EPD_ratio=value[4],
-                                               light_confinement=True,
-                                               nsteps=value[5],
-                                               b_pixel=value[6],
-                                               tot_pixels=value[7] if len(value) > 7 else None,
-                                               uuid=value[8] if len(value) > 8 else None,
-                                               config_name=key)
-            pprint.pprint(vars(dc))
-
-        print('========================')
-        exit()
-
-    if lens_system_name is None:
-        parser.print_help()
-        print
-        print('Lens design is a required input argument (unless "--list" is used)')
-        exit(-1)
-
+    target_pixels = int(args.target_pixels)
+    print('Target total pixel count: %s' % '{:,}'.format(target_pixels))
     sph_rad = 7556.0
     b_pxl = int(raw_input('input number of pixels at the central ring: (more than 3) '))
     n_lens = int(raw_input('input the number of lens assemblies: '))
     EPD_ratio = float(raw_input('input the pupil ratio: '))
     vtx,max_rad,geom_eff = calc_rad(fibonacci_sphere(n_lens),sph_rad)
     dtc_r = get_system_measurements(lens_system_name,max_rad)[1]
-    n_step,tot_pxl = param_arr(n_lens,b_pxl,lens_system_name,dtc_r,max_rad)
+    ring_count,tot_pxl = param_arr(n_lens,b_pxl,lens_system_name,dtc_r,max_rad,target_pixels)
 
-    # The K here should go away
-    conf_name = 'cf%s_K%i_%i_t%i_b%i' % (lens_system_name,n_lens,int(EPD_ratio*10),tot_pxl,b_pxl)
-
-    config = [sph_rad, n_lens, max_rad, vtx, EPD_ratio, n_step, b_pxl, tot_pxl, uuid.uuid1()]
-    config_map_entry = {conf_name: config}
-    display_configuration_from_array(conf_name, config)
+    config = dc.DetectorConfig(sph_rad, n_lens, max_rad, vtx,
+                               1.0,    # Is diameter ratio always 1.0?
+                               ring_count,   # XX This may be off by 1?
+                               thickness_ratio=0.25,
+                               blockers=True,
+                               blocker_thickness_ratio=1.0/1000,
+                               lens_system_name=lens_system_name,
+                               EPD_ratio=EPD_ratio,
+                               focal_length=1.0,
+                               light_confinement=False,
+                               b_pixel=b_pxl,
+                               tot_pixels=tot_pxl)
+    config.display_configuration()
 
     print '  Geometrical filling factor: %0.2f'%(geom_eff*math.pow(EPD_ratio,2))
-    anw = raw_input('add %s configuration (y or n)?: '%conf_name)
+    anw = raw_input('add %s configuration (y or n)?: '%config.config_name)
     if anw == 'y':
-        try:
-            with open(configs_pickle_file,'r') as f:
-                dct = pickle.load(f)
-            if conf_name in dct:
-                print('Replacing configuration: ' + conf_name)
-            dct[conf_name] = config
-            with open(configs_pickle_file,'w') as f:
-                pickle.dump(dct,f,protocol=pickle.HIGHEST_PROTOCOL)
-        except IOError:
-            with open(configs_pickle_file,'w') as f:
-                pickle.dump(config_map_entry, f, protocol=pickle.HIGHEST_PROTOCOL)
-        print 'done'
+        cl = dc.DetectorConfigurationList()
+        cl.save_configuration(config)
     elif anw == 'n':
         exit()
     '''

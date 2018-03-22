@@ -55,7 +55,7 @@ def gaussian_sphere(pos, sigma, n):
 
 def uniform_photons(edge_length, n):
     #constructs photons uniformly throughout the detector inside of the inscribed sphere.
-    inscribed_radius = edge_length
+    inscribed_radius = edge_length    # This is really the radius of the detector
     radius_root = inscribed_radius*np.random.uniform(0.0, 1.0, n)**(1.0/3)
     theta = np.arccos(np.random.uniform(-1.0, 1.0, n))
     phi = np.random.uniform(0.0, 2*np.pi, n)
@@ -233,9 +233,12 @@ def build_pmt_icosahedron(kabamland, vtx, focal_length=1.0):
 def build_kabamland(kabamland, configname):
     # focal_length sets dist between lens plane and PMT plane (or back of curved detecting surface);
     #(need not equal true lens focal length)
-    config = detectorconfig.configdict(configname)
+    cl = detectorconfig.DetectorConfigurationList()
+    config = cl.get_configuration(configname)
+
+    # These are not really building the icosahedron right?
     build_lens_icosahedron(kabamland, config.vtx, config.half_EPD/config.EPD_ratio, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
-    build_curvedsurface_icosahedron(kabamland, config.vtx, config.half_EPD/config.EPD_ratio, config.diameter_ratio, focal_length=config.focal_length, detector_r=config.detector_r, nsteps=config.nsteps, b_pxl=config.b_pixel)
+    build_curvedsurface_icosahedron(kabamland, config.vtx, config.half_EPD/config.EPD_ratio, config.diameter_ratio, focal_length=config.focal_length, detector_r=config.detector_r, nsteps=config.ring_count, b_pxl=config.base_pixels)
     build_pmt_icosahedron(kabamland, np.linalg.norm(config.vtx[0]), focal_length=config.focal_length) # Built further out, just as a way of stopping photons    
 
 def driver_funct(configname):
@@ -251,86 +254,6 @@ def driver_funct(configname):
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
 	view(kabamland)
-
-def load_or_build_detector(configname, detector_material, g4_detector_parameters):
-    import deepdish as dd
-    import pickle
-
-    filename_base = paths.detector_pickled_path + configname
-    if not os.path.exists(paths.detector_pickled_path):
-        os.makedirs(paths.detector_pickled_path)
-
-    kabamland = None
-    # How to ensure the material and detector parameters are correct??
-    try:
-        detector_config = dd.io.load(filename_base+'.h5')
-        kabamland = detector_config['detector']
-        logger.info("** Loaded HDF5 detector configuration: " + configname)
-    except IOError as error:  # Will dd throw an exception?
-        try:
-            with open(filename_base+'.pickle','rb') as pickle_file:
-                kabamland = pickle.load(pickle_file)
-                logger.info("** Loaded pickle detector configuration: " + configname)
-        except IOError as error:
-            pass
-    if kabamland is not None:
-        pickle_has_g4_dp = hasattr(kabamland, 'g4_detector_parameters') and kabamland.g4_detector_parameters is not None
-        pickle_has_g4_dm = hasattr(kabamland, 'detector_material') and kabamland.detector_material is not None
-        if g4_detector_parameters is not None:
-            logger.info('*** Using Geant4 detector parameters specified' +
-                  (' - replacement' if pickle_has_g4_dp else '') + ' ***')
-            kabamland.g4_detector_parameters = g4_detector_parameters
-        elif pickle_has_g4_dp:
-            logger.info('*** Using Geant4 detector parameters found in loaded file ***')
-        else:
-            logger.info('*** No Geant4 detector parameters found at all ***')
-
-        if detector_material is not None:
-            logger.info('*** Using Geant4 detector material specified' +
-                  (' - replacement' if pickle_has_g4_dm else '') + ' ***')
-            kabamland.detector_material = detector_material
-        elif pickle_has_g4_dm:
-            logger.info('*** Using Geant4 detector material found in loaded file ***')
-        else:
-            logger.info('*** No Geant4 detector material found at all ***')
-    else:
-        from chroma.loader import load_bvh  # Requires CUDA so only import it when necessary
-
-        logger.info("** Building detector configuration: " + configname)
-        kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
-        build_kabamland(kabamland, configname)
-        kabamland.flatten()
-        kabamland.bvh = load_bvh(kabamland)
-        try:
-            with open(filename_base+'.pickle','wb') as pickle_file:
-                pickle.dump(kabamland, pickle_file)
-        except IOError as error:
-            logger.info("Error writing pickle file: " + filename_base+'.pickle')
-
-        # Prototype write h5 file with configuration data structure as well
-        # This is not tested yet and we may move to just vars(kabamland)
-        config = detectorconfig.configdict(configname)
-        logger.info('Saving h5 detector configuration.  UUID: %s' % config.uuid)
-        detector_dict = {
-            'detector_material' : kabamland.detector_material,
-            'solids' : kabamland.solids,
-            'solid_rotations' : kabamland.solid_rotations,
-            'solid_displacements' : kabamland.solid_displacements,
-            'bvh' : kabamland.bvh,
-            'g4_detector_parameters' : kabamland.g4_detector_parameters,
-            'solid_id_to_channel_index' : kabamland.solid_id_to_channel_index,
-            'channel_index_to_solid_id' : kabamland.channel_index_to_solid_id,
-            'channel_index_to_channel_id' : kabamland.channel_index_to_channel_id,
-            'channel_id_to_channel_index' : kabamland.channel_id_to_channel_index,
-            'time_cdf' : kabamland.time_cdf,
-            'charge_cdf' : kabamland.charge_cdf
-            }
-        detector_data = {'config': config, 'config_dict': vars(config), 'detector': kabamland} # detector_dict}
-        #detector_data = {'config': config, 'config_dict': vars(config), 'detector': vars(kabamland)}
-        dd.io.save(filename_base + '.h5', detector_data)
-
-    return kabamland
-
 
 if __name__ == '__main__':
 	driver_funct('cfSam1_K200_8')

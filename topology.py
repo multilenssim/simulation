@@ -12,9 +12,6 @@ import gc
 import multiprocessing
 from multiprocessing import Pool
 
-def sim_ev(cfg,particle,lg,energy):
-	sim,analyzer = driver_utils.sim_setup(cfg,paths.get_calibration_file_name(cfg),useGeant4=True)
-	print 'Configuration loaded'
 '''                        db = DBSCAN(eps=3, min_samples=10).fit(vert)
                         label =  db.labels_
                         labels = label[label!=-1]
@@ -23,13 +20,14 @@ def sim_ev(cfg,particle,lg,energy):
                         main_cluster = vert[labels==unique[np.argmax(counts)],:]
 '''
 
-# TODO MERGE: Ick - now have two of these? after merge
-def sim_ev_2(particle,lg,energy):
-	gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(energy*0.999, energy*1.001))
-	for ev in sim.simulate(gun,keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100):
-		vert = ev.photons_beg.track_tree
-		tracks = analyzer.generate_tracks(ev,qe=(1./3.))
-	return vert, tracks
+def sim_ev(cfg,particle,lg,energy):
+	sim,analyzer = driver_utils.sim_setup(cfg,paths.get_calibration_file_name(cfg),useGeant4=True)
+        print 'Configuration loaded'
+        gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(energy*0.999, energy*1.001))
+        for ev in sim.simulate(gun,keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100):
+                vert = ev.photons_beg.pos
+                tracks = analyzer.generate_tracks(ev,qe=(1./3.))
+        return vert, tracks
 
 def remove_nan(dist,ofst_diff,drct):
 	if np.isnan(dist).any():
@@ -75,6 +73,7 @@ def roll_funct(ofst,drct,sgm,i,half=False):
 	return np.linalg.norm(dist,axis=1),sigmas,np.mean(poc,axis=1)
 
 def track_dist(ofst,drct,sgm,dim_len=0):
+        logger.info('Starting track dist with offset: %s' % str(ofst))
 	half = ofst.shape[0]/2
 	arr_dist, arr_sgm, arr_pos = [], [], []
 	count = (ofst.shape[0]-1)/2+1
@@ -84,7 +83,7 @@ def track_dist(ofst,drct,sgm,dim_len=0):
 		arr_dist.extend(dist[mask_bool])
 		arr_sgm.extend(sigmas[mask_bool])
 		arr_pos.extend(recon_pos[mask_bool])
-		logger.info('Count ' + str(i) + ' of ' + str(count))
+		# logger.info('Count ' + str(i) + ' of ' + str(count))
 	if ofst.shape[0] & 0x1:
 		pass						#condition removed if degeneracy is kept
 	else:
@@ -98,16 +97,31 @@ def cut(dist, err, pos, dist_cut, pos_cut):
 	mask_bool = (dist != 0) & (dist < dist_cut) & (np.linalg.norm(pos, axis=1) < pos_cut)  # & (err<2000)
 	return dist[mask_bool], err[mask_bool], pos[mask_bool]
 
-''' TODOMERGE: Is this old code from Jacopo?   Or new code?
-	logger.info('Roll group range complete: ' + str(start) + ' ' + str(end))
-	logger.info('Total: ' + str(len(arr_dist)))
-	dist = np.asarray(arr_dist)
-	err = np.asarray(arr_sgm)+dim_len
-	rcn_pos = np.asarray(arr_pos)
-	return cut(dist, err, rcn_pos, 0.1, 5000)
+def track_dist_group(ofst,drct,sgm,start, end, dim_len=0):
+        logger.info('Roll group range: ' + str(start) + ' ' + str(end))
+        half = ofst.shape[0]/2
+        arr_dist, arr_sgm, arr_pos = [], [], []
+        for i in range(start, end+1):
+                dist,sigmas,recon_pos = roll_funct(ofst,drct,sgm,i,half=False)
+                arr_dist.extend(dist)
+                arr_sgm.extend(sigmas)
+                arr_pos.extend(recon_pos)
+        if ofst.shape[0] & 0x1:
+                pass   # condition removed if degeneracy is kept
+        else:
+                dist,sigmas,recon_pos = roll_funct(ofst,drct,sgm,half,half=True)
+                arr_dist.extend(dist)
+                arr_sgm.extend(sigmas)
+                arr_pos.extend(recon_pos)
+        logger.info('Roll group range complete: ' + str(start) + ' ' + str(end))
+        logger.info('Total: ' + str(len(arr_dist)))
+        dist = np.asarray(arr_dist)
+        err = np.asarray(arr_sgm)+dim_len
+        rcn_pos = np.asarray(arr_pos)
+        return cut(dist, err, rcn_pos, 0.1, 5000)
 
 	#return np.asarray(arr_dist),(np.asarray(arr_sgm)+dim_len),np.asarray(arr_pos)
-'''
+
 
 def track_dist_threaded(ofst,drct,sgm=False,outlier=False,dim_len=0):
 	half = ofst.shape[0]/2
@@ -136,8 +150,8 @@ def track_dist_threaded(ofst,drct,sgm=False,outlier=False,dim_len=0):
 
 		#result = pool.apply_async(roll_funct, (ofst,drct,sgm,i)) # ,half=False,outlier=outlier))
 		results.append(result)
-		if i % 100 == 0:
-			logger.info('Count ' + str(i) + ' of ' + str(count))
+		if (i % 100) == 0:
+			logger.info('===>>> Count ' + str(i) + ' of ' + str(count))
 		logger.info('1 Result: ' + str(results[0]))
 	childs = multiprocessing.active_children()
 	logger.info('Child count: ' + str(len(childs)))
@@ -177,18 +191,18 @@ def track_dist_threaded(ofst,drct,sgm=False,outlier=False,dim_len=0):
 if __name__=='__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('cfg', help='detector configuration')	# Only need one or the other argument
-	parser.add_argument('hdf5', help='HDF5 file')
+	parser.add_argument('--h5', help='HDF5 file', default=None)
 	args = parser.parse_args()
-	if args.hdf5 is None:
+	if args.h5 is None:
 		cfg = args.cfg
-		particle = 'gamma'
+		particle = 'e-'
 		lg = [0,0,0]
-		energy = 15.0
+		energy = 2.0
 		vtx,trx = sim_ev(cfg,particle,lg,energy)
 		logger.info('Simulation done, starting reconstruction')
 		dist,err,rcn_pos = track_dist(trx.hit_pos.T,trx.means.T,trx.sigmas,trx.lens_rad)
 	else:
-		with h5py.File(args.hdf5, 'r') as f:
+		with h5py.File(args.h5, 'r') as f:
 			ks_par = []
 			i_idx = 0
 			ix = 0  # Just assume one event
@@ -215,7 +229,7 @@ if __name__=='__main__':
 		en_depo = f.create_dataset('pos', data=rcn_pos, chunks=True)
 		coord = f.create_dataset('dist', data=dist, chunks=True)
 		uncert = f.create_dataset('sigma', data=err, chunks=True)
-	'''
+
 	logger.info('Plotting...')
 	plt.hist(c_err,bins=100)
 	plt.show()
@@ -225,12 +239,12 @@ if __name__=='__main__':
 	fig = plt.figure()
 	ax = fig.gca(projection='3d')
 	ax.plot(c_rcn_pos[:,0],c_rcn_pos[:,1],c_rcn_pos[:,2],'.', markersize=0.5)
-	if args.hdf5 is None:
+	if args.h5 is None:
 		ax.plot(vtx[:,0],vtx[:,1],vtx[:,2],'.')
 	plt.show()
-	'''
 
-def jacopos_stuff:
+
+def jacopos_stuff():
 	cfg = 'cfSam1_K200_8'
 	particle = 'e-'
 	lg = [0,0,0]
@@ -266,7 +280,7 @@ def jacopos_stuff:
 	ax.set_zlim(-5000, 5000)
 	plt.show()
 
-def jacopos_stuff_2:
+def jacopos_stuff_2():
 	cfg = 'cfSam1_K200_8_small'
 	sim,analyzer = setup.sim_setup(cfg,paths.get_calibration_file_name(cfg),useGeant4=True)
 	print 'Configuration loaded'
