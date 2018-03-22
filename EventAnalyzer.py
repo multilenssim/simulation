@@ -32,7 +32,7 @@ class EventAnalyzer(object):
         self.set_style()
         
     def analyze_event_PDF(self, eventfile, event_pos=None):
-        from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader
+        from ShortIO.root_short import ShortRootReader
         from DetectorResponsePDF import DetectorResponsePDF
 
         #takes an event and constructs the pdf based upon which pmts were hit.
@@ -99,6 +99,8 @@ class EventAnalyzer(object):
         photon before adding to final_pdf (which is then normalized again after all photons are included).
         Setting n_ph>0 means only n_ph photons from the event file will be read in.
         '''
+
+        from ShortIO.root_short import ShortRootReader, AngleRootReader
 
         # Check that a valid reconstruction mode was chosen
         if not (recon_mode=='angle' or recon_mode=='cos' or recon_mode=='cone'):
@@ -739,6 +741,7 @@ class EventAnalyzer(object):
             # beginning_photons = beginning_photons[start:(start+n_ph),:]
             # ending_photons = ending_photons[start:(start+n_ph),:]
             length = n_ph
+
         end_direction_array = normalize(ending_photons-beginning_photons).T
         event_pmt_bin_array, lenses, rings, pixels = np.array(self.det_res.find_pmt_bin_array_new(ending_photons)) # Get PMT hit indices
 
@@ -755,7 +758,6 @@ class EventAnalyzer(object):
 
         # print('PMT bins: ' + str(event_pmt_bin_array))
         event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T
-        
         event_lens_bin_array = np.array(event_pmt_bin_array/self.det_res.n_pmts_per_surf)
         event_lens_pos_array = np.array([self.det_res.lens_centers[x] for x in event_lens_bin_array]).T
         

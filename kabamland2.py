@@ -53,7 +53,7 @@ def gaussian_sphere(pos, sigma, n):
 def uniform_photons(edge_length, n):
     #constructs photons uniformly throughout the detector inside of the inscribed sphere.
     inscribed_radius = edge_length    # This is really the radius of the detector
-    radius_root = inscribed_radius*np.random.uniform(0.0, 1.0, n)**(1.0/3)
+    radius_root = inscribed_radius*np.power(np.random.rand(n),1.0/3.0)
     theta = np.arccos(np.random.uniform(-1.0, 1.0, n))
     phi = np.random.uniform(0.0, 2*np.pi, n)
     points = np.empty((n,3))
@@ -237,8 +237,7 @@ def build_kabamland(kabamland, configname):
     build_pmt_icosahedron(kabamland, np.linalg.norm(config.vtx[0]), focal_length=config.focal_length) # Built further out, just as a way of stopping photons    
 
 def driver_funct(configname):
-        from chroma.loader import load_bvh  # Requires CUDA so only import it when necessary
-
+	from chroma.loader import load_bvh  # Requires CUDA so only import it when necessary
 	kabamland = Detector(lm.create_scintillation_material())
 	config = detectorconfig.configdict(configname)
 	#get_lens_triangle_centers(vtx, rad_assembly, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
@@ -251,4 +250,4 @@ def driver_funct(configname):
 	view(kabamland)     # No longer exists!!
 
 if __name__ == '__main__':
-	driver_funct('cfSam1_K200_8')
+	driver_funct('cfSam1_K20_8_small')

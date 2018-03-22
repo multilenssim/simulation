@@ -23,15 +23,14 @@ else:
     detector_calibration_path = detector_config_path                   # Path for the calibration files
     data_files_path = aws_data_files+DEFAULT_SIMULATION_DIR            # Path for the simulation data files
 
-# This is just for experimenting with hdf5 files
-def get_calibration_file_name_base_without_path(config):
+def get_calibration_file_name_base_without_path(config):               # To enable switching between ROOT and hdf5 files easily
     return 'detresang-'+config+'_1DVariance_100million'
 
 def get_calibration_file_name_without_path(config):
     return get_calibration_file_name_base_without_path(config)+'.h5'
 
-def get_calibration_file_name(config):
-    return detector_calibration_path+get_calibration_file_name_without_path(config)
+def get_calibration_file_name(config,FV=''):
+    return detector_calibration_path+get_calibration_file_name_without_path(config,FV)
 
 def get_data_file_path(config):
     return data_files_path+config+'/raw_data/'

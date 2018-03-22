@@ -12,22 +12,15 @@ import gc
 import multiprocessing
 from multiprocessing import Pool
 
-'''                        db = DBSCAN(eps=3, min_samples=10).fit(vert)
-                        label =  db.labels_
-                        labels = label[label!=-1]
-                        vert = vert[label!=-1]
-                        unique, counts = np.unique(labels, return_counts=True)
-                        main_cluster = vert[labels==unique[np.argmax(counts)],:]
-'''
 
 def sim_ev(cfg,particle,lg,energy):
 	sim,analyzer = driver_utils.sim_setup(cfg,paths.get_calibration_file_name(cfg),useGeant4=True)
-        print 'Configuration loaded'
-        gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(energy*0.999, energy*1.001))
-        for ev in sim.simulate(gun,keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100):
-                vert = ev.photons_beg.pos
-                tracks = analyzer.generate_tracks(ev,qe=(1./3.))
-        return vert, tracks
+	print 'Configuration loaded'
+	gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(energy*0.999, energy*1.001))
+	for ev in sim.simulate(gun,keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100):
+		vert = ev.photons_beg.pos
+		tracks = analyzer.generate_tracks(ev,qe=(1./3.))
+	return vert, tracks
 
 def remove_nan(dist,ofst_diff,drct):
 	if np.isnan(dist).any():
@@ -302,5 +295,5 @@ def jacopos_stuff_2():
 		dist,err,rcn_pos = track_dist(trx.hit_pos.T,trx.means.T,trx.sigmas,trx.lens_rad)
 		dct['vtx%i'%i] = rcn_pos
 
-	with open('dataset_%s.p'%particle,'w') as f:
+	with open('%s_dataset_%s.p'%(cfg,particle),'w') as f:
 		pickle.dump(dct,f,pickle.HIGHEST_PROTOCOL)
