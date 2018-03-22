@@ -135,34 +135,34 @@ def get_lens_triangle_centers(vtx, rad, diameter_ratio, thickness_ratio, half_EP
 def build_lens_icosahedron(kabamland, vtx, rad, diameter_ratio, thickness_ratio, half_EPD, blockers=True, blocker_thickness_ratio=1.0/1000, light_confinement=False, focal_length=1.0, lens_system_name=None):
     """input edge length of icosahedron 'edge_length', the number of small triangles in the base of each face 'base', the ratio of the diameter of each lens to the maximum diameter possible 'diameter_ratio' (or the fraction of the default such ratio, if a curved detector lens system), the ratio of the thickness of the lens to the chosen (not maximum) diameter 'thickness_ratio', the radius of the blocking entrance pupil 'half_EPD', and the ratio of the thickness of the blockers to that of the lenses 'blocker_thickness_ratio' to return the icosahedron of lenses in kabamland. Light_confinment=True adds cylindrical shells behind each lens that absorb all the light that touches them, so that light doesn't overlap between lenses. If lens_system_name is a string that matches one of the lens systems in lenssystem.py, the corresponding lenses and detectors will be built. Otherwise, a default simple lens will be built, with parameters hard-coded below.
     """
-	# Get the list of lens meshes from the appropriate lens system as well as the lens material'''
+    # Get the list of lens meshes from the appropriate lens system as well as the lens material'''
     scale_rad = rad*diameter_ratio #max_radius->rad of the lens assembly
     lenses = lenssystem.get_lens_mesh_list(lens_system_name, scale_rad)
     lensmat = lenssystem.get_lens_material(lens_system_name)
     face = None
     for lns in lenses:
-    	#lns = mh.rotate(lns,make_rotation_matrix(ph,ax)) 
+        #lns = mh.rotate(lns,make_rotation_matrix(ph,ax))
         if not face:
-        	face = Solid(lns, lensmat, kabamland.detector_material)
-       	else:
-        	face += Solid(lns, lensmat, kabamland.detector_material)
+            face = Solid(lns, lensmat, kabamland.detector_material)
+        else:
+            face += Solid(lns, lensmat, kabamland.detector_material)
 
     if light_confinement:
-	shield = mh.rotate(cylindrical_shell(rad*(1 - 0.001), rad, focal_length,32), make_rotation_matrix(np.pi/2.0, (1,0,0)))
-	baffle = Solid(shield, lensmat, kabamland.detector_material, black_surface, 0xff0000)
+        shield = mh.rotate(cylindrical_shell(rad*(1 - 0.001), rad, focal_length,32), make_rotation_matrix(np.pi/2.0, (1,0,0)))
+        baffle = Solid(shield, lensmat, kabamland.detector_material, black_surface, 0xff0000)
 
     if blockers:
-    	blocker_thickness = 2*rad*blocker_thickness_ratio
-    	if half_EPD < rad:
-		c1 = lenssystem.get_lens_sys(lens_system_name).c1*lenssystem.get_scale_factor(lens_system_name,scale_rad)
-		offset = [0,0,c1-np.sqrt(c1*c1-rad*rad)]
-        	anulus_blocker = mh.shift(mh.rotate(cylindrical_shell(half_EPD, rad, blocker_thickness, 32), make_rotation_matrix(np.pi/2.0, (1,0,0))),offset)
-		face += Solid(anulus_blocker, lensmat, kabamland.detector_material, black_surface, 0xff0000)
+        blocker_thickness = 2*rad*blocker_thickness_ratio
+        if half_EPD < rad:
+            c1 = lenssystem.get_lens_sys(lens_system_name).c1*lenssystem.get_scale_factor(lens_system_name,scale_rad)
+            offset = [0,0,c1-np.sqrt(c1*c1-rad*rad)]
+            anulus_blocker = mh.shift(mh.rotate(cylindrical_shell(half_EPD, rad, blocker_thickness, 32), make_rotation_matrix(np.pi/2.0, (1,0,0))),offset)
+            face += Solid(anulus_blocker, lensmat, kabamland.detector_material, black_surface, 0xff0000)
     phi, axs = rot_axis([0,0,1],vtx)
     for vx,ph,ax in zip(vtx,-phi,axs):
         kabamland.add_solid(face, rotation=make_rotation_matrix(ph,ax), displacement = -vx)
-	if light_confinement:
-	        kabamland.add_solid(baffle, rotation=make_rotation_matrix(ph,ax), displacement = -normalize(vx)*(np.linalg.norm(vx)+focal_length/2.0))
+        if light_confinement:
+            kabamland.add_solid(baffle, rotation=make_rotation_matrix(ph,ax), displacement = -normalize(vx)*(np.linalg.norm(vx)+focal_length/2.0))
 
 
 def calc_steps(x_value,y_value,detector_r,base_pixel):

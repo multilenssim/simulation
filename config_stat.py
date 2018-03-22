@@ -49,9 +49,9 @@ if __name__ == '__main__':
 			cut_val = np.fromstring(raw_input('cut value: '),dtype=float,sep=' ')
 			#plt.hist(px_lens_sigmas.flat,bins=100,color='b')
 			#plt.hist(px_lens_sigmas.flat[px_lens_sigmas.flat>cut_val],bins=bn,color='r')
-                	#plt.yscale('log', nonposy='clip')
-                	#plt.xlabel('sigma value')
-                	#plt.show()
+			#plt.yscale('log', nonposy='clip')
+			# #plt.xlabel('sigma value')
+			#plt.show()
 '''
 		asn = np.arcsin(sin_dir).reshape((u_proj.shape))
 		for i in np.random.choice(u_proj.shape[0],2,replace=False):

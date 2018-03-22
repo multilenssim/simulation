@@ -55,7 +55,7 @@ def roll_funct(ofst,drct,sgm,i,half=False):
 		sgm = sgm[:i]
 		r_ofst = r_ofst[:i]
 		r_drct = r_drct[:i]
-		r_sgm = r_sgm[:i]		
+		r_sgm = r_sgm[:i]
 
 	ofst_diff = ofst - r_ofst
 	#b_drct = np.cross(drct,r_drct)

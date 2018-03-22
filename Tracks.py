@@ -46,7 +46,7 @@ class Tracks(object):
             print "lens_rad is still 0!!!"
             self.printed_warning = True
         #else:
-            #print "right lens_rad used:	", self.lens_rad 
+            #print "right lens_rad used:	", self.lens_rad
         # Returns an array of positions along the tracks closest to Vertex v, along with
         # an array of the sigmas scaled by the distance along the track to that point
         r_vec = (v.pos - self.hit_pos.T).T

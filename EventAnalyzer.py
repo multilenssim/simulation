@@ -552,7 +552,7 @@ class EventAnalyzer(object):
                 plt.yscale('log', nonposy='clip')
                 plt.xlabel('Track weights')
                 plt.show()
-                '''                                                                                                                     
+                '''
                 vtx.n_ph = vtx_ph
                 vtx_list.append(vtx)
                 obj_list.append(obj0)
@@ -752,7 +752,7 @@ class EventAnalyzer(object):
             rings = rings[mask]
             pixels = pixels[mask]
             logger.info('Mask count: %d' % len(mask))
-            
+
         # print('PMT bins: ' + str(event_pmt_bin_array))
         event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T
         
@@ -771,7 +771,6 @@ class EventAnalyzer(object):
                 sig_th = sig_cone
                 hit_pos = event_pmt_pos_array
 
-                
             # If lens_dia is given, include noise on the hit position; angular noise is set by lens_dia and
             # the detector's number of pmtxbins, rather than sig_cone
             else:
@@ -805,7 +804,7 @@ class EventAnalyzer(object):
                     print "pmt_width: " + str(pmt_width)
                     print "inscribed radius: " + str(self.det_res.inscribed_radius)
 
-            logger.info('Shapes: %s %s %s' % (np.shape(ending_photons), np.shape(hit_pos), np.shape(end_direction_array))) 
+            logger.info('Shapes: %s %s %s' % (np.shape(ending_photons), np.shape(hit_pos), np.shape(end_direction_array)))
             ang_noise = np.zeros(np.shape(end_direction_array))
             hit_pos = ending_photons.T
             # Really looks like something  is biasing the rays????  by 250mm in each direction??  (That's a very rough impression!)
