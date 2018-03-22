@@ -372,7 +372,7 @@ class DIEventFile(object):
     def write(self, file_name):
         event = {'track_tree': self.track_tree, 'gun': self.gun_specs, 'config_name': self.config_name}
         if self.config_name is not None:
-            cl = detectorconfig.DetectorConfigList()  # Needs testing!!
+            cl = detectorconfig.DetectorConfigList()
             event['config'] = cl.get_configuration(self.config_name)
         if self.photons is not None:
             event['photons'] = self.photons

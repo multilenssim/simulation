@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 from matplotlib.tri import Triangulation
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
-import os
 
 from chroma.geometry import Solid
 from chroma.transform import make_rotation_matrix, normalize
@@ -15,8 +14,6 @@ from chroma.event import Photons
 import detectorconfig, lenssystem
 import lensmaterials as lm
 import meshhelper as mh
-import paths
-from logger_lfd import logger
 
 inputn = 16.0
 
@@ -119,9 +116,7 @@ def get_lens_triangle_centers(vtx, rad, diameter_ratio, thickness_ratio, half_EP
 	# Get the list of lens meshes from the appropriate lens system as well as the lens material
 	scale_rad = rad*diameter_ratio
 	lenses = lenssystem.get_lens_mesh_list(lens_system_name, scale_rad)
-	lensmat = lenssystem.get_lens_material(lens_system_name)
 	lens_mesh = None
-	lens_centers = [] 	
 	for lns in lenses: # Add all the lenses for the first lens system to solid 'face'
 		if not lens_mesh:
 			lens_mesh = lns
@@ -253,7 +248,7 @@ def driver_funct(configname):
 	#build_pmt_icosahedron(kabamland, np.linalg.norm(config.vtx[0]), focal_length=config.focal_length)
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
-	view(kabamland)
+	view(kabamland)     # No longer exists!!
 
 if __name__ == '__main__':
 	driver_funct('cfSam1_K200_8')

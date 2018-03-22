@@ -97,7 +97,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
         end_dir = normalize(end_point-beginning_photons)
 
         if n_det+length > max_storage:
-            print("Too many photons to store in memory; not reading any further events.")
+            logger.critical("Too many photons to store in memory; not reading any further events.")
             return None
         end_direction_array[n_det:(n_det+length),:] = end_dir
         return ending_photons, length
@@ -125,7 +125,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
         hit_file_exists = False
         n_min = 10 # Do not calibrate a PMT if <n_min photons hit it
         try:
-            logger.info('Attempting to load pickle hits file: %s%s' % (directory, pickle_name));
+            logger.info('Attempting to load pickle hits file: %s%s' % (directory, pickle_name));      # XX TODO: This won't do anything because we no longer write this file
             with open(directory + pickle_name, 'rb') as inf:
                 pmt_hits = pickle.load(inf)
             logger.info('Hit map pickle file loaded: ' + pickle_name)
@@ -248,9 +248,9 @@ class DetectorResponseGaussAngle(DetectorResponse):
             bins_base_file_name = self.configname + '-pmt-bins'
             bins_pickle_file = bins_base_file_name + '.pickle'
             try:
-                with open(directory + bins_pickle_file, 'rb') as inf:
+                with open(directory + bins_pickle_file, 'rb') as inf:       # XX TODO: This won't do anything because we no longer write this file
                     pmt_photons = pickle.load(inf)
-                logger.info('PMT photon list pickle file loaded: ' + bins_file)
+                logger.info('PMT photon list pickle file loaded: ' + bins_pickle_file)
             except IOError as error:
                 start_assign = time.time()
                 pmt_photons = assign_photons(self.npmt_bins, n_det, pmt_bins)
@@ -401,6 +401,8 @@ class DetectorResponseGaussAngle(DetectorResponse):
         # a cone of unit length), one for each PMT
         # There are 1000 events in a typical simulation.
         # Older method - estimates variance for each PMT one event at a time
+        from ShortIO.root_short import ShortRootReader
+
         self.is_calibrated = True
         reader = ShortRootReader(simname)
 
