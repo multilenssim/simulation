@@ -74,7 +74,7 @@ def load_or_build_detector(configname, detector_material, g4_detector_parameters
         config = cl.get_configuration(configname)
         logger.info('Saving h5 detector configuration.  UUID: %s' % config.uuid)
 
-        '''   # This was created for readability
+        '''   # This was created to minimize what is saved from the Detector object.  But for simplicity, we are currently pickling the whole object.
         detector_dict = {
             'detector_material' : kabamland.detector_material,
             'solids' : kabamland.solids,
@@ -116,6 +116,7 @@ def sim_setup(config, in_file, useGeant4=False, geant4_processes=4, seed=12345, 
         sim = Simulation(detector, seed=seed, geant4_processes=geant4_processes if useGeant4 else 0, cuda_device=cuda_device)
     return sim, analyzer
 
+# TODO: this currently also appears in nog4_sim.py
 def sph_scatter(sample_count,in_shell,out_shell):
     logger.info('sph_scatter shell radii: ' + str(in_shell) + ' ' + str(out_shell))
     loc = np.random.uniform(-out_shell,out_shell,(sample_count,3))
@@ -154,14 +155,13 @@ def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius,
             if location is None:
                 gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.999, float(energy) * 1.001))
             else:
-                gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.constant(momentum), vertex.constant(energy)) #(np.array(momentum)), vertex.constant(energy))
-                #gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.constant(np.array(momentum)), vertex.constant(energy))  # TODO: This line from Amazon
+                gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.constant(momentum), vertex.constant(energy)) # TODO: AWS seems to require: vertex.constant(np.array(momentum))
             gun1 = gun.next()
             logger.info('Gun: %s' % str(gun1))
 
             events = sim.simulate(gun, keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100)
             logger.info('Events %s' % str(events))
-            for ev in events:   # Note: I think there is really only ever one event because of the 'for lg in loc_array:'
+            for ev in events:   # Note: I think there is really only ever one event because we enumerate loc_array above
                 vert = ev.photons_beg.pos
                 tracks = analyzer.generate_tracks(ev, qe=qe)
                 write_h5_reverse_track_file_event(f, vert, tracks, first)
@@ -191,7 +191,6 @@ def plot_vertices(track_tree, title, with_electrons=True, file_name=None, recons
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    #ax = fig.gca(projection='3d')
 
     for key, value in particles.iteritems():
         if with_electrons or key != 'e-':
@@ -206,7 +205,7 @@ def plot_vertices(track_tree, title, with_electrons=True, file_name=None, recons
         vp = np.asarray(vertex_positions)
         logger.info('AVF positions: ' + str(vp))
         ax.scatter(vp[:,0], vp[:,1], vp[:,2], marker=(6,1,0), s=100., color='gray', label='AVF') #), markersize=5.0)
-    # Temporary
+    # Optionally plot reconstructed vertices as well
     if reconstructed_vertices2 is not None:
         vertex_positions = []
         for v in reconstructed_vertices2:
@@ -250,19 +249,19 @@ def plot_vertices(track_tree, title, with_electrons=True, file_name=None, recons
 ############
 
 # Defaults for AVF
-min_tracks = 0.1       # Use a fraction to take a fraction of total available tracks as the minimum (something like that)
+min_tracks = 0.1       # Use a fraction of total event's tracks as the minimum # of tracks required for reconstruction
 chiC = 0.75
 temps = [256, 0.25]
 tol = 0.1
 
-# Doesn't do much
+# TODO: Could basically lose this function
 #### Note: AVF() modifies the tracks object ####
 def AVF_analyze_tracks(analyzer, tracks, debug=False):
     vtcs = analyzer.AVF(tracks, min_tracks, chiC, temps, tol, debug)
     logger.info('Vertices: ' + str(vtcs))
     return vtcs
 
-# Not currently in use
+# TODO: Not currently in use
 def AVF_analyze_event(analyzer, event, debug=False):
     sig_cone = 0.01
     lens_dia = None
@@ -292,10 +291,9 @@ def write_h5_reverse_track_file_event(h5file, vert, tracks, first):
         uncert.resize(uncert.shape[0] + tracks.sigmas.shape[0], axis=0)
         uncert[-tracks.sigmas.shape[0]:] = tracks.sigmas
 
-        # Untested - and is there a better way?  This looks too complicated
+        # TODO: rafactor into separate events rather than long lists with indices?
         idx_tr = h5file.get('idx_tr')
         idx_tr_size = idx_tr.shape[0]
-        #logger.info('=== ' + str(idx_tr_size))
         idx_tr.resize(idx_tr_size + 1, axis=0)
         idx_tr[idx_tr_size] = uncert.shape[0]
 
@@ -307,16 +305,15 @@ def write_h5_reverse_track_file_event(h5file, vert, tracks, first):
 
 def build_gun_specs(particle, position, momentum, energy):
     gs = dict(particle=particle, position=position, momentum=momentum, energy=energy)
-    #gs = {'particle': particle, 'position': position, 'momentum': momentum, 'energy': energy}
     return gs
 
 # A Distributed Imaging event file is a "deep dish" HDF5 file containing all of the data about this event
-# Notes / TODO:
-#   Need to add: config name, matrials config
-#   There is currently much redundancy in the new hdf5 file format
+# TODO:
+#   Need to add: config name, materials config
+#   There is currently much redundancy in the  hdf5 file format
 #   Need to make this support mutiple events
 #   Test new format without tracks
-#   Cross check the config!!
+#   Check the config UUID
 
 '''
 HDF5 file structure:
@@ -391,7 +388,7 @@ def print_tracks(tracks, count):
         if index >= count:
             break
 
-# Stolen from EventAnalyzer
+# TODO: Stolen from EventAnalyzer -- integrate this back together
 def plot_tracks_from_endpoints(begin_pos, end_pos, pts=None, highlight_pt=None, path=None, show=True, skip_interval=50, plot_title="Tracks"):
     # Returns a 3D plot of tracks (a Tracks object), as lines extending from their
     # PMT hit position to the inscribed diameter of the detector.
@@ -442,6 +439,7 @@ def plot_tracks_from_endpoints(begin_pos, end_pos, pts=None, highlight_pt=None, 
 
 CALIBRATED = True
 
+# Driver for generating new hdf5/dd event files and diagnosing AVF algorithm
 if __name__=='__main__':
     import DetectorResponseGaussAngle
     import EventAnalyzer
@@ -455,7 +453,7 @@ if __name__=='__main__':
     vertices = None
     if event.tracks is not None:
         logger.info('Track count: ' + str(len(event.tracks)))
-        event.tracks.sigmas.fill(0.01)  # Temporary hack because I think I forced 0.0001 into the tracks in the file.  Sigmas too small really screw up teh machine!!
+        event.tracks.sigmas.fill(0.01)  # TODO: Temporary hack because I think we forced 0.0001 into the tracks in the test file.  Sigmas too small really screw up the machine!!
         print_tracks(event.tracks, 20)
         if CALIBRATED:
             cal_file = paths.get_calibration_file_name(event.config_name)
