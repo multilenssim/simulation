@@ -10,7 +10,7 @@ import lensmaterials as lm
 import paths
 from logger_lfd import logger
 import count_processes
-import driver_utils
+import utilities
 
 import pycuda.driver as cuda
 
@@ -55,7 +55,7 @@ def create_gamma_event(location, energy, amount, config, eventname):
     # at position given by location for a given configuration.
     # Gamma energy is in MeV.
     g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
-    kabamland = driver_utils.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+    kabamland = utilities.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
 
     sim = Simulation(kabamland, geant4_processes=1)
     logger.info('Starting gun simulation:' + paths.data_files_path + eventname)

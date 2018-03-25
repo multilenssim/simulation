@@ -879,7 +879,7 @@ class EventAnalyzer(object):
         obj = np.sum(wt*chi**2)/np.sum(wt) # Get current value of objective function
         return r, sig, d, chi, wt, obj
  
-    # Move to driver_utils
+    # Move to utilities
     def plot_tracks(self, _tracks, pts=None, highlight_pt=None, path=None, show=True, skip_interval=50):
         # Returns a 3D plot of tracks (a Tracks object), as lines extending from their 
         # PMT hit position to the inscribed diameter of the detector. 

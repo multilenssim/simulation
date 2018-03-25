@@ -11,7 +11,7 @@ from multiprocessing import Pool, TimeoutError
 from multiprocessing.pool import ThreadPool
 import multiprocessing          # Just for CPU count
 
-import driver_utils
+import utilities
 
 def cuda_stat():
     cuda.init()
@@ -27,12 +27,12 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r, cuda_device=None):
 	        os.makedirs(data_file_dir)
         fname_base = data_file_dir+seed_loc+'_'+str(energy)+particle+'_'+'sim'
         fname = fname_base+'.h5'
-	sim,analyzer = driver_utils.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, geant4_processes=1, cuda_device=cuda_device)
+	sim,analyzer = utilities.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, geant4_processes=1, cuda_device=cuda_device)
 	print('Configuration loaded: ' + cfg)
         print('Particle: ' + particle)
         print('Energy: ' + str(energy))
         print('Distance range: ' + str(i_r) + ' ' + str(o_r))
-	location = driver_utils.sph_scatter(sample, i_r * 1000, o_r * 1000)
+	location = utilities.sph_scatter(sample, i_r * 1000, o_r * 1000)
 	arr_tr, arr_depo = [],[]
         i = 0
 	with h5py.File(fname,'w') as f:
@@ -65,8 +65,8 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r, cuda_device=None):
                         print ('Time: ' + str(time.time() - start) + '\tPhotons detected: ' + str(tracks.sigmas.shape[0])) 
 			first = False
                         #gun_specs = utilities.build_gun_specs(particle, position, momentum, energy_random)
-                        gun_specs = driver_utils.build_gun_specs(particle, None, None, None)
-                        di_file = driver_utils.DIEventFile(cfg, gun_specs, ev.photons_beg.track_tree, tracks, photons=ev.photons_beg, full_event=ev)
+                        gun_specs = utilities.build_gun_specs(particle, None, None, None)
+                        di_file = utilities.DIEventFile(cfg, gun_specs, ev.photons_beg.track_tree, tracks, photons=ev.photons_beg, full_event=ev)
                         di_file.write(fname_base + '_' + str(i) + '.h5')
                         i += 1
 		f.create_dataset('idx_tr',data=arr_tr)

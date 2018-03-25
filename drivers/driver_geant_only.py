@@ -19,7 +19,7 @@ from Geant4 import *
 
 import lensmaterials
 import count_processes
-import driver_utils
+import utilities
 
 
 class G4Generator:
@@ -371,14 +371,14 @@ def fire_particles(particle, count, energy, position, momentum):
         # print('Photon count: ' + str(len(output.dir)))
         # Geant4.HepRandom.setTheSeed(9876)
         # print("Random seed: ", Geant4.HepRandom.getTheSeed()
-        driver_utils.plot_vertices(track_tree, title, file_name='vertices' + '-' + particle + '-' + str(i) + '.pickle', with_electrons=True)
+        utilities.plot_vertices(track_tree, title, file_name='vertices' + '-' + particle + '-' + str(i) + '.pickle', with_electrons=True)
         compute_scatter_angle(track_tree, len(output.dir), i , energy)
 
         # Need to add: config name, matrials config
         file_name = particle + '_' + str(energy) + '_' + str(i) + '.h5';
-        gun_specs = driver_utils.build_gun_specs(particle, position, momentum, energy)
+        gun_specs = utilities.build_gun_specs(particle, position, momentum, energy)
         # DIEventFile don't work with None for tracks....
-        di_file = driver_utils.DIEventFile(None, gun_specs, track_tree, None)
+        di_file = utilities.DIEventFile(None, gun_specs, track_tree, None)
         di_file.write(file_name)
 
     print(photon_counts)

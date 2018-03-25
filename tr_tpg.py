@@ -14,7 +14,7 @@ import kabamland2
 import pickle
 import paths
 import detectorconfig
-import driver_utils
+import utilities
 from logger_lfd import logger
 
 def sim_ev(cfg,particle,lg,energy,sim,analyzer):
@@ -209,7 +209,7 @@ if __name__=='__main__':
         energy = 2.0
         vertices = [(0,0,0), (2000,0,0)]
         config = detectorconfig.configdict(cfg)  # We do this a lot - is it reading the file each time??  PAss the object, not the name wherever possible
-        sim,analyzer = driver_utils.sim_setup(cfg,paths.get_calibration_file_name(cfg),useGeant4=(particle is not None))
+        sim,analyzer = utilities.sim_setup(cfg,paths.get_calibration_file_name(cfg),useGeant4=(particle is not None))
         distances = []
         rings = []
         for vertex in vertices:

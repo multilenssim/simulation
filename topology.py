@@ -6,7 +6,7 @@ import nog4_sim as setup
 import numpy as np
 import paths
 from logger_lfd import logger
-import driver_utils
+import utilities
 
 import gc
 import multiprocessing
@@ -14,7 +14,7 @@ from multiprocessing import Pool
 
 
 def sim_ev(cfg,particle,lg,energy):
-	sim,analyzer = driver_utils.sim_setup(cfg,paths.get_calibration_file_name(cfg),useGeant4=True)
+	sim,analyzer = utilities.sim_setup(cfg,paths.get_calibration_file_name(cfg),useGeant4=True)
 	print 'Configuration loaded'
 	gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(energy*0.999, energy*1.001))
 	for ev in sim.simulate(gun,keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100):

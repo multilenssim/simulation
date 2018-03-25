@@ -13,11 +13,11 @@ from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 import lensmaterials as lm
 from logger_lfd import logger
 import kabamland2 as kb   # Move uniform photons out of kabamland
-import driver_utils
+import utilities
 
 from chroma.detector import G4DetectorParameters
 
-# TODO: Move this method and uniform_photons to driver_utils?
+# TODO: Move this method and uniform_photons to utilities?
 def full_detector_simulation(amount, configname, simname, datadir=""):
     # simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron.
     # Note that viewing may crash if there are too many lenses. (try using configview)
@@ -26,7 +26,7 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
 
     logger.info('Starting to load/build: %s' % configname)
     g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
-    kabamland = driver_utils.load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+    kabamland = utilities.load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
     logger.info('Detector was loaded/built')
 
     file_name_base = datadir + simname

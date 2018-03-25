@@ -6,11 +6,11 @@ import numpy as np
 from Geant4.hepunit import *
 
 import paths
-import driver_utils
+import utilities
 
 def fixed_dist(sample, radius, in_shell, out_shell, rads=None):
-	loc1 = driver_utils.sph_scatter(sample,in_shell,out_shell)
-	loc2 = driver_utils.sph_scatter(sample,in_shell,out_shell)
+	loc1 = utilities.sph_scatter(sample,in_shell,out_shell)
+	loc2 = utilities.sph_scatter(sample,in_shell,out_shell)
 	if np.array_equal(rads,None):
 		rads = np.linspace(50,500,sample)
 	else:
@@ -72,7 +72,7 @@ def fire(sample,energy,sim,analyzer,path,amount,sigma=0.01):
 	arr = []
 	first = True
 	# KW? fname = particle_name+'.h5'
-	location = driver_utils.sph_scatter(sample,in_shell,out_shell)
+	location = utilities.sph_scatter(sample,in_shell,out_shell)
 	fname = 's-site.h5'
         file_name = path+fname
         print('Writing h5 file: ' + file_name)
@@ -112,7 +112,7 @@ if __name__ == '__main__':
 
 	data_file_dir = paths.get_data_file_path(cfg)
 	start_time = time.time()
-	sim,analyzer = driver_utils.sim_setup(cfg,paths.get_calibration_file_name(cfg))
+	sim,analyzer = utilities.sim_setup(cfg,paths.get_calibration_file_name(cfg))
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
         path=paths.get_data_file_path(cfg)
         amount = 1000 # 16000

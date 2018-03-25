@@ -21,7 +21,7 @@ import detectorconfig
 import numpy as np
 
 import paths
-import driver_utils
+import utilities
 from logger_lfd import logger
 
 def plot_vertices(origin, vertices):  # track_tree, title, with_electrons=True, file_name='vertex_plot.pickle'):
@@ -107,7 +107,7 @@ def eff_test(config,
 
 		print('Simulation started.')
 
-		sim, analyzer = driver_utils.sim_setup(config, detres)
+		sim, analyzer = utilities.sim_setup(config, detres)
 
 		if detres is None:
 			det_res = DetectorResponseGaussAngle(config, detbins, detbins, detbins)

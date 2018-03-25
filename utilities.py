@@ -1,3 +1,13 @@
+#
+# utilities.py
+# Contains utility methods to:
+#       Manage detector configurations
+#       Setup and run simulations
+#       Plot vertices and tracks
+#       Run AVF analyses
+#       Create and load event files
+#
+
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D # Required for projection='3d' below
 import pickle

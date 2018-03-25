@@ -6,7 +6,7 @@ import paths
 import g4_sim
 import detectorconfig
 import lensmaterials
-import driver_utils
+import utilities
 import lensmaterials as lm
 from ShortIO.root_short import ShortRootWriter
 
@@ -22,7 +22,7 @@ def save_config_file(cfg, file_name, dict):
     with open(config_path + file_name, 'w') as outf:
         pickle.dump(dict, outf)
 
-# Move/Use driver_utils for this?
+# Move/Use utilities for this?
 # And for uniform_photoms?
 def full_detector_simulation(amount, configname, simname, datadir=""):
     #simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron. Note that viewing may crash if there are too many lenses. (try using configview)
@@ -30,7 +30,7 @@ def full_detector_simulation(amount, configname, simname, datadir=""):
     config = detectorconfig.configdict(configname)
     logger.info('Starting to build: %s' % configname)
     g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
-    kabamland = driver_utils.load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+    kabamland = utilities.load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
     logger.info('Detector was built')
 
     f = ShortRootWriter(datadir + simname)
