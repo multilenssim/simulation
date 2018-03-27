@@ -8,6 +8,8 @@ import detectorconfig
 import numpy as np
 #import time
 
+from detectorconfig import DetectorConfig
+
 from logger_lfd import logger
 
 class DetectorResponse(object):

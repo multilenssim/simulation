@@ -75,11 +75,11 @@ def run_simulation_double_fixed_source(sim, analyzer, sample, cfg, loc1, loc2, a
 
             logger.info('Time: ' + str(time.time() - start))
 
-UNCALIBRATE = False
+UNCALIBRATE = True
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('config', help='detector configuration', nargs='?', default='cfSam1_K200_10')
+    parser.add_argument('config', help='detector configuration', nargs='?', default='cfSam1_l200_p107600_b4_e10')
     parser.add_argument('particle', help='particle to simulate')
     parser.add_argument('s_d', help='seed location', nargs='?', default='01')
     _args = parser.parse_args()
@@ -118,7 +118,9 @@ if __name__=='__main__':
                                            inner_radius, outer_radius, fname, di_file_base=fname_base, qe=qe,
                                            location=np.array([0.,0.,0.]), momentum=np.array([1.,0.,0.]))
     else:  # Photons only - need to clean this up - what optiona?  Single vs. double site?
-        for dist in [2000.]: # 1., 500.,1000.,1500.,2000.]:
+        if UNCALIBRATE:
+            logger.info('==== Forcing an uncalibrated detector ====')
+        for dist in [100., 500.,1000.,1500.,2000.]:
             sim, analyzer = utilities.sim_setup(config, paths.get_calibration_file_name(config), useGeant4=False)
             if UNCALIBRATE:
                 analyzer.det_res.is_calibrated=False    # Temporary to test AVF with actual photon angles

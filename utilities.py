@@ -22,7 +22,9 @@ import pprint
 from chroma.detector import Detector
 import kabamland2 as kbl2
 
-import detectorconfig  # No longer pulls in Geant4 by commenting out a LOT of imports
+# 'DetectorConfig' is required here to unpickle the configuration list
+from detectorconfig import DetectorConfig, DetectorConfigurationList
+
 import lensmaterials as lm
 import paths
 from logger_lfd import logger
@@ -111,7 +113,6 @@ def load_or_build_detector(configname, detector_material, g4_detector_parameters
 def sim_setup(config, in_file, useGeant4=False, geant4_processes=4, seed=12345, cuda_device=None, no_gpu=False):
     # Imports are here both to avoid loading Geant4 when unnecessary, and to avoid circular imports
     from chroma.detector import G4DetectorParameters
-    from chroma.sim import Simulation
     import DetectorResponseGaussAngle
     import EventAnalyzer
 
@@ -123,6 +124,7 @@ def sim_setup(config, in_file, useGeant4=False, geant4_processes=4, seed=12345, 
         sim = None
         logger.warning('**** No GPU.  Not initializing CUDA or creating Simulation ****')
     else:
+        from chroma.sim import Simulation
         sim = Simulation(detector, seed=seed, geant4_processes=geant4_processes if useGeant4 else 0, cuda_device=cuda_device)
     return sim, analyzer
 
@@ -166,12 +168,9 @@ def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius,
                 gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.999, float(energy) * 1.001))
             else:
                 gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.constant(momentum), vertex.constant(energy)) # TODO: AWS seems to require: vertex.constant(np.array(momentum))
-            gun1 = gun.next()
-            logger.info('Gun: %s' % str(gun1))
 
             events = sim.simulate(gun, keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100)
-            logger.info('Events %s' % str(events))
-            for ev in events:   # Note: I think there is really only ever one event because we enumerate loc_array above
+            for ev in events:   # Note: There is really only ever one event because we enumerate loc_array above
                 vert = ev.photons_beg.pos
                 tracks = analyzer.generate_tracks(ev, qe=qe)
                 write_h5_reverse_track_file_event(f, vert, tracks, first)
@@ -377,7 +376,7 @@ class DIEventFile(object):
     def write(self, file_name):
         event = {'track_tree': self.track_tree, 'gun': self.gun_specs, 'config_name': self.config_name}
         if self.config_name is not None:
-            cl = detectorconfig.DetectorConfigList()
+            cl = detectorconfig.DetectorConfigurationList()
             event['config'] = cl.get_configuration(self.config_name)
         if self.photons is not None:
             event['photons'] = self.photons
