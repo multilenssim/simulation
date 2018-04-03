@@ -225,11 +225,9 @@ def build_pmt_icosahedron(kabamland, vtx, focal_length=1.0):
     		kabamland.add_pmt(Solid(square, glass, kabamland.detector_material, lm.fullabsorb, 0xBBFFFFFF), rotation = make_rotation_matrix(np.pi/2,vr), displacement = offset*trasl)
 		kabamland.add_pmt(Solid(square, glass, kabamland.detector_material, lm.fullabsorb, 0xBBFFFFFF), rotation = make_rotation_matrix(np.pi/2,vr), displacement = -offset*trasl)
 
-def build_kabamland(kabamland, configname):
+def build_kabamland(kabamland, config):
     # focal_length sets dist between lens plane and PMT plane (or back of curved detecting surface);
     #(need not equal true lens focal length)
-    cl = detectorconfig.DetectorConfigurationList()
-    config = cl.get_configuration(configname)
 
     # These are not really building the icosahedron right?
     build_lens_icosahedron(kabamland, config.vtx, config.half_EPD/config.EPD_ratio, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)

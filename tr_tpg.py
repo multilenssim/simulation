@@ -17,11 +17,11 @@ import detectorconfig
 import utilities
 from logger_lfd import logger
 
-def sim_ev(cfg,particle,lg,energy,sim,analyzer):
+def sim_ev(particle,lg,energy,sim,analyzer):
 	if particle == None:
 		energy = int(energy*8000)
-		gun = setup.create_double_source_events(np.asarray([0,0,0]), np.asarray([0,0,0]), 0.01, energy/2,energy/2)
-		# gun = kabamland2.gaussian_sphere(lg, 0.01, energy)
+		# gun = setup.create_double_source_events(np.asarray([0,0,0]), np.asarray([0,0,0]), 0.01, energy/2,energy/2)
+		gun = kabamland2.gaussian_sphere(lg, 0.01, energy)
 		# gun = gen_test(20,1,det_res)
 	else:
 		gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(energy*0.999, energy*1.001))
@@ -130,13 +130,20 @@ def proj(l_center,dct,arr_bin,det_res):
 		plt.clf()
 
 
-def plot_simulation(subplots, row, origin, energy, rings, distances, ring_count=None):
+def plot_simulation(subplots, row, origin, energy, rings, distances, ring_count=None, ring_normalization=None):
         subplot = subplots[row][0]
         bins = np.arange(ring_count+1)
-        _, bins_out, _ = subplot.hist(rings, bins=bins, rwidth=0.75)
+
+        # logger.info('Ring count: %d, bins: %s' % (ring_count, str(bins)))
+        hist, _ = np.histogram(rings, bins)
+        if ring_normalization is not None:
+                scaled_hist = hist / ring_normalization
+                bar_x = np.arange(1,ring_count+1)
+                subplot.bar(bar_x, scaled_hist, 0.75)
+        else:
+                _, _, _ = subplot.hist(rings, bins=bins, rwidth=0.75)
 
         subplot.set_xticks(bins, minor=True)
-        # logger.info('Ring count: %d, bins: %s' % (ring_count, str(bins)))
         subplot.set_xticks(np.arange(0,ring_count+1,5), minor=False)
 
         sim_spec = 'Vertex: %s, Energy: %.2f' % (str(origin), energy)
@@ -145,8 +152,9 @@ def plot_simulation(subplots, row, origin, energy, rings, distances, ring_count=
         else:
                 subplot.set_title(sim_spec, fontsize=14)
         if row == 2:
-                subplot.set_xlabel('Ring number', fontsize=14)
+                subplot.set_xlabel('Hits per pixel by ring number', fontsize=14)
         subplot.set_ylabel('Photon count')
+
 
         subplot = subplots[row][1]
         subplot.hist(distances, bins=1000, range=[0., 5000.])
@@ -169,14 +177,14 @@ def plot(config, response, energy, origin, rings, distances, origin2=None, rings
         fig, axs = plt.subplots(nrows=3, ncols=2) # , sharey=True)
 
         fig.suptitle('Detector Calibration and Simulation: %s\n(%d lenses, %s pixels, %d rings, %.2f EPD)' %
-                     (config.config_name, config.base, '{:,}'.format(config.tot_pixels), config.nsteps-1, config.EPD_ratio), fontsize=18)
+                     (config.config_name, config.lens_count, '{:,}'.format(config.tot_pixels), config.ring_count-1, config.EPD_ratio), fontsize=18)
 
         import config_stat    # Ick!!
 
         subplot = axs[0][0]
-        px_lens_means, px_lens_sigmas, u_proj, v_proj = config_stat.proj(cfg, response)
+        # px_lens_means, px_lens_sigmas, u_proj, v_proj = config_stat.proj(config, response)
         sin_dir = np.linalg.norm(np.asarray([u_proj.flatten(),v_proj.flatten()]),axis=0)
-        _,bn,_ = subplot.hist(np.arcsin(sin_dir),bins=100)
+        _,_,_ = subplot.hist(np.arcsin(sin_dir),bins=100)
         subplot.set_xlabel('Radians', fontsize=12)
         subplot.set_yscale('log', nonposy='clip')
         subplot.set_title('Calibrated pixel angles', fontsize=14)
@@ -186,10 +194,10 @@ def plot(config, response, energy, origin, rings, distances, origin2=None, rings
         subplot.set_xlabel('Radians', fontsize=12)
         subplot.hist(response.sigmas, bins=50, range=[0., 0.3])
 
-        plot_simulation(axs, 1, origin, energy, rings, distances, ring_count=config.nsteps-1)
+        plot_simulation(axs, 1, origin, energy, rings, distances, ring_count=config.ring_count-1, ring_normalization=response.ring)
 
         if (origin2 is not None):
-                plot_simulation(axs, 2, origin2, energy, rings2, distances2, ring_count=config.nsteps-1)
+                plot_simulation(axs, 2, origin2, energy, rings2, distances2, ring_count=config.ring_count-1, ring_normalization=response.ring)
 
         #plt1.grid(True)# See: https://matplotlib.org/examples/pylab_examples/axes_props.html
         fig.set_size_inches(11.5, 14)
@@ -204,26 +212,22 @@ if __name__=='__main__':
         parser.add_argument('cfg', help='detector configuration')# Only need one or the other argument
         args = parser.parse_args()
 
-        cfg = args.cfg
+        config_name = args.cfg
         particle = None
-        energy = 2.0
-        vertices = [(0,0,0), (2000,0,0)]
-        config = detectorconfig.configdict(cfg)  # We do this a lot - is it reading the file each time??  PAss the object, not the name wherever possible
-        sim,analyzer = utilities.sim_setup(cfg,paths.get_calibration_file_name(cfg),useGeant4=(particle is not None))
+        energy = 2. # 400.0   # In MeV
+        vertices = [(0,0,0), (2000,0,0), (4000,0,0)]
+
+        config = detectorconfig.get_detector_config(config_name)
+        sim,analyzer = utilities.sim_setup(config,paths.get_calibration_file_name(config_name),useGeant4=(particle is not None))
         distances = []
         rings = []
         for vertex in vertices:
                 lg = np.asarray(vertex)
-                vtx, trx = sim_ev(cfg, particle, lg, energy, sim, analyzer)
+                vtx, trx, _, _, _  = sim_ev(particle, lg, energy, sim, analyzer)
                 logger.info('Simulation done, starting reconstruction')
                 ofs = trx.means.T
-                dist,err,rcn_pos,off_dist = track_dist(trx.hit_pos.T,trx.means.T,trx.sigmas,trx.lens_rad)
-                tl = off_dist.shape[0]/ofs.shape[0]
 
-                # This is unused
-                hp_tile = np.tile(ofs,(tl,1))
-                if not ofs.shape[0] & 0x1:
-                    hp_tile = np.concatenate((hp_tile,ofs[:ofs.shape[0]/2]),axis=0)
+                dist,err,rcn_pos = track_dist(trx.hit_pos.T,trx.means.T,trx.sigmas,trx.lens_rad)
 
                 # Cut
                 mask_bool = (np.linalg.norm(rcn_pos,axis=1)<5000) & (dist!=0) & (dist<1)
@@ -231,14 +235,22 @@ if __name__=='__main__':
                 c_rcn_pos = rcn_pos[mask_bool]
                 c_err = err[mask_bool]
                 c_dist = dist[mask_bool]
-                c_off_dist = off_dist[mask_bool]
-                c_hp_tile = hp_tile[mask_bool]
 
                 distances.append(np.linalg.norm(c_rcn_pos-vertex,axis=1))
                 rings.append(trx.rings)
 
-        logger.info('Plotting...')
-        plot(config, analyzer.det_res, energy, vertices[0], rings[0], distances[0], vertices[1], rings[1], distances[1])
+                # Plot 2D histogram of CA lengths and distances from vertex
+                fig, ax = plt.subplots()
+                counts, xedges, yedges, im = ax.hist2d(np.linalg.norm(rcn_pos-vertex,axis=1), dist, bins=50, range=[[0,1000], [0,400]])
+                ax.set_xlabel('Distance from vertex', fontsize=12)
+                ax.set_ylabel('CA line length', fontsize=12)
+                ax.set_title('Detector: %s\nVertex: %s, Energy: %d MeV' % (config_name, str(vertex), energy))
+                plt.colorbar(im, ax=ax)
+                plt.show()
+
+        # logger.info('Plotting...')
+        # plot(config, analyzer.det_res, energy, vertices[0], rings[0], distances[0], vertices[1], rings[1], distances[1])
+        # plot(config, analyzer.det_res, energy, vertices[0], rings[0], None, vertices[1], rings[1], None)
         #exit()
 
 def jacopos_code():

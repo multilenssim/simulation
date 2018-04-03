@@ -74,10 +74,10 @@ class DetectorConfig(object):
         print ('  Number of lenses:\t%d'    % self.lens_count)
         print ('  Max radius:\t\t%0.2f'     % self.max_radius)
         print ('  EPD ratio:\t\t%0.2f'      % self.EPD_ratio)
-        print ('  Number of rings (+1):\t%d' % self.ring_count)
+        print ('  Number of rings (+1):\t%d' % self.ring_count)  # TODO: Is this really +1
         print ('  Central pixels:\t%d'      % self.base_pixels)
         print ('  UUID:\t\t\t\t%s'          % str(self.uuid))
-        print ('  Total pixels in detector:\t%s)'  % '{:,}'.format(self.tot_pixels))
+        print ('  Total pixels in detector:\t%s'  % '{:,}'.format(self.tot_pixels))
 
         #lens_system_name = config_name.split('_')[0][2:]
         #dtc_r = get_system_measurements(lens_system_name, max_rad)[1]
@@ -85,36 +85,6 @@ class DetectorConfig(object):
         #print ('  Total pixels (computed):\t%d'       % tot_pxl)
 
         print('-------------------------')
-
-    '''
-    def detector_config_from_parameter_array(config_name,
-                                         config_dict,
-                                         thickness_ratio=0.25,
-                                         blockers=True,
-                                         blocker_thickness_ratio=1.0/1000,
-                                         lens_system_name=None,
-                                         focal_length=1.0,
-                                         light_confinement=True):
-
-        return DetectorConfig(
-                config_dict[0],
-                config_dict[1],
-                config_dict[2],
-                config_dict[3],
-                0, 0, 1.0,        # pmtxbins, pmtybins, diameter_ratio
-                thickness_ratio=thickness_ratio,
-                blockers=blockers,
-                blocker_thickness_ratio=blocker_thickness_ratio,
-                lens_system_name=lens_system_name,
-                focal_length=focal_length,
-                EPD_ratio = config_dict[4],
-                light_confinement=light_confinement,
-                nsteps=config_dict[5],
-                b_pixel=config_dict[6],
-                tot_pixels=config_dict[7] if len(config_dict) > 7 else None,
-                uuid=config_dict[8] if len(config_dict) > 8 else None,
-                config_name=config_name)
-    '''
 
 _config_list = None
 _configs_pickle_file = '%sconf_file_obj.pickle' % paths.detector_config_path
@@ -157,6 +127,14 @@ class DetectorConfigurationList(object):
     def _get_dict(self):  # Only intended for use by the display routine below!
         return _config_list
 
+# Convenience method so don't have to create a list (singleton) each time
+def get_detector_config(config_name):
+    if _config_list is None:
+        cl = DetectorConfigurationList()
+        return cl.get_configuration(config_name)
+    else: # this inconsistency shold be improved XXXX
+        return _config_list[config_name]
+
 # All configpc diameters given are for kabamlandpc packing (different for kabamland2) 
 # Up to configpc4, focal_length=diameter
 # Configs up to configpc4 should be considered deprecated
@@ -165,19 +143,9 @@ class DetectorConfigurationList(object):
 
 # The old parameters:    edge_length, base, pmtxbins, pmtybins, diameter_ratio,
 
-# This is deprecated....
-def configdict(conf_name):
-    # Temportary to access the old config files for checking sigmas
-    if conf_name == 'cfSam1_K10_8':
-        return DetectorConfig(7556., 55*20, 0, None, 0, 0, 1.0, lens_system_name='Sam1', EPD_ratio=0.8,
-                                                    light_confinement=True, nsteps=6,
-                                                    b_pixel=4)  # 101200plx, 55 system/face, l_radius: 46cm np
-
-    fname  =  '%sconf_file.p'%paths.detector_config_path
-    config_dict = _get_dict_param(fname,conf_name)
-
-    return detector_config_from_parameter_array(conf_name, config_dict, lens_system_name='Sam1', light_confinement=True)
-
+#
+# Display lists of available detector configurations
+#
 if __name__ == '__main__':
     global _configs_pickle_file
 

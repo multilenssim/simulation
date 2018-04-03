@@ -1,21 +1,20 @@
-from chroma.generator import vertex
 import h5py,time,argparse
-
 import pycuda.driver as cuda
-
 import numpy as np
 import os
 import sys
 
 import paths
 import utilities
+import detectorconfig
+
+from chroma.generator import vertex
 
 import time
 
 from multiprocessing import Pool, TimeoutError
 from multiprocessing.pool import ThreadPool
 import multiprocessing          # Just for CPU count
-
 
 def cuda_stat():
     cuda.init()
@@ -24,13 +23,14 @@ def cuda_stat():
     # Can we assume that they are in linear order??
     return ndevices
 
-def gen_ev(sample,cfg,particle,energy,i_r,o_r, cuda_device=None):
+def gen_ev(sample,config,particle,energy,i_r,o_r, cuda_device=None):
+        config_name = config.config_name
 	seed_loc = 'r%i-%i'%(i_r,o_r)
-        data_file_dir = paths.get_data_file_path(cfg)
+        data_file_dir = paths.get_data_file_path(config_name)
         if not os.path.exists(data_file_dir):
 	        os.makedirs(data_file_dir)
         fname = data_file_dir+seed_loc+'_'+str(energy)+particle+'_'+'sim.h5'
-	sim,analyzer = utilities.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, cuda_device=cuda_device)
+	sim,analyzer = utilities.sim_setup(config, paths.get_calibration_file_name(config_name), useGeant4=True, cuda_device=cuda_device)
 	print 'configuration loaded'
 	location = utilities.sph_scatter(sample, i_r * 1000, o_r * 1000)
 	arr_tr, arr_depo = [],[]
@@ -60,10 +60,10 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r, cuda_device=None):
 		f.create_dataset('idx_tr',data=arr_tr)
 		f.create_dataset('idx_depo',data=arr_depo)
 
-def run_simulation(cfg, particle, dist_range):
-        run_simulation_with_device(cfg, particle, dist_range, None)
+def run_simulation(config, particle, dist_range):
+        run_simulation_with_device(config, particle, dist_range, None)
 
-def run_simulation_with_device(cfg, particle, dist_range, cuda_device):
+def run_simulation_with_device(config, particle, dist_range, cuda_device):
         # Trying this for the subprocesses
         import pycuda.driver as cuda
         import utilities
@@ -82,7 +82,7 @@ def run_simulation_with_device(cfg, particle, dist_range, cuda_device):
         energy = 2000
         start_time = time.time()
         print('CUDA initialized')
-        gen_ev(sample, cfg, particle, energy, int(dist_range[0]), int(dist_range[1]), cuda_device=None)
+        gen_ev(sample, config, particle, energy, int(dist_range[0]), int(dist_range[1]), cuda_device=None)
         print('Simulation time: ' + str(time.time() - start_time))
         sys.stdout.flush()
         sys.stderr.flush()
@@ -91,8 +91,10 @@ if __name__=='__main__':
         parser = argparse.ArgumentParser()
         #parser.add_argument('particle', help='particle to simulate')
         #parser.add_argument('s_d', help='seed location')
-        parser.add_argument('cfg', help='detector configuration')
+        parser.add_argument('config_name', help='detector configuration')
         args = parser.parse_args()
+
+        config = detectorconfig.get_detector_config(args.config_name)
 
         #cuda_devs = cuda_stat()
         # Just hardwire hack in the device number for now
@@ -102,7 +104,7 @@ if __name__=='__main__':
         for particle in ['mu-']:    # ['e-','gamma']:
                 for dist_range in ['01']:  #,'34']:
                         #pool.apply_async(run_simulation_with_device, (args.cfg, particle, dist_range, next_device))
-                        run_simulation_with_device(args.cfg, particle, dist_range, next_device)
+                        run_simulation_with_device(config, particle, dist_range, next_device)
                         next_device += 1
         #time.sleep(4)  # Trying to catch errors
         pool.close()

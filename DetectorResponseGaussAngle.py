@@ -68,10 +68,10 @@ class DetectorResponseGaussAngle(DetectorResponse):
     the cones are represented as mean angles in 3D space and their uncertainties 
     (sigma for a cone of unit length) for the light hitting that PMT.
     '''
-    def __init__(self, configname, detectorxbins=10, detectorybins=10, detectorzbins=10, infile=None):        
+    def __init__(self, config, detectorxbins=10, detectorybins=10, detectorzbins=10, infile=None):
         # If passed infile, will automatically read in the calibrated detector mean angles/sigmas
-        DetectorResponse.__init__(self, configname, detectorxbins, detectorybins, detectorzbins)
-        self.means = np.zeros((3,self.npmt_bins)) 
+        DetectorResponse.__init__(self, config, detectorxbins, detectorybins, detectorzbins)
+        self.means = np.zeros((3,self.npmt_bins))
         self.sigmas = np.zeros(self.npmt_bins)
         # self.configname = configname # Duplicative with super class
         if infile is not None:

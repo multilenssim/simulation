@@ -4,6 +4,7 @@ from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 #from DetectorResponseGAKW import DetectorResponseGAKW
 from ShortIO.root_short import ShortRootReader
 from EventAnalyzer import EventAnalyzer
+import detectorconfig
 
 import time
 import numpy as np
@@ -317,18 +318,21 @@ def plot_event(ev, num_ph=-1):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('config', help='detector configuration', nargs='?', default='cfSam1_K200_10')
+    parser.add_argument('config_name', help='detector configuration', nargs='?', default='cfSam1_K200_10')
     _args = parser.parse_args()
 
+    config_name = _args.config_name
+    config = detectorconfig.get_detector_config(config_name)
+
     # This is really a global
-    cal_file = paths.get_calibration_file_name(_args.config)
-    datadir = paths.get_data_file_path_no_raw(_args.config)  # "/home/miladmalek/TestData/"#"/home/skravitz/TestData/"#
+    cal_file = paths.get_calibration_file_name(config_name)
+    datadir = paths.get_data_file_path_no_raw(config_name)  # "/home/miladmalek/TestData/"#"/home/skravitz/TestData/"#
 
     #fileinfo = 'cfJiani3_3'#'configpc6-meniscus6-fl1_027-confined'#'configpc7-pcrad09dia-fl2-confined'#'configview-meniscus6-fl2_113-confined'
 
-    check_detres_sigmas(_args.config, cal_file)
+    check_detres_sigmas(config, cal_file)
 
-    reconstruct_perfect_res_event(_args.config, cal_file, 'event-configpc7-f_l-1-(3-3-3)-01-100000.root', event_pos=(3,3,3), detbins=50, recon_mode='cos', sig_cone=0.01)
+    reconstruct_perfect_res_event(config, cal_file, 'event-configpc7-f_l-1-(3-3-3)-01-100000.root', event_pos=(3,3,3), detbins=50, recon_mode='cos', sig_cone=0.01)
 
     #plot_events_from_file('sim-'+fileinfo+'_100million.root', num_events=1, num_ph=100)
 

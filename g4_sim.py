@@ -12,6 +12,7 @@ from multiprocessing.pool import ThreadPool
 import multiprocessing          # Just for CPU count
 
 import utilities
+import detectorconfig
 
 def cuda_stat():
     cuda.init()
@@ -20,15 +21,16 @@ def cuda_stat():
     # Can we assume that they are in linear order??
     return ndevices
 
-def gen_ev(sample,cfg,particle,energy,i_r,o_r, cuda_device=None):
+def gen_ev(sample,config,particle,energy,i_r,o_r, cuda_device=None):
+        config_name = config.config_name
 	seed_loc = 'r%i-%i'%(i_r,o_r)
-        data_file_dir = paths.get_data_file_path(cfg)
+        data_file_dir = paths.get_data_file_path(config_name)
         if not os.path.exists(data_file_dir):
 	        os.makedirs(data_file_dir)
         fname_base = data_file_dir+seed_loc+'_'+str(energy)+particle+'_'+'sim'
         fname = fname_base+'.h5'
-	sim,analyzer = utilities.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True, geant4_processes=1, cuda_device=cuda_device)
-	print('Configuration loaded: ' + cfg)
+	sim,analyzer = utilities.sim_setup(config, paths.get_calibration_file_name(config_name), useGeant4=True, geant4_processes=1, cuda_device=cuda_device)
+	print('Configuration loaded: ' + config_name)
         print('Particle: ' + particle)
         print('Energy: ' + str(energy))
         print('Distance range: ' + str(i_r) + ' ' + str(o_r))
@@ -66,16 +68,16 @@ def gen_ev(sample,cfg,particle,energy,i_r,o_r, cuda_device=None):
 			first = False
                         #gun_specs = utilities.build_gun_specs(particle, position, momentum, energy_random)
                         gun_specs = utilities.build_gun_specs(particle, None, None, None)
-                        di_file = utilities.DIEventFile(cfg, gun_specs, ev.photons_beg.track_tree, tracks, photons=ev.photons_beg, full_event=ev)
+                        di_file = utilities.DIEventFile(config_name, gun_specs, ev.photons_beg.track_tree, tracks, photons=ev.photons_beg, full_event=ev)
                         di_file.write(fname_base + '_' + str(i) + '.h5')
                         i += 1
 		f.create_dataset('idx_tr',data=arr_tr)
 		f.create_dataset('idx_depo',data=arr_depo)
 
-def run_simulation(cfg, particle, dist_range, energy):
-        run_simulation_with_device(cfg, particle, dist_range, energy, None)
+def run_simulation(config, particle, dist_range, energy):
+        run_simulation_with_device(config, particle, dist_range, energy, None)
 
-def run_simulation_with_device(cfg, particle, dist_range, energy, cuda_device):
+def run_simulation_with_device(config, particle, dist_range, energy, cuda_device):
         #sys.stdout = open(str(os.getpid()) + ".out", "a", buffering=0)
         #sys.stderr = open(str(os.getpid()) + "_error.out", "a", buffering=0)
         #print('Initializinging CUDA in subprocess')
@@ -88,7 +90,7 @@ def run_simulation_with_device(cfg, particle, dist_range, energy, cuda_device):
         sample = 5
         start_time = time.time()
         print('CUDA initialized')
-        gen_ev(sample, cfg, particle, energy, int(dist_range[0]), int(dist_range[1]), cuda_device=None)
+        gen_ev(sample, config, particle, energy, int(dist_range[0]), int(dist_range[1]), cuda_device=None)
         print('Simulation time: ' + str(time.time() - start_time))
         sys.stdout.flush()
         sys.stderr.flush()
@@ -97,19 +99,21 @@ if __name__=='__main__':
         parser = argparse.ArgumentParser()
         #parser.add_argument('particle', help='particle to simulate')
         #parser.add_argument('s_d', help='seed location')
-        parser.add_argument('cfg', help='detector configuration')
+        parser.add_argument('config_name', help='detector configuration')
         args = parser.parse_args()
 
         #cuda_devs = cuda_stat()
         # Just hardwire hack in the device number for now
         next_device = 0
 
+        config = detectorconfig.get_detector_config(args.config_name)
+
         pool = Pool(multiprocessing.cpu_count())
         energy = 2.
         for particle in ['neutron']: # ['e-']:  # ,'gamma']:
                 for dist_range in ['01']:  #,'34']:
                         #pool.apply_async(run_simulation_with_device, (args.cfg, particle, dist_range, next_device))
-                        run_simulation_with_device(args.cfg, particle, dist_range, energy, next_device)
+                        run_simulation_with_device(config, particle, dist_range, energy, next_device)
                         next_device += 1
         time.sleep(4)  # Trying to catch errors
         pool.close()

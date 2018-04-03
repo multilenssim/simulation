@@ -11,10 +11,10 @@ from chroma.event import Photons
 from chroma import sample
 
 from kabamland2 import gaussian_sphere
-import detectorconfig as dc
-import nog4_sim as ng4s
+import detectorconfig
 import right_amount
 import paths
+import utilities
 
 import os
 import numpy as np
@@ -28,8 +28,8 @@ def surf(rad_ring,ring_par,width_ring):
 			patches.append(Wedge((0.,0.),e,th1,th2,width=width_ring[i]))
 	return PatchCollection(patches)
 
-def tr_center(l_rad):
-	base = conf_par.base
+def tr_center(l_rad, conf_par):
+	base = conf_par.lens_count
 	count = 0
 	x,y = [],[]
 	while (base>0):
@@ -60,7 +60,7 @@ def rot_ax(vrs,arr):
 def plot_heat(conf_par,heat,lns,l_rad, config, particle_name):
 	#max_rad = conf_par.edge_length/(2*(conf_par.base+np.sqrt(3)-1))   # May be an old line?  Was in my branch
 	max_rad = conf_par.half_EPD/conf_par.EPD_ratio
-	ring_par = right_amount.curved_surface2(conf_par.detector_r,2*max_rad,conf_par.nsteps,conf_par.b_pixel)
+	ring_par = right_amount.curved_surface2(conf_par.detector_r,2*max_rad,conf_par.ring_count,conf_par.base_pixels)
 	rad_ring = ring_par[0][:,0]/ring_par[0][0,0]
 	width_ring = np.absolute(np.diff(rad_ring))
 	width_ring = np.append(width_ring,rad_ring[-1])
@@ -145,7 +145,7 @@ def locate(i_rad,top_lens,l_rad,source,proj):
 	pl_rot = rot_ax(np.matmul(r_matrix,x_rot),[1,0,0])
 	rr_matrix = np.matmul(pl_rot,r_matrix)
 	r_src = np.matmul(rr_matrix,source)
-	coord = np.matmul(rr_matrix,tria_proj(i_rad,lens_center,l_rad,conf_par.base).T+i_rad)
+	coord = np.matmul(rr_matrix,tria_proj(i_rad,lens_center,l_rad,conf_par.lens_count).T+i_rad)
 	if proj == 1:
 		twod_lens = np.asarray([np.matmul(rr_matrix,top_lens-l_rad*y_rot), np.matmul(rr_matrix,top_lens+l_rad*y_rot)])
 		return [twod_lens[:,0],twod_lens[:,1]], [[0,np.matmul(rr_matrix,i_rad)[0]],[0,np.matmul(rr_matrix,i_rad)[1]]], [r_src[0],r_src[1]], [coord[0],coord[1]]
@@ -196,7 +196,7 @@ def print_photons_meta_data(photons):
 if __name__=='__main__':
 	g4 = False
 	sigma = 0.01
-	amount = 1000000
+	amount = 1000 # 1000000
 	energy = 2
 
 	gun = gaussian_sphere((0,0,0), sigma, amount)
@@ -206,20 +206,23 @@ if __name__=='__main__':
 	print("Photon gun count: " + str(len(gun)))
 
 	parser = argparse.ArgumentParser()
-	parser.add_argument('cfg', help='provide configuration')
+	parser.add_argument('config_name', help='provide configuration')
 	args = parser.parse_args()
-	cfg = args.cfg
-	conf_par = dc.configdict(cfg)
-	sys_per_face = (conf_par.base*(conf_par.base+1))/2
-	sel_len = range(sys_per_face)  # np.random.choice(sys_per_face,3,replace=False)
+	config_name = args.config_name
+	config = detectorconfig.get_detector_config(config_name)
+
+        # TODO: No such things as systems per face any more
+	lens_count = config.lens_count
+
+	sel_len = range(lens_count)  # np.random.choice(sys_per_face,3,replace=False)
 	heat = []
 	#ix = 4
-	sim,analyzer = ng4s.sim_setup(cfg,paths.get_calibration_file_name(cfg))
+	sim,analyzer = utilities.sim_setup(config,paths.get_calibration_file_name(config_name))
 	pmts_per_surf = analyzer.det_res.n_pmts_per_surf
-	lens_center = analyzer.det_res.lens_centers[:sys_per_face]
+	lens_center = analyzer.det_res.lens_centers[:lens_count]
 	dir_to_lens = np.mean(lens_center,axis=0)
 	dir_to_lens_n = dir_to_lens/np.linalg.norm(dir_to_lens)
-	off_ax = ng4s.sph_scatter(1,in_shell = 0,out_shell = 1000).T #2000*rand_perp(dir_to_lens_n)
+	off_ax = utilities.sph_scatter(1,in_shell = 0,out_shell = 1000).T #2000*rand_perp(dir_to_lens_n)
 	if np.shape(off_ax)[1] == 1:
 		off_ax = np.reshape(off_ax,(1,3))
 	else:
@@ -235,12 +238,12 @@ if __name__=='__main__':
 			gun = vertex.particle_gun(['e-','gamma'], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.999, float(energy) * 1.001))			
 		for ev in sim.simulate(gun, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 			tracks,pmt_arr = analyzer.generate_tracks(ev,qe=(1./3.),heat_map=True)
-			if conf_par.lens_system_name == 'Jiani3':
+			if config.lens_system_name == 'Jiani3':
 				l_rad = tracks.lens_rad/0.75835272409
-			elif conf_par.lens_system_name == 'Sam1':
+			elif config.lens_system_name == 'Sam1':
 				l_rad = tracks.lens_rad
 			
 			#plot_heat(conf_par,color(pmt_arr,ix),ix,l_rad)
 			for i in sel_len:
-				plot_heat(conf_par,color(pmt_arr,i),i,l_rad,cfg,ev.primary_vertex.particle_name)
+				plot_heat(config,color(pmt_arr,i),i,l_rad,cfg,ev.primary_vertex.particle_name)
 		

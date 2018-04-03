@@ -21,15 +21,14 @@ import pprint
 
 from chroma.detector import Detector
 import kabamland2 as kbl2
-
-# 'DetectorConfig' is required here to unpickle the configuration list
-from detectorconfig import DetectorConfig, DetectorConfigurationList
+import detectorconfig
 
 import lensmaterials as lm
 import paths
 from logger_lfd import logger
 
-def load_or_build_detector(configname, detector_material, g4_detector_parameters):
+def load_or_build_detector(config, detector_material, g4_detector_parameters):
+    configname = config.config_name
     filename_base = paths.detector_config_path + configname
     if not os.path.exists(paths.detector_config_path):
         os.makedirs(paths.detector_config_path)
@@ -72,7 +71,7 @@ def load_or_build_detector(configname, detector_material, g4_detector_parameters
 
         logger.info("** Building detector configuration: " + configname)
         kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
-        kbl2.build_kabamland(kabamland, configname)
+        kbl2.build_kabamland(kabamland, config)
         kabamland.flatten()
         kabamland.bvh = load_bvh(kabamland)
         try:
@@ -82,8 +81,6 @@ def load_or_build_detector(configname, detector_material, g4_detector_parameters
             logger.info("Error writing pickle file: " + filename_base+'.pickle')
 
         # Write h5 file with configuration data structure
-        cl = detectorconfig.DetectorConfigurationList()
-        config = cl.get_configuration(configname)
         logger.info('Saving h5 detector configuration.  UUID: %s' % config.uuid)
 
         '''   # This was created to minimize what is saved from the Detector object.  But for simplicity, we are currently pickling the whole object.
@@ -142,10 +139,11 @@ def sph_scatter(sample_count,in_shell,out_shell):
 # Writes both DIEventFile (one per sample_count if file name is provided) and original HDF5 file
 # 'location' is a flag as to whether to generate random locations, momentum, and energy or not
 # If location is provided, those parameters will be fixed, and sample_count will be ignored
-def fire_g4_particles(sample_count, config_name, particle, energy, inner_radius, outer_radius, h5_file, location=None, momentum=None, di_file_base=None, qe=None):
+def fire_g4_particles(sample_count, config, particle, energy, inner_radius, outer_radius, h5_file, location=None, momentum=None, di_file_base=None, qe=None):
     from chroma.generator import vertex
 
-    sim, analyzer = sim_setup(config_name, paths.get_calibration_file_name(config_name), useGeant4=True, geant4_processes=1, no_gpu=False)
+    config_name = config.config_name
+    sim, analyzer = sim_setup(config, paths.get_calibration_file_name(config_name), useGeant4=True, geant4_processes=1, no_gpu=False)
     #analyzer.det_res.is_calibrated=False    # Temporary to test AVF with actual photon angles vs. calibration angles
 
     logger.info('Configuration:\t%s' % config_name)
@@ -345,13 +343,14 @@ HDF5 file structure:
 
 
 class DIEventFile(object):
-    def __init__(self, config_name, gun_specs, track_tree, tracks, photons=None, full_event=None):
+    def __init__(self, config_name, gun_specs, track_tree, tracks, photons=None, full_event=None, simulation_params=None):
         self.config_name    = config_name
         self.gun_specs      = gun_specs
         self.track_tree     = track_tree
         self.tracks         = tracks
         self.photons        = photons
         self.full_event     = full_event
+        self.simulation_params = simulation_params
 
     @classmethod
     def load_from_file(cls, file_name):
@@ -362,22 +361,20 @@ class DIEventFile(object):
         track_tree = event['track_tree']
         tracks = event['tracks']
         photons = event['photons']
+        simulation_params = event['simulation_params'] if 'simulation_params' in event else None
         logger.info('Photon count: ' + str(len(photons)))
 
-        event_file = cls(config_name, gun_specs, track_tree, tracks, photons)
+        event_file = cls(config_name, gun_specs, track_tree, tracks, photons, simulation_params=simulation_params)
         event_file.full_event = event['full_event']
 
         # Preserve the whole thing in case we need access to 'hit_pos', 'means', 'sigmas' (for compatibility with the original HDF5 format)
         event_file.complete = event
-
         return event_file
 
-
     def write(self, file_name):
-        event = {'track_tree': self.track_tree, 'gun': self.gun_specs, 'config_name': self.config_name}
+        event = {'track_tree': self.track_tree, 'gun': self.gun_specs, 'config_name': self.config_name, 'simulation_params': self.simulation_params}
         if self.config_name is not None:
-            cl = detectorconfig.DetectorConfigurationList()
-            event['config'] = cl.get_configuration(self.config_name)
+            event['config'] = detectorconfig.get_detector_config(self.config_name)
         if self.photons is not None:
             event['photons'] = self.photons
         if self.full_event is not None:
@@ -445,9 +442,6 @@ def plot_tracks_from_endpoints(begin_pos, end_pos, pts=None, highlight_pt=None, 
 
     return fig
 
-
-CALIBRATED = True
-
 # Driver for generating new hdf5/dd event files and diagnosing AVF algorithm
 if __name__=='__main__':
     import DetectorResponseGaussAngle
@@ -462,21 +456,43 @@ if __name__=='__main__':
     vertices = None
     if event.tracks is not None:
         logger.info('Track count: ' + str(len(event.tracks)))
-        event.tracks.sigmas.fill(0.01)  # TODO: Temporary hack because I think we forced 0.0001 into the tracks in the test file.  Sigmas too small really screw up the machine!!
+        #event.tracks.sigmas.fill(0.01)  # TODO: Temporary hack because I think we forced 0.0001 into the tracks in the test file.  Sigmas too small really screw up the machine!!
         print_tracks(event.tracks, 20)
-        if CALIBRATED:
+
+        calibrated_simulation = True
+        if event.simulation_params is not None and 'calibrated' in event.simulation_params:
+            calibrated_simulation = event.simulation_params['calibrated']
+            logger.info('=== Simulation event used calibrated detector: %s ===' % str(calibrated_simulation))
+        else:
+            logger.info('=== No calibration flag in event file ===')
+            logger.info('Photons in file: %d' % len(event.full_event.photons_end))
+
+        config = detectorconfig.get_detector_config(event.config_name)  # Cross check UUID
+
+        if calibrated_simulation:
             cal_file = paths.get_calibration_file_name(event.config_name)
             logger.info('Calibration file: ' + cal_file)
+            det_res = DetectorResponseGaussAngle.DetectorResponseGaussAngle(config, 10, 10, 10, cal_file)  # What are the 10s??
+        else:
+            det_res = DetectorResponseGaussAngle.DetectorResponseGaussAngle(config, 10, 10, 10)   # What are the 10s??
 
-            det_res = DetectorResponseGaussAngle.DetectorResponseGaussAngle(event.config_name, 10, 10, 10, cal_file)  # What are the 10s??
+        logger.info('Tracks in file: %d' % len(event.tracks))
+        analyzer = EventAnalyzer.EventAnalyzer(det_res)
+        # analyzer.plot_tracks(event.tracks)
+        logger.info('=== Analyzing tracks from event tracks in file ===')
+        vertices_from_original_run = AVF_analyze_tracks(analyzer, event.tracks, debug=True)
+
+        if event.track_tree is not None:
+            plot_vertices(event.track_tree, title, reconstructed_vertices=vertices_from_original_run)
+
+        if calibrated_simulation:
+
             '''
             tester_triangles = np.arange(1200)
             pixel_result = det_res.scaled_pmt_arr_surf(tester_triangles)
             for i in range(1200):
                 logger.info('%d\t%d\t%d\t%d\t%d' % (tester_triangles[i], pixel_result[0][i], pixel_result[1][i], pixel_result[2][i], pixel_result[3][i]))
             '''
-            analyzer = EventAnalyzer.EventAnalyzer(det_res)
-            vertices_from_original_run = AVF_analyze_tracks(analyzer, event.tracks, debug=True)
             '''
             logger.info("==================================================================")
             logger.info("==================================================================")
@@ -488,19 +504,11 @@ if __name__=='__main__':
 
                     plot_vertices(event.track_tree, title + ', QE: ' + str(qe), reconstructed_vertices=vertices_from_original_run, reconstructed_vertices2=new_vertices)
             '''
-            plot_vertices(event.track_tree, title, reconstructed_vertices=vertices_from_original_run)
         else:
-            logger.info('Photons in file: %d' % len(event.full_event.photons_end))
-            det_res = DetectorResponseGaussAngle.DetectorResponseGaussAngle(event.config_name, 10, 10, 10)#, cal_file)  # What are the 10s??
 
             #plot_tracks_from_endpoints(event.full_event.photons_beg.pos, event.full_event.photons_end.pos, skip_interval=150, plot_title="All photon tracks")
 
-            logger.info('Tracks in file: %d' % len(event.tracks))
-            analyzer = EventAnalyzer.EventAnalyzer(det_res)
-            analyzer.plot_tracks(event.tracks)
 
-            logger.info('=== Analyzing tracks from event tracks in file ===')
-            vertices_from_file_tracks = AVF_analyze_tracks(analyzer, event.tracks, debug=True)
 
             # Why aren't these tracks the same as the tracks in the event in the file?
             #new_tracks = analyzer.generate_tracks(event.full_event, qe=None, debug=True)
@@ -510,3 +518,4 @@ if __name__=='__main__':
             #vertices_from_file_tracks = AVF_analyze_tracks(analyzer, new_tracks, debug=True)
 
             #plot_vertices(event.track_tree, title) # , reconstructed_vertices=vertices_from_original_run)
+            pass

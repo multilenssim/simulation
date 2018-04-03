@@ -259,7 +259,7 @@ class EventAnalyzer(object):
         # Only used for analytic (matrix) solution, not numpy's fmin() optimization function
         vtx_scale_factor = 0.5
 
-		# Sets whether to use Gauss probability (additive) or NLL (additive, equivalent to multiplying probs)
+	# Sets whether to use Gauss probability (additive) or NLL (additive, equivalent to multiplying probs)
         doNLL = False
 
         vtcs = [] # List of vertices found
@@ -536,19 +536,10 @@ class EventAnalyzer(object):
                     v_pos_old = v_pos
 
                 # Done finding this vertex position                
-                if debug:
-                    print "Position record: " + str(v_pos_rec)
-                    print "dv record: " + str(dv_rec)
-                    #print "Weight record: " + str(wt_rec)
-                    print "Objective function record: " + str(obj_rec)
-                    # Make plot of vtx pos vs iteration, weights and obj function vs iteration
-                    self.plot_tracks(tracks,path=np.array(v_pos_rec).T)
-                    #self.plot_weights(np.array(wt_rec),obj=np.array(obj_rec))
-                    #self.plot_weights(np.random.random_sample(np.shape(np.array(wt_rec))),obj=np.array(obj_rec))
                 # TODO: calculate error
                 # TODO: check that final associated tracks are at least min_tracks, else break
                 vtx_ph = np.sum(1.0*(wt0 >= WEIGHT_CUT))
-                logger.info('Associated tracks: %f' % vtx_ph)
+                logger.info('Associated tracks: %d' % int(vtx_ph))
                 '''
                 _,bn,_ = plt.hist(wt0,bins=100)
                 plt.yscale('log', nonposy='clip')
@@ -560,8 +551,19 @@ class EventAnalyzer(object):
                 obj_list.append(obj0)
                 wt_list.append(wt0)
 
-                logger.info('=== AVF finished starting vertex: %s (%d), result: %s ===' % (str(v_pos0[ii, :]), ii, str(vtx.pos)))
+                logger.info('=== AVF finished vertex: %s (%d), result: %s ===' % (str(v_pos0[ii, :]), ii, str(vtx.pos)))
                 logger.info('===============================')
+                if debug:
+                    print "Position record: " + str(v_pos_rec)
+                    print "dv record: " + str(dv_rec)
+                    #print "Weight record: " + str(wt_rec)
+                    print "Objective function record: " + str(obj_rec)
+                    logger.info('Tracks associated with this vertex: %d' % len(tracks))
+                    # Make plot of vtx pos vs iteration, weights and obj function vs iteration
+                    self.plot_tracks(tracks,path=np.array(v_pos_rec).T)
+                    #self.plot_weights(np.array(wt_rec),obj=np.array(obj_rec))
+                    #self.plot_weights(np.random.random_sample(np.shape(np.array(wt_rec))),obj=np.array(obj_rec))
+
             # print [vt.pos for vt in vtx_list]
             # print v_pos_max
             #print [np.linalg.norm(vt.pos-vtx_list[0].pos) for vt in vtx_list]
@@ -815,6 +817,7 @@ class EventAnalyzer(object):
             tracks = Tracks(hit_pos, means, sigmas, qe=qe)
             #self.plot_tracks(tracks)
             return tracks
+
         else: # Detector is calibrated, use response to generate tracks
             tracks = Tracks(event_lens_pos_array,
                             self.det_res.means[:,event_pmt_bin_array],
@@ -880,7 +883,7 @@ class EventAnalyzer(object):
         return r, sig, d, chi, wt, obj
  
     # Move to utilities
-    def plot_tracks(self, _tracks, pts=None, highlight_pt=None, path=None, show=True, skip_interval=50):
+    def plot_tracks(self, _tracks, pts=None, highlight_pt=None, path=None, show=True, skip_interval=200):
         # Returns a 3D plot of tracks (a Tracks object), as lines extending from their 
         # PMT hit position to the inscribed diameter of the detector. 
         # If pts is not None, will also draw them (should be a (3,n) numpy array).

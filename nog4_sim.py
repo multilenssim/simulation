@@ -7,6 +7,7 @@ from Geant4.hepunit import *
 
 import paths
 import utilities
+import detectorconfig
 
 def fixed_dist(sample, radius, in_shell, out_shell, rads=None):
 	loc1 = utilities.sph_scatter(sample,in_shell,out_shell)
@@ -99,22 +100,25 @@ energy = 1.
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument('cfg', help='detector configuration', nargs='?', default='cfSam1_K200_10')
+	parser.add_argument('config_name', help='detector configuration', nargs='?', default='cfSam1_K200_10')
 	parser.add_argument('sl', help='seed_location')
 	args = parser.parse_args()
+	config_name = args.config_name
+	seed_loc = args.sl
+
 	sample = 500
 	distance = np.linspace(20,450,6)
-	cfg = args.cfg
-	seed_loc = args.sl
 	in_shell = int(seed_loc[0])*1000
 	out_shell = int(seed_loc[1])*1000
 	print('Seed locations: ' + str(in_shell) + ' ' + str(out_shell))
 
-	data_file_dir = paths.get_data_file_path(cfg)
+	config = detectorconfig.get_detector_config(config_name)
+
+	data_file_dir = paths.get_data_file_path(config_name)
 	start_time = time.time()
-	sim,analyzer = utilities.sim_setup(cfg,paths.get_calibration_file_name(cfg))
+	sim,analyzer = utilities.sim_setup(config,paths.get_calibration_file_name(config_name))
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
-        path=paths.get_data_file_path(cfg)
+        path=paths.get_data_file_path(config_name)
         amount = 1000 # 16000
 
 	'''

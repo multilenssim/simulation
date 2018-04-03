@@ -2,17 +2,20 @@ import DetectorResponseGaussAngle as dr
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
+
 import paths
+import detectorconfig
 
 import argparse
 
 def normalize(arr, ax):
 	return np.einsum('ij,i->ij',arr,1/np.linalg.norm(arr,axis=ax))
 
-def proj(cfg, det_res=None):
+def proj(config_name, det_res=None):
 	if det_res is None:
-		in_file = paths.get_calibration_file_name(cfg)
-		det_res = dr.DetectorResponseGaussAngle(cfg,10,10,10,in_file)
+		in_file = paths.get_calibration_file_name(config_name)
+		config = detectorconfig.get_detector_config(config_name)
+		det_res = dr.DetectorResponseGaussAngle(config,10,10,10,in_file)
 	n_lens = det_res.n_lens_sys
 	n_pmts_per_surf = det_res.n_pmts_per_surf
 	lns_center = det_res.lens_centers
@@ -33,13 +36,13 @@ def proj(cfg, det_res=None):
 if __name__ == '__main__':
 	cut = False
 	parser = argparse.ArgumentParser()
-	parser.add_argument('cfg', help='detector configuration')
+	parser.add_argument('config_name', help='detector configuration')
 	args = parser.parse_args()
 
-	for cfg in [args.cfg]:
+	for config_name in [args.config_name]:
 		cal = '_narrow'
-		print cfg
-		px_lens_means, px_lens_sigmas, u_proj, v_proj = proj(cfg,cal)   # TODO XX: What is cal?  I think we have dropped that
+		print config_name
+		px_lens_means, px_lens_sigmas, u_proj, v_proj = proj(config_name,cal)   # TODO XX: What is cal?  I think we have dropped that
 		sin_dir = np.linalg.norm([u_proj.flatten(),v_proj.flatten()],axis=0)
 		_,bn,_ = plt.hist(np.arcsin(sin_dir),bins=100)
 

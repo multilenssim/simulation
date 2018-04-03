@@ -20,7 +20,7 @@ from Geant4 import *
 import lensmaterials
 import count_processes
 import utilities
-
+from logger_lfd import logger
 
 class G4Generator:
     def generate(self, particle_name, position, direction, scintillator, generator, energy=2.):
@@ -315,32 +315,53 @@ def make_vector(start, end):
 
 def compute_scatter_angle(track_tree, total_photons, particle_num, energy):
     neutron = None
-    first_proton = None
+    protons = []
     capture = None
     for key, value in track_tree.iteritems():
-        if key == 1:
+        if 'particle' not in value:
+            logger.info('Particle has no name?: %s' % str(value))
+        elif key == 1 and value['particle'] == 'neutron':
             neutron = value
-        elif key == 2:
-            first_proton = value
-        elif ('process' in value and value['process'] == 'nCapture') and ('particle' in value and value['particle'] == 'gamma'):
+        elif value['particle'] == 'proton':
+            protons.append(value)
+        elif ('process' in value and value['process'] == 'nCapture') and value['particle'] == 'gamma':
             capture = value
-    if first_proton is None:
-        print('======= No first photon found ========')
-        pprint.pprint(track_tree)
+        elif key == 2 and value['particle'] != 'proton':
+            logger.warning('Second particle is not a proton: %s' % value['particle'])
+        elif key == 3 and value['particle'] != 'proton':
+            logger.warning('Third particle is not a proton: %s' % value['particle'])
+        elif value['particle'] != 'e-':
+            logger.info('Particle not cataloged: %s' % str(value))
+    logger.info('Proton count: %d' % len(protons))
+
+    if not protons or len(protons) < 2:
+        print('======= Not enough protons found ========')
+        # pprint.pprint(track_tree)
         print('=======')
+    elif protons[0]['id'] != 2 or protons[1]['id'] != 3:
+        logger.warning('Unexpedted proton IDs: %d %d' % (protons[0]['id'], protons[1]['id']))
     else:
         neutron_start_position  = neutron['position']
-        first_proton_location   = first_proton['position']
+        first_proton_location   = protons[0]['position']
+        second_proton_location  = protons[1]['position']
         capture_location        = capture['position']
         initial_neutron_vector  = make_vector(neutron_start_position, first_proton_location)
-        neutron_recoil_vector   = make_vector(first_proton_location, capture_location)
-        energy_pct_in_first_photon = first_proton['child_processes']['Scintillation'] / (total_photons * 1.) if 'Scintillation' in first_proton['child_processes'] else 0
+        # neutron_recoil_vector   = make_vector(first_proton_location, capture_location)
+        neutron_recoil_vector   = make_vector(first_proton_location, second_proton_location)
+        energy_in_first_proton = protons[0]['child_processes']['Scintillation'] * 2 * eV if 'Scintillation' in protons[0]['child_processes'] else 0
+        light_pct_in_first_proton = protons[0]['child_processes']['Scintillation'] / (total_photons * 1.) if 'Scintillation' in protons[0]['child_processes'] else 0
 
+        # TODO: Add flight distances between the two distances, and cross check that we are actually using the right protons
         print('Particle #:\t' + str(particle_num) + '\t' + str(energy) +
-              '\t' + str(neutron_start_position) + '\t' + str(first_proton_location) + '\t' + str(capture_location) +
+              '\t' + str(neutron_start_position) + '\t' + str(first_proton_location) + '\t' + str(second_proton_location) +
               '\t' + str(np.degrees(angle_between(initial_neutron_vector, neutron_recoil_vector))) +
-              '\t' + '{:.1%}'.format(energy_pct_in_first_photon) +
-              '\t' + str(total_photons)
+              '\t' + '{:.4f}'.format(energy_in_first_proton) +
+              '\t' + '{:.1%}'.format(light_pct_in_first_proton) +
+              '\t' + str(total_photons) +
+              '\t' + str(len(protons)) +
+              '\t' + str(protons[0]['energy']) +
+              '\t' + str(protons[1]['energy']) +
+              '\t' + str(protons[0]['child_processes']['Scintillation'])
         )
         '''
         print("========")
@@ -352,7 +373,7 @@ def compute_scatter_angle(track_tree, total_photons, particle_num, energy):
 
 def fire_particles(particle, count, energy, position, momentum):
     print('Particle\t#\tEnergy\tLocations: neutron\tproton\tcapture\t' +
-          'Recoil angle' + '\tFirst proton energy %' + '\tTotal photons')
+          'Recoil angle' + '\tFirst proton energy' + '\tFirst proton light %' + '\tTotal photons' + '\tProton count')
     scintillator = lensmaterials.create_scintillation_material()
 
     g4_params = G4DetectorParameters(world_material='G4_AIR', orb_radius=10.)
@@ -362,16 +383,16 @@ def fire_particles(particle, count, energy, position, momentum):
     photon_counts = []
     title = str(energy) + ' MeV ' + particle
     for i in range(count):
-        print('=== Firing ' + particle + ' # ' + str(i) + ' ===')
+        logger.info('=== Firing ' + particle + ' # ' + str(i) + ' ===')
         output = g4.generate(particle, position, momentum, scintillator, gen, energy=energy)
         track_tree = gen.track_tree
-        pprint.pprint(track_tree)
+        #pprint.pprint(track_tree)
         #pprint.pprint(output.__dict__)
         photon_counts.append(len(output.dir))
         # print('Photon count: ' + str(len(output.dir)))
         # Geant4.HepRandom.setTheSeed(9876)
         # print("Random seed: ", Geant4.HepRandom.getTheSeed()
-        utilities.plot_vertices(track_tree, title, file_name='vertices' + '-' + particle + '-' + str(i) + '.pickle', with_electrons=True)
+        #utilities.plot_vertices(track_tree, title, file_name='vertices' + '-' + particle + '-' + str(i) + '.pickle', with_electrons=True)
         compute_scatter_angle(track_tree, len(output.dir), i , energy)
 
         # Need to add: config name, matrials config
@@ -429,4 +450,4 @@ if __name__ == '__main__':
     # fire_particles(['mu-','mu+'], 2, 1.*1000.)   # mu+ is the anti-particle (but I think it has negative charge)
     #fire_particles(['e-','gamma'], 2, 2.)
     for energy in [2.]:  # ,20.,200.]:
-        fire_particles('neutron', 1, energy, (0,0,0), (1,0,0))        # Can the momentum override the energy???
+        fire_particles('neutron', 100, energy, (0,0,0), (1,0,0))        # Can the momentum override the energy???

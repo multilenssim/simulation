@@ -23,6 +23,7 @@ import numpy as np
 import paths
 import utilities
 from logger_lfd import logger
+import detectorconfig
 
 def plot_vertices(origin, vertices):  # track_tree, title, with_electrons=True, file_name='vertex_plot.pickle'):
 
@@ -82,7 +83,7 @@ def eff_test(config,
 		dist_event = array('f', [0])
 
 		ROOT.gROOT.Reset()
-		#f1 = ROOT.TFile(rootdir+str(now)+"_"+config+"_rep-"+str(repetition)+"_npos-"+str(n_pos)+".root", "RECREATE")
+		#f1 = ROOT.TFile(rootdir+str(now)+"_"+config.config_name+"_rep-"+str(repetition)+"_npos-"+str(n_pos)+".root", "RECREATE")
                 logger.info('Writing: %s' % rootdir+'rep-'+str(repetition)+'_npos-'+str(n_pos)+'.root')
 
 		f1 = ROOT.TFile(rootdir+'rep-'+str(repetition)+'_npos-'+str(n_pos)+'.root', 'RECREATE')
@@ -102,8 +103,8 @@ def eff_test(config,
 		ttree.Branch("multiplicity", multiplicity, "multiplicity/I")
        
 		# Build detector
-        #view(kabamland)
-        #quit()
+                #view(kabamland)
+                #quit()
 
 		print('Simulation started.')
 
@@ -273,8 +274,7 @@ if __name__ == '__main__':
     parser.add_argument('run',help='compute/plot')
     args = parser.parse_args() 
     print "Efficiency test started"
-    design = [args.cfg]
-    # suffix = '_1DVariance'
+    designs = [args.cfg]
     energy = [5333]
     repetition = 1 # 50
     n_pos = 4
@@ -282,14 +282,15 @@ if __name__ == '__main__':
 
     # simulate_and_compute_AVF(design[0], detres=None)
 
+    for config_name in designs:
+        config = detectorconfig.get_detector_config(config_name)
 
-    for detfile in design:
-        rootdir = paths.data_files_path+'dev/'+detfile+'/pos_res-eff/'
+        rootdir = paths.data_files_path+'dev/'+config_name+'/pos_res-eff/'
         if not os.path.exists(rootdir):
             os.makedirs(rootdir)
-        print "Lens design used:	", detfile
+        print "Lens design used:	", config_name
         if args.run == 'compute':
-            eff_test(detfile, detres=paths.get_calibration_file_name(detfile), detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
+            eff_test(config, detres=paths.get_calibration_file_name(config_name), detbins=10, sig_pos=0.01, n_ph_sim=energy, repetition=repetition, max_rad=6600, n_pos=n_pos, loc1=(0,0,0), sig_cone=0.01, lens_dia=None, n_ph=0, min_tracks=0.1, chiC=1.5, temps=[256, 0.25], tol=0.1, debug=False)
         elif args.run == 'plot':
             filename = 'rep-'+str(repetition)+'_npos-'+str(n_pos)
             get_eff_from_root(filename=filename , n_ph_sim=energy, repetition=repetition, n_pos=n_pos)

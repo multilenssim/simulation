@@ -7,7 +7,6 @@ from lenssystem import get_system_measurements
 import detectorconfig as dc
 from detectorconfig import DetectorConfig  # For Pickle reading ???
 
-
 def calc_steps(x_value,y_value,detector_r,n_lens_pixel):
         x_coord = np.asarray([x_value,np.roll(x_value,-1)]).T[:-1]
         y_coord = np.asarray([y_value,np.roll(y_value,-1)]).T[:-1]

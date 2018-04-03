@@ -8,8 +8,6 @@ import detectorconfig
 import numpy as np
 #import time
 
-from detectorconfig import DetectorConfig
-
 from logger_lfd import logger
 
 class DetectorResponse(object):
@@ -20,11 +18,10 @@ class DetectorResponse(object):
     The configuration of the detector is also stored in this object, so that
     its geometry is known.    
     '''
-    def __init__(self, configname, detectorxbins=10, detectorybins=10, detectorzbins=10):
-        cl = detectorconfig.DetectorConfigurationList()  # XX TODO: need a better way than having to initialize an object every time...
-        config = cl.get_configuration(configname)
+    def __init__(self, config, detectorxbins=10, detectorybins=10, detectorzbins=10):
+        # TODO: Duplicates a lot of stuff in the config
         self.config = config   # To enable saving configuration with the calibration file
-        self.configname = configname  # Adding this for intermediate calibration file writing
+        self.configname = config.config_name  # Adding this for intermediate calibration file writing
         self.is_calibrated = False
         self.lns_rad = config.half_EPD/config.EPD_ratio
         self.detectorxbins = detectorxbins
@@ -206,7 +203,7 @@ class DetectorResponse(object):
         plt.hist(total_angles, bins=100)
         plt.xlabel('Angles')
         plt.ylabel('Amount')
-        plt.title('Angles Response Histogram for ' + config)
+        plt.title('Angles Response Histogram for ' + config.config_name)
         plt.show()
 
         return total_angles

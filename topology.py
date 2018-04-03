@@ -2,11 +2,11 @@ from chroma.generator import vertex
 import matplotlib.pyplot as plt
 import h5py,time,argparse
 import pickle,time,argparse
-import nog4_sim as setup
 import numpy as np
 import paths
 from logger_lfd import logger
 import utilities
+import detectorconfig
 
 import gc
 import multiprocessing
@@ -14,7 +14,7 @@ from multiprocessing import Pool
 
 
 def sim_ev(cfg,particle,lg,energy):
-	sim,analyzer = utilities.sim_setup(cfg,paths.get_calibration_file_name(cfg),useGeant4=True)
+	sim,analyzer = utilities.sim_setup(cfg,paths.get_calibration_file_name(cfg.config_name),useGeant4=True)
 	print 'Configuration loaded'
 	gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(energy*0.999, energy*1.001))
 	for ev in sim.simulate(gun,keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100):
@@ -186,12 +186,15 @@ if __name__=='__main__':
 	parser.add_argument('cfg', help='detector configuration')	# Only need one or the other argument
 	parser.add_argument('--h5', help='HDF5 file', default=None)
 	args = parser.parse_args()
+
+	config_name = args.cfg
+	config = detectorconfig.get_detector_config(config_name)
+
 	if args.h5 is None:
-		cfg = args.cfg
 		particle = 'e-'
 		lg = [0,0,0]
 		energy = 2.0
-		vtx,trx = sim_ev(cfg,particle,lg,energy)
+		vtx,trx = sim_ev(config,particle,lg,energy)
 		logger.info('Simulation done, starting reconstruction')
 		dist,err,rcn_pos = track_dist(trx.hit_pos.T,trx.means.T,trx.sigmas,trx.lens_rad)
 	else:
@@ -218,7 +221,7 @@ if __name__=='__main__':
 	c_dist = dist
 	logger.info('Result size: ' + str(len(rcn_pos)))
 	logger.info('Saving...')
-	with h5py.File('image-'+args.cfg+'.h5','w') as f:
+	with h5py.File('image-'+config_name+'.h5','w') as f:
 		en_depo = f.create_dataset('pos', data=rcn_pos, chunks=True)
 		coord = f.create_dataset('dist', data=dist, chunks=True)
 		uncert = f.create_dataset('sigma', data=err, chunks=True)
@@ -275,7 +278,7 @@ def jacopos_stuff():
 
 def jacopos_stuff_2():
 	cfg = 'cfSam1_K200_8_small'
-	sim,analyzer = setup.sim_setup(cfg,paths.get_calibration_file_name(cfg),useGeant4=True)
+	sim,analyzer = utilities.sim_setup(cfg,paths.get_calibration_file_name(cfg),useGeant4=True)
 	print 'Configuration loaded'
 	lg = [0,0,0]
 	energy = 2.0
