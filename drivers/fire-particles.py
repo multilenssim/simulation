@@ -135,5 +135,5 @@ if __name__=='__main__':
         for dist in [100., 500.,1000.,1500.,2000.]:
             sim, analyzer = utilities.sim_setup(config, paths.get_calibration_file_name(config_name), useGeant4=False)
             if UNCALIBRATE:
-                analyzer.det_res.is_calibrated=False    # Temporary to test AVF with actual photon angles
+                analyzer.det_res.is_calibrated = False    # Temporary to test AVF with actual photon angles
             run_simulation_double_fixed_source(sim, analyzer, _sample_count, config, np.array([0.,0.,0.]), np.array([dist,0.,0.]), 16000, qe=None)

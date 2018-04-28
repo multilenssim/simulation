@@ -298,7 +298,7 @@ class EventAnalyzer(object):
                 final_pdf += gp
                 #final_pdf *= gp
                 #f_squared += gp**2
-                if debug:
+                if False: # debug:
                     if ii % 1000 == 0:
                         plotpdf = final_pdf
                         plotpdf = np.float32(plotpdf / float(np.sum(plotpdf)))  # normalize, for plotting purposes
@@ -722,6 +722,8 @@ class EventAnalyzer(object):
     def generate_tracks(self, ev, qe=None, heat_map=False, sig_cone=0.0001, n_ph=0, lens_dia=None, debug=True):
         #Makes tracks for event ev; allow for multiple track representations?
         detected = (ev.photons_end.flags & (0x1 <<2)).astype(bool)
+        logger.info('Detected: ' + str(detected))
+        logger.info(str(ev.photons_end.flags));
         reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
         reflected_specular = (ev.photons_end.flags & (0x1 <<6)).astype(bool)
         good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)

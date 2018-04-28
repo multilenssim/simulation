@@ -18,6 +18,10 @@ if platform.node().startswith('exo3'):
         detector_config_path = EXO_DATA_FILES+DEFAULT_CONFIG_DIR
         detector_calibration_path = detector_config_path               # Path for the calibration files
         data_files_path = EXO_DATA_FILES+DEFAULT_SIMULATION_DIR        # Path for the simulation data files
+elif platform.node().startswith('multilens'):
+    detector_config_path = EXO_DATA_FILES+DEFAULT_CONFIG_DIR
+    detector_calibration_path = detector_config_path               # Path for the calibration files
+    data_files_path = EXO_DATA_FILES+DEFAULT_SIMULATION_DIR        # Path for the simulation data files
 else:
     detector_config_path = aws_data_files+DEFAULT_CONFIG_DIR
     detector_calibration_path = detector_config_path                   # Path for the calibration files

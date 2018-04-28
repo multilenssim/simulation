@@ -178,7 +178,7 @@ def fire_g4_particles(sample_count, config, particle, energy, inner_radius, oute
                 #utilities.plot_vertices(ev.photons_beg.track_tree, 'AVF plot', reconstructed_vertices=vertices)
                 if di_file_base is not None:
                     gun_specs = build_gun_specs(particle, lg, None, energy)
-                    di_file = DIEventFile(config_name, gun_specs, ev.photons_beg.track_tree, tracks, ev.photons_beg)
+                    di_file = DIEventFile(config_name, gun_specs, ev.photons_beg.track_tree, tracks, ev.photons_beg, ev)
                     di_file.write(di_file_base+'_'+str(i)+'.h5')
 
             logger.info('Photons detected:\t%s' % str(tracks.sigmas.shape[0]))
@@ -485,6 +485,11 @@ if __name__=='__main__':
         if event.track_tree is not None:
             plot_vertices(event.track_tree, title, reconstructed_vertices=vertices_from_original_run)
 
+        # Why aren't these tracks the same as the tracks in the event in the file?
+        new_tracks = analyzer.generate_tracks(event.full_event, qe=None, debug=True)
+        print_tracks(new_tracks, 20)
+        analyzer.plot_tracks(new_tracks)
+
         if calibrated_simulation:
 
             '''
@@ -507,8 +512,6 @@ if __name__=='__main__':
         else:
 
             #plot_tracks_from_endpoints(event.full_event.photons_beg.pos, event.full_event.photons_end.pos, skip_interval=150, plot_title="All photon tracks")
-
-
 
             # Why aren't these tracks the same as the tracks in the event in the file?
             #new_tracks = analyzer.generate_tracks(event.full_event, qe=None, debug=True)

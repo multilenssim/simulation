@@ -108,7 +108,7 @@ class DetectorConfigurationList(object):
             with open(_configs_pickle_file,'w') as f:
                 pickle.dump(_config_list, f, protocol=pickle.HIGHEST_PROTOCOL)
         except IOError:  # Needs to be tested
-            logger.critical('Unable to read or write configuration list: %s.  Quitting.' % _config_pickle_file)
+            logger.critical('Unable to read or write configuration list: %s.  Quitting.' % _configs_pickle_file)
             exit(-1)
 
     def save_configuration(self, config):

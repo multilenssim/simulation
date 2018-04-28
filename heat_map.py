@@ -28,8 +28,8 @@ def surf(rad_ring,ring_par,width_ring):
 			patches.append(Wedge((0.,0.),e,th1,th2,width=width_ring[i]))
 	return PatchCollection(patches)
 
-def tr_center(l_rad, conf_par):
-	base = conf_par.lens_count
+def tr_center(l_rad, config):
+	base = config.lens_count
 	count = 0
 	x,y = [],[]
 	while (base>0):
@@ -39,9 +39,9 @@ def tr_center(l_rad, conf_par):
 		count += 1
 	return x,y
 
-def triangle(lns,l_rad):
+def triangle(lns,l_rad,config):
 	patches = []
-	x_c,y_c = tr_center(l_rad)
+	x_c,y_c = tr_center(l_rad,config)
 	x_cent = np.mean(x_c)
 	y_cent = np.mean(y_c)
 	for x,y in zip(x_c,y_c):
@@ -57,7 +57,7 @@ def rot_ax(vrs,arr):
 	rtn = np.identity(3)+vx+np.linalg.matrix_power(vx,2)*(1.0/(1.0+cs))
 	return rtn
 
-def plot_heat(conf_par,heat,lns,l_rad, config, particle_name):
+def plot_heat(conf_par,heat,lns,l_rad, particle_name):
 	#max_rad = conf_par.edge_length/(2*(conf_par.base+np.sqrt(3)-1))   # May be an old line?  Was in my branch
 	max_rad = conf_par.half_EPD/conf_par.EPD_ratio
 	ring_par = right_amount.curved_surface2(conf_par.detector_r,2*max_rad,conf_par.ring_count,conf_par.base_pixels)
@@ -65,7 +65,7 @@ def plot_heat(conf_par,heat,lns,l_rad, config, particle_name):
 	width_ring = np.absolute(np.diff(rad_ring))
 	width_ring = np.append(width_ring,rad_ring[-1])
 	fig = plt.figure()
-	fig.suptitle(cfg+' Design: Event Displayer',fontsize=20)
+	fig.suptitle(conf_par.config_name+' Design: Event Displayer',fontsize=20)
 	gs = gridspec.GridSpec(3, 2, width_ratios=[3, 1],height_ratios=[2,1,1])
 	ax1 = plt.subplot(gs[:,0],xlim=(-1,1),ylim=(-1,1),xticklabels=[],yticklabels=[],title='Pixelated Heat Map, Photon Detected: '+str(sum(heat)))
 	ax2 = plt.subplot(gs[0,1],xlim=(0,10000),ylim=(0,5000*np.sqrt(3)), title='Optical System Position')
@@ -74,14 +74,14 @@ def plot_heat(conf_par,heat,lns,l_rad, config, particle_name):
 	p = surf(rad_ring,ring_par,width_ring)
 	ax1.add_collection(p)
 	p.set_array(heat)
-	lns_ix = np.zeros(sys_per_face+2)
+	lns_ix = np.zeros(200+2)  # sys_per_face+2)
 	lns_ix[lns] = 1
 	lns_ix[-2:] = 0.5
-	t = triangle(lns,l_rad)
+	t = triangle(lns,l_rad,conf_par)
 	ax2.add_collection(t)
 	t.set_array(lns_ix)
 	ax2.set_aspect('equal')
-	pl3 = locate(dir_to_lens,lens_center[lns],l_rad,lg,1)
+	pl3 = locate(dir_to_lens,lens_center[lns],l_rad,lg,1,conf_par)
 	ax3.plot(pl3[3][0],pl3[3][1],linewidth=3)
 	ax3.plot(pl3[2][0],pl3[2][1],'o',markersize=15)
 	ax3.plot(pl3[0][0],pl3[0][1],linewidth=5)
@@ -89,7 +89,7 @@ def plot_heat(conf_par,heat,lns,l_rad, config, particle_name):
 	ax3.set_xticks([])
 	ax3.set_yticks([])
 	ax3.set_aspect('equal')
-	pl4 = locate(dir_to_lens,lens_center[lns],l_rad,lg,2)
+	pl4 = locate(dir_to_lens,lens_center[lns],l_rad,lg,2, conf_par)
 	ax4.plot(pl4[3][0],pl4[3][1],linewidth=3)
 	ax4.plot(pl4[2][0],pl4[2][1],'o',markersize=15)
 	ax4.plot(pl4[0][0],pl4[0][1],linewidth=5)
@@ -104,7 +104,7 @@ def plot_heat(conf_par,heat,lns,l_rad, config, particle_name):
 	if not os.path.exists(map_path):
 			os.makedirs(map_path)
 
-	filename = map_path+'heat'+str(lns)+'-'+config+'-'+particle_name
+	filename = map_path+'heat'+str(lns)+'-'+conf_par.config_name+'-'+particle_name
 	#fig.savefig(filename+'.png')
 	fig.savefig(filename+'.pdf')
 
@@ -134,7 +134,7 @@ def rand_perp(arr):
 	pl_arr = np.array([rd_gen,np.sqrt(1.0-np.square(rd_gen)),0])
 	return np.matmul(rtn,pl_arr)
 
-def locate(i_rad,top_lens,l_rad,source,proj):
+def locate(i_rad,top_lens,l_rad,source,proj,config):
 	x_rot = i_rad/np.linalg.norm(i_rad)
 	if np.array_equal(i_rad,top_lens):
 		y_rot = rand_perp(x_rot)
@@ -145,7 +145,7 @@ def locate(i_rad,top_lens,l_rad,source,proj):
 	pl_rot = rot_ax(np.matmul(r_matrix,x_rot),[1,0,0])
 	rr_matrix = np.matmul(pl_rot,r_matrix)
 	r_src = np.matmul(rr_matrix,source)
-	coord = np.matmul(rr_matrix,tria_proj(i_rad,lens_center,l_rad,conf_par.lens_count).T+i_rad)
+	coord = np.matmul(rr_matrix,tria_proj(i_rad,lens_center,l_rad,config.lens_count).T+i_rad)
 	if proj == 1:
 		twod_lens = np.asarray([np.matmul(rr_matrix,top_lens-l_rad*y_rot), np.matmul(rr_matrix,top_lens+l_rad*y_rot)])
 		return [twod_lens[:,0],twod_lens[:,1]], [[0,np.matmul(rr_matrix,i_rad)[0]],[0,np.matmul(rr_matrix,i_rad)[1]]], [r_src[0],r_src[1]], [coord[0],coord[1]]
@@ -194,7 +194,7 @@ def print_photons_meta_data(photons):
 	print("Gun types: " + str(gun.pos.dtype) + " " + str(gun.dir.dtype) + " " + str(gun.pol.dtype) + " " + str(gun.wavelengths.dtype))
 
 if __name__=='__main__':
-	g4 = False
+	g4 = True
 	sigma = 0.01
 	amount = 1000 # 1000000
 	energy = 2
@@ -217,7 +217,7 @@ if __name__=='__main__':
 	sel_len = range(lens_count)  # np.random.choice(sys_per_face,3,replace=False)
 	heat = []
 	#ix = 4
-	sim,analyzer = utilities.sim_setup(config,paths.get_calibration_file_name(config_name))
+	sim,analyzer = utilities.sim_setup(config,paths.get_calibration_file_name(config_name), useGeant4=True)  # Do we really want to require turning on Geant4 explicitly?
 	pmts_per_surf = analyzer.det_res.n_pmts_per_surf
 	lens_center = analyzer.det_res.lens_centers[:lens_count]
 	dir_to_lens = np.mean(lens_center,axis=0)
@@ -235,7 +235,9 @@ if __name__=='__main__':
 			gun = line_of_photons(amount)
 			print("Photon gun count: " + str(len(gun)))
 		else:
-			gun = vertex.particle_gun(['e-','gamma'], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.999, float(energy) * 1.001))			
+			gun = vertex.particle_gun(['e-','gamma'], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.999, float(energy) * 1.001))
+                if gun is None:    # Sanity check
+                        print('Gone is "none"')
 		for ev in sim.simulate(gun, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
 			tracks,pmt_arr = analyzer.generate_tracks(ev,qe=(1./3.),heat_map=True)
 			if config.lens_system_name == 'Jiani3':
@@ -245,5 +247,5 @@ if __name__=='__main__':
 			
 			#plot_heat(conf_par,color(pmt_arr,ix),ix,l_rad)
 			for i in sel_len:
-				plot_heat(config,color(pmt_arr,i),i,l_rad,cfg,ev.primary_vertex.particle_name)
+				plot_heat(config,color(pmt_arr,i),i,l_rad,ev.primary_vertex.particle_name)
 		
