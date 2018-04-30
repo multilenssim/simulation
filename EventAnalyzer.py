@@ -8,13 +8,16 @@ import mpl_toolkits.axisartist as AA
 from mpl_toolkits.axes_grid1 import host_subplot
 from chroma.transform import normalize
 from chroma.sample import uniform_sphere
-from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader
+
 import time as time
 from DetectorResponse import DetectorResponse
 from DetectorResponsePDF import DetectorResponsePDF
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
 from Tracks import Tracks, Vertex
 
+from logger_lfd import logger
+
+import pprint
 
 class EventAnalyzer(object):
     '''An EventAnalyzer has methods of reconstructing an event and gauging
@@ -29,6 +32,9 @@ class EventAnalyzer(object):
         self.set_style()
         
     def analyze_event_PDF(self, eventfile, event_pos=None):
+        from ShortIO.root_short import ShortRootReader
+        from DetectorResponsePDF import DetectorResponsePDF
+
         #takes an event and constructs the pdf based upon which pmts were hit.
         if not isinstance(self.det_res, DetectorResponsePDF):
             print "Detector response must be of the class DetectorResponsePDF to use this method! Exiting."
@@ -93,6 +99,8 @@ class EventAnalyzer(object):
         photon before adding to final_pdf (which is then normalized again after all photons are included).
         Setting n_ph>0 means only n_ph photons from the event file will be read in.
         '''
+
+        from ShortIO.root_short import ShortRootReader, AngleRootReader
 
         # Check that a valid reconstruction mode was chosen
         if not (recon_mode=='angle' or recon_mode=='cos' or recon_mode=='cone'):
@@ -242,15 +250,16 @@ class EventAnalyzer(object):
             are fed back to the algorithm to find the next vertex.
             If min_tracks<1, use as a fraction of the total event's tracks.
         '''
+        WEIGHT_CUT = 0.50
 
         # Get an array of voxel positions within the detector, for repeated use
-        bin_pos_array = np.array(self.det_res.bin_to_position_array())
+        bin_pos_array = np.array(self.det_res.bin_to_position_array())  # Returns 10x10x10 = 1000 coordinate positions
         
         # Sets how much to scale down changes in vertex position by, should they fail to improve fit
         # Only used for analytic (matrix) solution, not numpy's fmin() optimization function
         vtx_scale_factor = 0.5
 
-		# Sets whether to use Gauss probability (additive) or NLL (additive, equivalent to multiplying probs)
+        # Sets whether to use Gauss probability (additive) or NLL (additive, equivalent to multiplying probs)
         doNLL = False
 
         vtcs = [] # List of vertices found
@@ -281,11 +290,11 @@ class EventAnalyzer(object):
                 dists_scaled = np.tan(angles) # scaled so that projection of vector onto mean angle is 1
                 #print 'dists scaled shape: ' + str(np.shape(dists_scaled)) # sig is (n,)
                 if np.isnan(sig):
-                    print "Track sig is nan - skipping."
+                    logger.info('Track sig is nan - skipping.')
                 if doNLL:
-					gp = self.gauss_nll(dists_scaled, sig)
+                    gp = self.gauss_nll(dists_scaled, sig)
                 else:
-					gp = self.gauss_prob(dists_scaled, sig)
+                    gp = self.gauss_prob(dists_scaled, sig)
                 final_pdf += gp
                 #final_pdf *= gp
                 #f_squared += gp**2
@@ -319,6 +328,7 @@ class EventAnalyzer(object):
             #     v_pos_max = np.array(self.det_res.bin_to_position(max_bin_com))
             #max_bin = self.find_max_starting_bin(bin_array, final_pdf, np.shape(final_pdf))
             
+            logger.info('Initial vertex position: ' + str(v_pos_max))
             if debug:
                 
                 self.plot_tracks(tracks,highlight_pt=v_pos_max)
@@ -332,7 +342,6 @@ class EventAnalyzer(object):
                 plt.show(fig)
                 ax = fig.gca()
                 ax.scatter(v_pos_max[0],v_pos_max[1],v_pos_max[2],color='green')
-                print "Initial vertex position: " + str(v_pos_max)
 
                 # codethis = raw_input('Do some code tweaks>')
                 # while codethis not in ['','q','exit'] : 
@@ -362,6 +371,8 @@ class EventAnalyzer(object):
             vtx_list = []
             obj_list = []
             wt_list = []
+
+            #### Finished determining starting vertex (or vertices - if debugging) ####
             
             # For each starting position, find vtx position and associated tracks; keep one with best obj
             for ii in range(n_pos0+1):
@@ -461,7 +472,7 @@ class EventAnalyzer(object):
                     max_tries = 10
                     while np.linalg.norm(v_opt) > self.det_res.inscribed_radius and obj1 > obj0 and n_tries < max_tries: 
                         n_tries += 1
-                        print "Vertex placed outside of detector, or objective failed to improve - trying again, try "+str(n_tries)
+                        logger.warning('Vertex placed outside of detector, or objective failed to improve - trying again, try '+str(n_tries))
                         ddir_opt = uniform_sphere()
                         # Shift by a distance of up to 10% of the inscribed radius, in a random direction
                         drad_opt = 0.1*self.det_res.inscribed_radius*np.random.uniform(0.0, 1.0, 1)**(1.0/3)
@@ -495,6 +506,7 @@ class EventAnalyzer(object):
                     print "dv record: " + str(dv_rec)
                     #print "Weight record: " + str(wt_rec)
                     print "Objective function record: " + str(obj_rec)
+                    logger.info('Tracks associated with this vertex: %d' % len(tracks))
                     # Make plot of vtx pos vs iteration, weights and obj function vs iteration
                     self.plot_tracks(tracks,path=np.array(v_pos_rec).T)
                     self.plot_weights(np.array(wt_rec),obj=np.array(obj_rec))
@@ -521,25 +533,26 @@ class EventAnalyzer(object):
 
             # Record tracks associated to this vertex
             trx_assoc = copy.deepcopy(tracks) # Tracks associated to vtx
-            trx_assoc.cull(np.nonzero(wt_list[opt_ind]>=0.5))
+            trx_assoc.cull(np.nonzero(wt_list[opt_ind]>=WEIGHT_CUT))
 
             # Cull tracks to only those tracks which were not already associated
             #tracks.cull(np.nonzero(wt_list[opt_ind]>1.1)) # Use this to stop after 1st vtx is found
-            tracks.cull(np.nonzero(wt_list[opt_ind]<0.5))
-            #print "Remaining tracks: " + str(len(tracks))
+            tracks.cull(np.nonzero(wt_list[opt_ind]<WEIGHT_CUT))
+            logger.info('>>>>>>>> Remaining tracks: %d' % len(tracks))
 
             # Check that vertex has a (normalized) objective function less than qual*chiC
-            qual = 0.95#0.5
+            qual = 0.95
             #qual = 2 
             _, _, _, _, _, obj_fin = self.get_track_fit_params(trx_assoc, vtx, chiC, 1.0)
             if debug:
-                print "obj_fin (uses only associated tracks): " + str(obj_fin)
+                print 'obj_fin (uses only associated tracks): %f / %f' % (obj_fin, qual*chiC)
                 print "Associated tracks: " + str(len(trx_assoc))
             if obj_fin < qual*chiC and len(trx_assoc) >= min_tracks:
                 vtx.err = obj_fin # use objective function to judge quality of vertex
                 vtx.n_ph = len(trx_assoc)
                 vtcs.append(vtx)
             else: # If the vertex quality is poor or has too few tracks, stop looking for more vertices
+                logger.info('Vertex quality too poor / too few tracks: %f, Targets: %f %d. Dropping and quitting.' % (obj_fin, qual*chiC, min_tracks))
                 break
         
         # Restrict to unique vertices (distance > tol; only position is relevant for this step)
@@ -578,6 +591,10 @@ class EventAnalyzer(object):
             dists[ii,:] = vtx.dist(r)/sig # distance (in sigma) from tracks to current vtx
 
         # Find index of closest vertex for each track
+        if len(dists) == 0:
+            logger.info('AVF: no vertices found')
+            return None
+
         vtx_closest = np.argmin(dists, axis=0)
         
         # Associate tracks and recalculate n_ph, err
@@ -605,27 +622,31 @@ class EventAnalyzer(object):
         return vtcs
 
     def QE(self,gen,qe):
-	#applies a given quantum efficiency to each pixel to a vector containing the hit pixel
-	mask = []
-	for e in np.unique(gen):
-		arr_id = np.where(gen==e)[0]
-		counts = np.random.poisson(qe*len(arr_id))
-		if counts>len(arr_id):
-			counts = np.random.choice(len(arr_id))
-		fltr = np.random.choice(arr_id,counts,replace=False)
-		mask.extend(fltr)
-	return gen[sorted(mask)]
+        #applies a given quantum efficiency to each pixel to a vector containing the hit pixel
+        mask = []
+        for e in np.unique(gen):
+            arr_id = np.where(gen==e)[0]
+            counts = np.random.poisson(qe*len(arr_id))
+            if counts>len(arr_id):
+                counts = np.random.choice(len(arr_id))
+            fltr = np.random.choice(arr_id,counts,replace=False)
+            mask.extend(fltr)
+        return gen[sorted(mask)]
 
     def generate_tracks(self, ev, qe=None, heat_map = False, sig_cone=0.01, n_ph=0, lens_dia=None, debug=False):
         #Makes tracks for event ev; allow for multiple track representations?
         detected = (ev.photons_end.flags & (0x1 <<2)).astype(bool)
-        #reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
-        #reflected_specular = (ev.photons_end.flags & (0x1 <<6)).astype(bool)
-        #good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
+        logger.info('Detected: ' + str(detected))
+        logger.info(str(ev.photons_end.flags));
+        reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
+        reflected_specular = (ev.photons_end.flags & (0x1 <<6)).astype(bool)
+        good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
              
         beginning_photons = ev.photons_beg.pos[detected] # Include reflected photons
         ending_photons = ev.photons_end.pos[detected]
         length = np.shape(ending_photons)[0]
+        logger.info('Using ' + str(len(ending_photons)) + ' detected of ' + str(len(ending_photons)) + ' photons')
+
         if debug:
             print "Total detected photons in event: " + str(sum(detected*1))
             print "Total photons: " + str(np.shape(ev.photons_end.pos)[0])
@@ -638,29 +659,37 @@ class EventAnalyzer(object):
             # beginning_photons = beginning_photons[start:(start+n_ph),:]
             # ending_photons = ending_photons[start:(start+n_ph),:]
             length = n_ph
- 
+
         end_direction_array = normalize(ending_photons-beginning_photons).T
-        event_pmt_bin_array = np.array(self.det_res.find_pmt_bin_array(ending_photons)) # Get PMT hit location
-	if qe == None:
-		pass
-	else:
-		event_pmt_bin_array = self.QE(event_pmt_bin_array,qe)
-        #event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T
-        
+        event_pmt_bin_array, lenses, rings, pixels = np.array(self.det_res.find_pmt_bin_array_new(ending_photons)) # Get PMT hit indices
+
+        if qe == None:
+            pass
+        else:
+            mask = self.QE(event_pmt_bin_array,qe)
+            event_pmt_bin_array = event_pmt_bin_array[mask]
+            lenses = lenses[mask]
+            rings = rings[mask]
+            pixels = pixels[mask]
+            logger.info('Mask count: %d' % len(mask))
+
+        # print('PMT bins: ' + str(event_pmt_bin_array))
+        event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T
         event_lens_bin_array = np.array(event_pmt_bin_array/self.det_res.n_pmts_per_surf)
         event_lens_pos_array = np.array([self.det_res.lens_centers[x] for x in event_lens_bin_array]).T
         
         # If detector is not calibrated or not of the GaussAngle subclass, use actual photon angles
         # plus Gaussian noise (two different models, depending on if lens_dia is given)
         if not (self.det_res.is_calibrated and isinstance(self.det_res,DetectorResponseGaussAngle)):
+            logger.info('Detector is not calibrated (or is not gaussian response)')
             # If lens_dia is not given, only include angular noise of sig_cone
             sigmas = np.zeros(length)
             if lens_dia is None:
+                logger.info('No lens diameter.  Using sig_cone only: %f' % sig_cone)
                 sigmas.fill(sig_cone)
                 sig_th = sig_cone
                 hit_pos = event_pmt_pos_array
-             
-                
+
             # If lens_dia is given, include noise on the hit position; angular noise is set by lens_dia and
             # the detector's number of pmtxbins, rather than sig_cone
             else:
@@ -687,20 +716,30 @@ class EventAnalyzer(object):
                 u_noise = np.random.normal(scale=sig_u,size=np.shape(end_direction_array[0,:]))
                 v_noise = np.random.normal(scale=sig_u,size=np.shape(end_direction_array[0,:]))
                 hit_noise = u_noise*u_dir_array.T + v_noise*v_dir_array.T # (3, n)
-                hit_pos = event_pmt_pos_array + hit_noise                 
+                hit_pos = event_pmt_pos_array + hit_noise
                 if debug:
                     print "sig_u: " + str(sig_u)
                     print "sig_th: " + str(sig_th)
                     print "pmt_width: " + str(pmt_width)
                     print "inscribed radius: " + str(self.det_res.inscribed_radius)
 
-            
+            logger.info('Shapes: %s %s %s' % (np.shape(ending_photons), np.shape(hit_pos), np.shape(end_direction_array)))
             ang_noise = np.random.normal(scale=sig_th,size=np.shape(end_direction_array))#np.zeros(np.shape(end_direction_array))#
             means = normalize((-end_direction_array+ang_noise).T).T
-            return Tracks(hit_pos, means, sigmas)
+            tracks = Tracks(hit_pos, means, sigmas, qe=qe)
+            #self.plot_tracks(tracks)
+            return tracks
         else: # Detector is calibrated, use response to generate tracks
-            tracks = Tracks(event_lens_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = self.det_res.lens_rad)
-	    msk = tracks.sigmas>0.001
+            tracks = Tracks(event_lens_pos_array,
+                            self.det_res.means[:,event_pmt_bin_array],
+                            self.det_res.sigmas[event_pmt_bin_array],
+                            lens_rad = self.det_res.lens_rad,
+                            lenses=lenses,
+                            rings=rings,
+                            pixels_in_ring=pixels,
+                            qe=qe)
+            #tracks = Tracks(event_pmt_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = 0.0000001)
+            msk = tracks.sigmas > 0.001
             tracks.cull(np.where(msk)) # Remove tracks with zero uncertainty (not calibrated)
             if np.any(np.isnan(tracks.sigmas)):
                 print "Nan tracks!! Removing."
@@ -710,10 +749,10 @@ class EventAnalyzer(object):
                 print "Tracks for calibrated PMTs: " + str(len(tracks))
             #tracks.cull(np.where(tracks.sigmas<0.2)) # Remove tracks with too large uncertainty
             #tracks.sigmas[:] = 0.054 # Temporary! Checking if setting all sigmas equal to each other helps or hurts
-	    if heat_map == True:
-		return tracks, event_pmt_bin_array[msk]
-            return tracks     
-    
+        if heat_map:
+            return tracks, event_pmt_bin_array[msk]
+        return tracks
+
     @staticmethod
     def get_weights(chi, chiC, Tm):
         # Returns an array of weights, according to the AVF sigmoid weighting function
@@ -750,24 +789,28 @@ class EventAnalyzer(object):
         obj = np.sum(wt*chi**2)/np.sum(wt) # Get current value of objective function
         return r, sig, d, chi, wt, obj
  
-    def plot_tracks(self, tracks, pts=None, highlight_pt=None, path=None, show=True):
+    def plot_tracks(self, _tracks, pts=None, highlight_pt=None, path=None, show=True, skip_interval=200):
         # Returns a 3D plot of tracks (a Tracks object), as lines extending from their 
         # PMT hit position to the inscribed diameter of the detector. 
         # If pts is not None, will also draw them (should be a (3,n) numpy array).
         # If highlight_pt exists, it will be colored differently.
         # If path exists, a path will be drawn between its points (should be shape (3,n)).
 
-        end_pts = tracks.hit_pos+2*self.det_res.inscribed_radius*tracks.means
-        xs = np.vstack((tracks.hit_pos[0,:], end_pts[0,:]))
-        ys = np.vstack((tracks.hit_pos[1,:], end_pts[1,:]))
-        zs = np.vstack((tracks.hit_pos[2,:], end_pts[2,:]))
+        hit_pos = _tracks.hit_pos.T[0::skip_interval].T
+        means = _tracks.means.T[0::skip_interval].T
+        end_pts = hit_pos + (1.5 * self.det_res.inscribed_radius * means)  # TODO: Shouldn't need to go to 1.5 here to get the tracks to cross?
+        logger.info('Plotting %d tracks' % len(hit_pos[0]))
+
+        xs = np.vstack((hit_pos[0, :], end_pts[0, :]))
+        ys = np.vstack((hit_pos[1, :], end_pts[1, :]))
+        zs = np.vstack((hit_pos[2, :], end_pts[2, :]))
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         # Draw track hit positions
-        ax.scatter(tracks.hit_pos[0,:],tracks.hit_pos[1,:],tracks.hit_pos[2,:],color='red')
+        ax.scatter(hit_pos[0, :], hit_pos[1, :], hit_pos[2, :], color='red')
         # Draw tracks as lines
-        for ii in range(len(tracks)):
+        for ii in range(len(hit_pos[0])):
             ax.plot(xs[:,ii],ys[:,ii],zs[:,ii],color='red')
         
         ax.set_xlabel('X')

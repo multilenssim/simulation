@@ -1,17 +1,18 @@
-from lenssystem import get_system_measurements,get_half_EPD
-from paths import detector_pickled_path
-from chroma.transform import normalize
-import itertools,argparse,math,pickle
+import itertools,argparse,math
 import scipy.spatial
 import numpy as np
+import uuid
 
-
+from lenssystem import get_system_measurements
+import detectorconfig as dc
+from detectorconfig import DetectorConfig  # TODO: This is required for the pickle file reading
 
 def calc_steps(x_value,y_value,detector_r,n_lens_pixel):
         x_coord = np.asarray([x_value,np.roll(x_value,-1)]).T[:-1]
         y_coord = np.asarray([y_value,np.roll(y_value,-1)]).T[:-1]
         lat_area = 2*np.pi*detector_r*(y_coord[:,0]-y_coord[:,1])
         n_step = (lat_area/lat_area[-1]*n_lens_pixel).astype(int)
+        # print('Step: ' + str(len(x_coord)) + ' ' + str(len(y_coord)) + ' ' + str(n_step))
         return x_coord, y_coord, n_step
 
 def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=20,n_lens_pxl=4):
@@ -23,11 +24,13 @@ def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=20,n_lens_pxl=4):
     angles1 = np.linspace(theta1, np.pi/2, nsteps)
     x_value = abs(detector_r*np.cos(angles1))
     y_value = detector_r-detector_r*np.sin(angles1)
-    x_coord,y_coord,n_step = calc_steps(x_value,y_value,detector_r,n_lens_pixel=n_lens_pxl)
+    # x_coord,y_coord,n_step = calc_steps(x_value,y_value,detector_r,n_lens_pixel=n_lens_pxl) # This is redundant??
     return calc_steps(x_value,y_value,detector_r,n_lens_pxl)
 
-def param_arr(n_lens,b_pxl,l_sys,detec_r,max_rad):
-	tot_px = 100000.0
+# This is something like: for a given number of lenses and lens radius (or max radius) and detector radius
+#     Compute the total number of pixels each for from 2 to 45 rings
+#     And then pick the closest one to 100,000 pixels total
+def param_arr(n_lens,b_pxl,l_sys,detec_r,max_rad,target_pixel_count):
 	if l_sys == 'Jiani3':
 		scal_lens = 488.0/643.0
 	elif l_sys == 'Sam1':
@@ -37,8 +40,8 @@ def param_arr(n_lens,b_pxl,l_sys,detec_r,max_rad):
 		ix.append(i)
 		arr.append(sum(curved_surface2(detec_r,2*max_rad,i,b_pxl)[2]))
 	arr = np.asarray(arr)
-	nstep = ix[np.argmin(np.absolute(arr*n_lens-tot_px))]
-	t_px = arr[np.argmin(np.absolute(arr*n_lens-tot_px))]*n_lens
+	nstep = ix[np.argmin(np.absolute(arr*n_lens-target_pixel_count))]
+	t_px = arr[np.argmin(np.absolute(arr*n_lens-target_pixel_count))]*n_lens
 	#dct = np.stack((ix,scal_lens*edge_len/(2*(np.sqrt(2*px_per_face/arr).astype(int)+np.sqrt(3)-1))))
 	#sel_arr = np.absolute(((n_lens*(n_lens+1))/2*arr-px_per_face)/px_per_face)<0.3
 	#dct = dct[:,sel_arr]
@@ -83,40 +86,46 @@ def calc_rad(vtx,rad_sp):
                 i += 1
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser()
-	parser.add_argument('lens_system_name',help='provide lens design')
-	args = parser.parse_args()
-	lens_system_name = args.lens_system_name
-	sph_rad = 800.0  #7556.0
-	b_pxl = int(raw_input('input number of pixels at the central ring: (more than 3) '))
-	n_lens = int(raw_input('input the number of lens assemblies: '))
-	EPD_ratio = float(raw_input('input the pupil ratio: '))
-	vtx,max_rad,geom_eff = calc_rad(fibonacci_sphere(n_lens),sph_rad)
-	dtc_r = get_system_measurements(lens_system_name,max_rad)[1]
-	n_step,tot_pxl = param_arr(n_lens,b_pxl,lens_system_name,dtc_r,max_rad)
-	if sph_rad<7000:
-		conf_name = 'cf%s_K%i_%i_small'%(lens_system_name,n_lens,int(EPD_ratio*10))
-	else:
-		conf_name = 'cf%s_K%i_%i'%(lens_system_name,n_lens,int(EPD_ratio*10))
-        print 'rings in the optical system (+1): %i'%int(n_step)
-        print 'geometrical filling factor: %0.2f'%(geom_eff*math.pow(EPD_ratio,2))
-        print 'total amount of pixels: %i'%tot_pxl
-	anw = raw_input('add %s configuration (y or n)?: '%conf_name)
-	if anw == 'y':
-		conf = {conf_name:[sph_rad,n_lens,max_rad,vtx,EPD_ratio,n_step,b_pxl]}
-		fname = '%sconf_file.p'%detector_pickled_path
-		try:
-			with open(fname,'r') as f:
-				dct = pickle.load(f)
-			dct[conf_name] = [sph_rad,n_lens,max_rad,vtx,EPD_ratio,n_step,b_pxl]
-			with open(fname,'w') as f:
-                                pickle.dump(dct,f,protocol=pickle.HIGHEST_PROTOCOL)
-		except IOError:
-                	with open(fname,'w') as f:
-                	        pickle.dump(conf,f,protocol=pickle.HIGHEST_PROTOCOL)
-		print 'done'
-	elif anw == 'n':
-		exit()
-	'''print 'rings in the optical system (+1): '+str(int(a[0]))
-	print 'adjusted lens radius [mm]: '+str(int(a[1]))
-	print 'total amount of pixels: '+str(int(sum(curved_surface2(dtc_r,2*max_rad,a[0],b_pxl)[2])*n_lens))'''
+    parser = argparse.ArgumentParser("Calculate distributed imaging detector geometry and configuration")
+    parser.add_argument('lens_system_name', help='Lens design')
+    parser.add_argument('--target_pixels', '-t', default=100000, help='Target pixel count')
+    args = parser.parse_args()
+
+    lens_system_name = args.lens_system_name
+
+    target_pixels = int(args.target_pixels)
+    print('Target total pixel count: %s' % '{:,}'.format(target_pixels))
+    sph_rad = 7556.0
+    b_pxl = int(raw_input('input number of pixels at the central ring: (more than 3) '))
+    n_lens = int(raw_input('input the number of lens assemblies: '))
+    EPD_ratio = float(raw_input('input the pupil ratio: '))
+    vtx,max_rad,geom_eff = calc_rad(fibonacci_sphere(n_lens),sph_rad)
+    dtc_r = get_system_measurements(lens_system_name,max_rad)[1]
+    ring_count,tot_pxl = param_arr(n_lens,b_pxl,lens_system_name,dtc_r,max_rad,target_pixels)
+
+    config = dc.DetectorConfig(sph_rad, n_lens, max_rad, vtx,
+                               1.0,    			# TODO: Is diameter ratio always 1.0?
+                               ring_count,   	# TODO: This may be off by 1?
+                               thickness_ratio=0.25,
+                               blockers=True,
+                               blocker_thickness_ratio=1.0/1000,
+                               lens_system_name=lens_system_name,
+                               EPD_ratio=EPD_ratio,
+                               focal_length=1.0,
+                               light_confinement=False,
+                               b_pixel=b_pxl,
+                               tot_pixels=tot_pxl)
+    config.display_configuration()
+
+    print '  Geometrical filling factor: %0.2f'%(geom_eff*math.pow(EPD_ratio,2))
+    anw = raw_input('add %s configuration (y or n)?: '%config.config_name)
+    if anw == 'y':
+        cl = dc.DetectorConfigurationList()
+        cl.save_configuration(config)
+    elif anw == 'n':
+        exit()
+    '''
+    print 'rings in the optical system (+1): '+str(int(a[0]))
+    print 'adjusted lens radius [mm]: '+str(int(a[1]))
+    print 'total amount of pixels: '+str(int(sum(curved_surface2(dtc_r,2*max_rad,a[0],b_pxl)[2])*n_lens))
+    '''

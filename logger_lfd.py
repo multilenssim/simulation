@@ -14,6 +14,7 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 logger.propagate = False
 
+#logger.setLevel(logging.WARNING)
 logger.setLevel(logging.DEBUG)
 
 #from chroma.log import logger as chroma_logger
