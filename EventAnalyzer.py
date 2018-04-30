@@ -250,7 +250,7 @@ class EventAnalyzer(object):
             are fed back to the algorithm to find the next vertex.
             If min_tracks<1, use as a fraction of the total event's tracks.
         '''
-        WEIGHT_CUT = 0.50  # Initially was 0.50
+        WEIGHT_CUT = 0.50
 
         # Get an array of voxel positions within the detector, for repeated use
         bin_pos_array = np.array(self.det_res.bin_to_position_array())  # Returns 10x10x10 = 1000 coordinate positions
@@ -259,7 +259,7 @@ class EventAnalyzer(object):
         # Only used for analytic (matrix) solution, not numpy's fmin() optimization function
         vtx_scale_factor = 0.5
 
-	# Sets whether to use Gauss probability (additive) or NLL (additive, equivalent to multiplying probs)
+        # Sets whether to use Gauss probability (additive) or NLL (additive, equivalent to multiplying probs)
         doNLL = False
 
         vtcs = [] # List of vertices found
@@ -597,7 +597,7 @@ class EventAnalyzer(object):
                 vtx.n_ph = len(trx_assoc)
                 vtcs.append(vtx)
             else: # If the vertex quality is poor or has too few tracks, stop looking for more vertices
-                print('Vertex quality too poor / too few tracks: %f, Targets: %f %d. Dropping and quitting.' % (obj_fin, qual*chiC, min_tracks))
+                logger.info('Vertex quality too poor / too few tracks: %f, Targets: %f %d. Dropping and quitting.' % (obj_fin, qual*chiC, min_tracks))
                 break
         
         # Restrict to unique vertices (distance > tol; only position is relevant for this step)
@@ -637,7 +637,7 @@ class EventAnalyzer(object):
 
         # Find index of closest vertex for each track
         if len(dists) == 0:
-            print('AVF: no vertices found')
+            logger.info('AVF: no vertices found')
             return None
 
         vtx_closest = np.argmin(dists, axis=0)
@@ -772,7 +772,7 @@ class EventAnalyzer(object):
             # If lens_dia is not given, only include angular noise of sig_cone
             sigmas = np.zeros(length)
             if lens_dia is None:
-                logger.info('No lens diameter.  Using sig_cone only: %f' % sig_cone) 
+                logger.info('No lens diameter.  Using sig_cone only: %f' % sig_cone)
                 sigmas.fill(sig_cone)
                 sig_th = sig_cone
                 hit_pos = event_pmt_pos_array
@@ -829,7 +829,7 @@ class EventAnalyzer(object):
                             rings=rings,
                             pixels_in_ring=pixels,
                             qe=qe)
-            #tracks = Tracks(event_pmt_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = 0.0000001)   
+            #tracks = Tracks(event_pmt_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = 0.0000001)
             msk = tracks.sigmas > 0.001
             tracks.cull(np.where(msk)) # Remove tracks with zero uncertainty (not calibrated)
             if np.any(np.isnan(tracks.sigmas)):
@@ -894,7 +894,7 @@ class EventAnalyzer(object):
 
         hit_pos = _tracks.hit_pos.T[0::skip_interval].T
         means = _tracks.means.T[0::skip_interval].T
-        end_pts = hit_pos + (1.5 * self.det_res.inscribed_radius * means)  # Shouldn't need to go to 1.5 here to get the tracks to cross?
+        end_pts = hit_pos + (1.5 * self.det_res.inscribed_radius * means)  # TODO: Shouldn't need to go to 1.5 here to get the tracks to cross?
         logger.info('Plotting %d tracks' % len(hit_pos[0]))
 
         xs = np.vstack((hit_pos[0, :], end_pts[0, :]))

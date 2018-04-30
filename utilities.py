@@ -20,6 +20,7 @@ import pprint
 #import traceback
 
 from chroma.detector import Detector
+from chroma.camera import view
 import kabamland2 as kbl2
 import detectorconfig
 
@@ -72,6 +73,7 @@ def load_or_build_detector(config, detector_material, g4_detector_parameters):
         logger.info("** Building detector configuration: " + configname)
         kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
         kbl2.build_kabamland(kabamland, config)
+        # view(kabamland)
         kabamland.flatten()
         kabamland.bvh = load_bvh(kabamland)
         try:

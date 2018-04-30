@@ -30,7 +30,7 @@ class DetectorResponse(object):
         #self.edge_length, self.facecoords, self.direction, self.axis, self.angle, self.spin_angle = return_values(config.edge_length, config.base)
         self.pmtxbins = config.pmtxbins
         self.pmtybins = config.pmtybins
-        self.n_lens_sys = config.lens_count # Number of lens systems per face - XX TODO: not trus anymore
+        self.n_lens_sys = config.lens_count # Number of lens systems per face - XX TODO: not true anymore
         self.detector_r = config.detector_r
         self.nsteps = config.ring_count
 
@@ -57,7 +57,7 @@ class DetectorResponse(object):
         #self.lens_inverse_rotated_displacement_matrix = self.build_lensplane_inverse_rotated_displacement_matrix()
         #new properties for curved surface detectors
 
-        # Temporarily comment out to allow access to old calibration files
+        # Temporarily comment this out to allow access to old calibration files
         self.triangle_centers,self.n_triangles_per_surf,self.ring = get_curved_surf_triangle_centers(config.vtx, self.lns_rad, self.detector_r, self.focal_length, self.nsteps, config.base_pixels)
         self.triangle_centers_tree = spatial.cKDTree(self.triangle_centers)
         self.n_pmts_per_surf = int(self.n_triangles_per_surf/2.)
@@ -67,7 +67,7 @@ class DetectorResponse(object):
         else:
             self.npmt_bins = self.n_lens_sys*self.n_pmts_per_surf # One curved detecting surf for each lens system
 
-        # Temporarily comment out to allow access to old calibration files
+        # Temporarily comment this out to allow access to old calibration files
         self.lens_centers = get_lens_triangle_centers(config.vtx, self.lns_rad, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
         self.lens_rad = config.half_EPD 
 
@@ -112,7 +112,7 @@ class DetectorResponse(object):
         print "Base class DetectorResponse has no specific calibration method - instantiate as a subclass."
         
     def angles_response(self, config, simname, nolens=False, rmax_frac=1.0):
-        #takes a simulation file and creates an array of angles that photons hit the pmts at.
+        # takes a simulation file and creates an array of angles that photons hit the pmts at.
         # (replace lenses with disk pmts for the simulation to see what angles light hits the lenses at.
         # Light needs to land on an icosahedron face plane so use disks instead of just changing the surface of the lens to detecting.)
         # ev.photons_end.dir[detected] is always 0s as of now because we aren't saving directions in event or simulation files.
@@ -295,12 +295,12 @@ class DetectorResponse(object):
         renorm_triangle = closest_triangle_index % self.n_triangles_per_surf
 
         mtx = (np.tile(2 * self.c_rings_rolled, (len(renorm_triangle), 1)).T - renorm_triangle).T
-        pixels_outside_hit_ring = self.c_rings_rolled[np.argmax(mtx > 0, axis=1) - 1]   # This may not be the right name for this??
-        complicated = ((renorm_triangle - 2*pixels_outside_hit_ring) % self.ring[np.argmax(mtx>0,axis=1)-1])
+        pixels_outside_hit_ring = self.c_rings_rolled[np.argmax(mtx > 0, axis=1) - 1]   # TODO: This may not be the right name for this??
+        complicated = ((renorm_triangle - 2*pixels_outside_hit_ring) % self.ring[np.argmax(mtx>0,axis=1)-1])   # TODO this name is just giving up on understanding
 
         pmt_number = complicated + pixels_outside_hit_ring + curved_surface_index*self.n_pmts_per_surf
 
-        ### Alternative calculation ###
+        ### Alternative calculation  for cross check ###
         new_lens_number = (pmt_number / self.n_pmts_per_surf).astype(int)
         pixel_number_in_lens = pmt_number - curved_surface_index*self.n_pmts_per_surf       # Depends on PMT number...
         ring = np.searchsorted(self.c_rings, pixel_number_in_lens, side='right')
@@ -320,14 +320,15 @@ class DetectorResponse(object):
 
         return pmt_number, curved_surface_index, ring, pixel_number_in_ring
 
+	# TODO: Where and what for is this used??
     def find_pmt_bin_array_new(self, pos_array):
         closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array, max_dist=1.)
         pmts, lenses, rings, pixels = self._scaled_pmt_arr_surf(closest_triangle_index)
-        bad_bins = np.asarray(np.where(pmts >= self.npmt_bins))  # Why does this have to be an array inside of an array?  How to convert a tuple into an array? asarray() shuld do it
+        bad_bins = np.asarray(np.where(pmts >= self.npmt_bins))  # TODO: Why does this have to be an array inside of an array?  How to convert a tuple into an array? asarray() should do it
         if np.size(bad_bins) > 0:
             print('Bad bin count: ' + str(len(bad_bins[0])))
             print("The following " + str(np.shape(bad_bins)[1]) + " photons were not associated to a PMT: " + str(bad_bins))
-            pmts = np.delete(pmts, bad_bins) # Note: this line wont work with new scaled_pmt_arr_surf scheme, and it also breaks calibration
+            pmts = np.delete(pmts, bad_bins) # TODO: Note: this line wont work with new scaled_pmt_arr_surf scheme, and it also breaks calibration
             lenses = np.delete(lenses, bad_bins)
             rings = np.delete(rings, bad_bins)
             pixels = np.delete(pixels, bad_bins)
@@ -335,7 +336,7 @@ class DetectorResponse(object):
         return pmts, lenses, rings, pixels
 
     def find_pmt_bin_array(self, pos_array):
-        if(self.detector_r == 0):   # Note: this code is appears to be specific to the icosahedron
+        if(self.detector_r == 0):   # TODO: this code is appears to be specific to the icosahedron
             # returns an array of global pmt bins corresponding to an array of end-positions
             length = np.shape(pos_array)[0]
             #facebin array is left as -1s, that way if a particular photon does not get placed onto a side, it gets ignored (including its pmt_position) in the checking stages at the bottom of this function.
@@ -368,14 +369,14 @@ class DetectorResponse(object):
             
         else:
             #print("Curved surface detector was selected.")
-            closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array, max_dist=1.)
+            closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array, max_dist=1.)  # TODO: check out the addition of the max_dist parameter
             bin_array, _, _, _ = self._scaled_pmt_arr_surf(closest_triangle_index)
             #logger.info('Bin array length: ' + str(len(bin_array)))
             #curved_surface_index = [int(x / self.n_triangles_per_surf) for x in closest_triangle_index]
             #surface_pmt_index = [((x % self.n_triangles_per_surf) % (self.n_pmts_per_surf)) for x in closest_triangle_index]
             #bin_array = [((x*self.n_pmts_per_surf) + y) for x,y in zip(curved_surface_index,surface_pmt_index)]
             ba2 = np.asarray(bin_array)
-            bad_bins = np.asarray(np.where(ba2 >= self.npmt_bins))  # Why does this have to be an array inside of an array?  How to convert a tuple into an array? asarray() shuld do it
+            bad_bins = np.asarray(np.where(ba2 >= self.npmt_bins))  # TODO: Why does this have to be an array inside of an array?  How to convert a tuple into an array? asarray() shuld do it
             #print np.array(bin_array) >= n_pmts_total
             #print np.extract((np.array(bin_array) >= n_pmts_total), bin_array)
             if np.size(bad_bins) > 0:

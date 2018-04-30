@@ -36,7 +36,7 @@ class Tracks(object):
         self.hit_pos = self.hit_pos[:,ind_remain]
         self.means = self.means[:,ind_remain]
         self.sigmas = self.sigmas[ind_remain]
-        if self.lenses is not None:   # Use lenses as a proxy for the others
+        if self.lenses is not None:   # Use lenses as a proxy None check for the others
             self.lenses = self.lenses[ind_remain]
             self.rings = self.rings[ind_remain]
             self.pixels_in_rings = self.pixels_in_rings[ind_remain]

@@ -211,7 +211,7 @@ if __name__=='__main__':
 	config_name = args.config_name
 	config = detectorconfig.get_detector_config(config_name)
 
-        # TODO: No such things as systems per face any more
+    # TODO: No such things as systems per face any more
 	lens_count = config.lens_count
 
 	sel_len = range(lens_count)  # np.random.choice(sys_per_face,3,replace=False)

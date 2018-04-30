@@ -1,4 +1,4 @@
-#from ShortIO.root_short import GaussAngleRootWriter, GaussAngleRootReader, ShortRootReader
+from ShortIO.root_short import GaussAngleRootWriter, GaussAngleRootReader, ShortRootReader
 import numpy as np
 from linalg_3 import *
 
@@ -111,7 +111,7 @@ class DetectorResponseGAKW(DetectorResponse):
         if infile is not None:
             self.read_from_ROOT(infile)
 
-    # KW: moved this back in for Jacopo's cal changes because need self
+    # Needs to be here because requires self
     #@jit(nopython=True)
     def find_photons_for_pmt(self, photons_beg_pos, photons_end_pos, detected, end_direction_array, n_det, max_storage):
         #print("---Start gather photons----")
@@ -155,33 +155,13 @@ class DetectorResponseGAKW(DetectorResponse):
         #print("---Done with gather photons----")
         return ending_photons, length
 
-    # Merge this back in XXXXXXXXXXXX
-    # Also deal with the logging
-    def find_photons_for_pmt_top(self, ev, pmt_bins, end_direction_array, n_det, max_storage):
-        detected = (ev.photons_end.flags & (0x1 <<2)).astype(bool)
-        reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
-        reflected_specular = (ev.photons_end.flags & (0x1 <<6)).astype(bool)
-        #logger.info("Total detected: " + str(sum(detected*1)))
-        #logger.info("Total reflected: " + str(sum(reflected_diffuse*1)+sum(reflected_specular*1)))
-        good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
-        #logger.info("Total detected and not reflected: " + str(sum(good_photons*1)))
-
-        ending_photons, length = self.find_photons_for_pmt(ev.photons_beg.pos, ev.photons_end.pos, detected, end_direction_array, n_det, max_storage)
-        pmt_b = self.find_pmt_bin_array(ending_photons)
-        # if pmt_bins is None:
-        #     pmt_bins = pmt_b
-        # else:
-        #     pmt_bins = np.hstack((pmt_bins, pmt_b))
-        #pmt_bins.append(pmt_b)
-        pmt_bins[n_det:(n_det+length)] = pmt_b
-        return length
-
 
     '''
     The calibration is performed in three steps: [ my function names are probably wrong ] [Describe the file structure here]
     1. Loop over events to find the pmt that each photon hit, and the direction for each photon.  Produces file 'hits-config.pickle'
     2. Loop over all photons to gather them by pmt.  Produces file 'pmt-bins.config.pickle'
     3. Loop over all photons for each pmt to compute statistics for each pmt
+    The files are only meant to preserve the intermediate state.  They are not required.
     '''
     def calibrate(self, simname, directory, nevents=-1):
         # Use with a simulation file 'simname' to calibrate the detector
@@ -191,9 +171,8 @@ class DetectorResponseGAKW(DetectorResponse):
         # Uses all photons hitting a given PMT at once (better estimate of sigma,
         # but may run out of memory in some cases).
         # Will not calibrate PMTs with <n_min hits
-        start_time = time.time()
-
         self.is_calibrated = True # Should this be above the file read??
+        start_time = time.time()
         culprit_count = 0
         full_length = 0
         n_min = 10 # Do not calibrate a PMT if <n_min photons hit it
@@ -213,7 +192,6 @@ class DetectorResponseGAKW(DetectorResponse):
         n_det = 0
 
         pickle_name = self.configname + '-hits.pickle'
-
         try:
             logger.info('Loading pickle hits file: ' + directory+pickle_name);
             with open(directory+pickle_name, 'rb') as inf:
@@ -230,27 +208,38 @@ class DetectorResponseGAKW(DetectorResponse):
             # Loop through events, store for each photon the index of the PMT it hit (pmt_bins)
             # and the direction pointing back to its origin (end_direction_array)
             loops = 0
-            i = 0
             for ev in reader:
                 loops += 1
                 if loops > nevents:
                     logger.info('Found at least %d events. Quitting.' % nevents)
                     break
-                if i % 100 == 0:
+                if loops % 100 == 0:
                     logger.info("Event " + str(loops) + " of " + str(nevents))
                     logger.handlers[0].flush()
 
-                length = self.find_photons_for_pmt_top(ev, pmt_bins, end_direction_array, n_det, max_storage)
+                detected = (ev.photons_end.flags & (0x1 << 2)).astype(bool)
+                '''
+                reflected_diffuse = (ev.photons_end.flags & (0x1 << 5)).astype(bool)
+                reflected_specular = (ev.photons_end.flags & (0x1 << 6)).astype(bool)
+                logger.info("Total detected: " + str(sum(detected*1)))
+                logger.info("Total reflected: " + str(sum(reflected_diffuse*1)+sum(reflected_specular*1)))
+                good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
+                logger.info("Total detected and not reflected: " + str(sum(good_photons*1)))
+                '''
+                ending_photons, length = self.find_photons_for_pmt(ev.photons_beg.pos, ev.photons_end.pos, detected,
+                                                                   end_direction_array, n_det, max_storage)
+                pmt_b = self.find_pmt_bin_array(ending_photons)
+                pmt_bins[n_det:(n_det + length)] = pmt_b
+
                 if length is None:
                     loggin.info('No more photons found')
                     break
 
                 n_det += length
-                if i % 100 == 0:
+                if loops % 100 == 0:
                     logger.info('Photons detected so far: ' + str(n_det))
                     #logger.info('Sample pmt bins: ' + str(pmt_bins[n_det:(n_det+length)]))
                     logger.info("Time: " + str(time.time()-start_time))
-                i += 1
 
             end_direction_array.resize((n_det,3))
             logger.info("Time: " + str(time.time()-start_time))
@@ -265,7 +254,6 @@ class DetectorResponseGAKW(DetectorResponse):
 
         draw_pmt_ind = -1       # Is this used at all?
         bins_file = self.configname + '-pmt-bins.pickle'
-        pmt_photons = None
         try:
             with open(directory + bins_file, 'rb') as inf:
                 pmt_photons = pickle.load(inf)
@@ -319,47 +307,47 @@ class DetectorResponseGAKW(DetectorResponse):
             try:
                 #draw_pmt_ind = None
 				draw_pmt_ind = int(draw_pmt_ind)
-				'''
-				if i == draw_pmt_ind or draw_pmt_ind<0:
-					# Temporary, to visualize histogram of angles, distances
-					#angles = np.arccos(projection_norms)
-					#ang_variance = np.var(angles, ddof=1)
-					#fig1 = plt.figure(figsize=(7.8, 6))
-					#plt.hist(angles, bins=20)
-					#plt.xlabel('Angular Separation to Mean Angle')
-					#plt.ylabel('Counts per bin')
-					#plt.title('Angles Histogram for PMT ' + str(i))
-					##plt.show()
-					#
-					#fig2 = plt.figure(figsize=(7.8, 6))
-					#plt.hist(angles, bins=20, weights=1./np.sin(angles))
-					#plt.xlabel('Angular Separation to Mean Angle')
-					#plt.ylabel('Counts per solid angle')
-					#plt.title('Angles Histogram for PMT ' + str(i))
+                '''
+                if i == draw_pmt_ind or draw_pmt_ind<0:
+                    # Temporary, to visualize histogram of angles, distances
+                    #angles = np.arccos(projection_norms)
+                    #ang_variance = np.var(angles, ddof=1)
+                    #fig1 = plt.figure(figsize=(7.8, 6))
+                    #plt.hist(angles, bins=20)
+                    #plt.xlabel('Angular Separation to Mean Angle')
+                    #plt.ylabel('Counts per bin')
+                    #plt.title('Angles Histogram for PMT ' + str(i))
+                    ##plt.show()
+                    #
+                    #fig2 = plt.figure(figsize=(7.8, 6))
+                    #plt.hist(angles, bins=20, weights=1./np.sin(angles))
+                    #plt.xlabel('Angular Separation to Mean Angle')
+                    #plt.ylabel('Counts per solid angle')
+                    #plt.title('Angles Histogram for PMT ' + str(i))
 
-					fig3 = plt.figure(figsize=(7.8, 6))
-					plt.hist(orthogonal_complements, bins=20)
-					plt.xlabel('Normalized Distance to Mean Angle')
-					plt.ylabel('Counts per bin')
-					plt.title('Distances Histogram for PMT ' + str(i))					
+                    fig3 = plt.figure(figsize=(7.8, 6))
+                    plt.hist(orthogonal_complements, bins=20)
+                    plt.xlabel('Normalized Distance to Mean Angle')
+                    plt.ylabel('Counts per bin')
+                    plt.title('Distances Histogram for PMT ' + str(i))
 
-					fig4 = plt.figure(figsize=(7.8, 6))
-					plt.hist(u_proj, bins=20)
-					plt.xlabel('U Distance to Mean Angle')
-					plt.ylabel('Counts per bin')
-					plt.title('U Distances Histogram for PMT ' + str(i))
+                    fig4 = plt.figure(figsize=(7.8, 6))
+                    plt.hist(u_proj, bins=20)
+                    plt.xlabel('U Distance to Mean Angle')
+                    plt.ylabel('Counts per bin')
+                    plt.title('U Distances Histogram for PMT ' + str(i))
 
-					fig5 = plt.figure(figsize=(7.8, 6))
-					plt.hist(v_proj, bins=20)
-					plt.xlabel('V Distance to Mean Angle')
-					plt.ylabel('Counts per bin')
-					plt.title('V Distances Histogram for PMT ' + str(i))
-					plt.show()
+                    fig5 = plt.figure(figsize=(7.8, 6))
+                    plt.hist(v_proj, bins=20)
+                    plt.xlabel('V Distance to Mean Angle')
+                    plt.ylabel('Counts per bin')
+                    plt.title('V Distances Histogram for PMT ' + str(i))
+                    plt.show()
 
-					#print "Average projected variance: ", variance
-					#print "Variance of projected 2D norms: ", np.var(orthogonal_complements, ddof=1)
-					draw_pmt_ind = raw_input("Enter index of next PMT to draw; will stop drawing if not a valid PMT index.\n")
-				'''
+                    #print "Average projected variance: ", variance
+                    #print "Variance of projected 2D norms: ", np.var(orthogonal_complements, ddof=1)
+                    draw_pmt_ind = raw_input("Enter index of next PMT to draw; will stop drawing if not a valid PMT index.\n")
+                '''
             except ValueError:
                 pass
             except TypeError:
@@ -444,7 +432,9 @@ class DetectorResponseGAKW(DetectorResponse):
             if loops == nevents:
                 break
 
-         #combining all of the variances and mean_angles with the weightings for each event in order to create a single value for each pmt for the entire simulation. Masking the amount_of_hits first so that we don't divide by 0 when averaging for pmts that recieve no hits: CURRENTLY WE ARE SKIPPING EVERY PMT THAT ONLY HAS UP TO NEVENTS HITS: I.E. THE TOTAL DEGREE OF FREEDOM IN THE DIVISION FOR THE VARIANCE AVERAGING.
+         # combining all of the variances and mean_angles with the weightings for each event in order to create a single value for each pmt for the entire simulation.
+         # Masking the amount_of_hits first so that we don't divide by 0 when averaging for pmts that recieve no hits:
+         # CURRENTLY WE ARE SKIPPING EVERY PMT THAT ONLY HAS UP TO NEVENTS HITS: I.E. THE TOTAL DEGREE OF FREEDOM IN THE DIVISION FOR THE VARIANCE AVERAGING.
          bad_pmts = np.where(np.sum(amount_of_hits, axis=0) <= nevents)[0]
 
          # temporary, for debugging:
@@ -484,6 +474,7 @@ class DetectorResponseGAKW(DetectorResponse):
 
     def read_from_ROOT(self, filename):
         # Read the means and sigmas from a ROOT file
+        logger.info('Loading root calibration file: %s' % filename)
         self.is_calibrated = True
         reader = GaussAngleRootReader(filename)
         for bin_ind, mean, sigma in reader:
@@ -491,3 +482,4 @@ class DetectorResponseGAKW(DetectorResponse):
             self.sigmas[bin_ind] = sigma
             if np.isnan(sigma):
                 print "Nan read in for bin index " + str(bin_ind)
+        logger.info('Last bin_index: %d' % bin_ind)
