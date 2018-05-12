@@ -631,7 +631,7 @@ class EventAnalyzer(object):
                 counts = np.random.choice(len(arr_id))
             fltr = np.random.choice(arr_id,counts,replace=False)
             mask.extend(fltr)
-        return gen[sorted(mask)]
+        return sorted(mask)   # TODO: At some point this became "gen[sorted(mask)]" - Which broke stuff
 
     def generate_tracks(self, ev, qe=None, heat_map = False, sig_cone=0.01, n_ph=0, lens_dia=None, debug=False):
         #Makes tracks for event ev; allow for multiple track representations?
@@ -667,11 +667,12 @@ class EventAnalyzer(object):
             pass
         else:
             mask = self.QE(event_pmt_bin_array,qe)
+            logger.info('Mask count: %d, qe: %f, original length: %d' % (len(mask), qe, len(event_pmt_bin_array)))
+            logger.info('Mask: %s' % str(mask))
             event_pmt_bin_array = event_pmt_bin_array[mask]
             lenses = lenses[mask]
             rings = rings[mask]
             pixels = pixels[mask]
-            logger.info('Mask count: %d' % len(mask))
 
         # print('PMT bins: ' + str(event_pmt_bin_array))
         event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T

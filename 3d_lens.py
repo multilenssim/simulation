@@ -9,7 +9,6 @@ from chroma.sample import uniform_sphere
 from chroma.transform import make_rotation_matrix, normalize
 from chroma.event import Photons
 from chroma.loader import load_bvh
-from chroma.generator import vertex
 import chroma.make as mk
 from ShortIO.root_short import ShortRootWriter
 import detectorconfig

@@ -185,9 +185,9 @@ def calc_steps(x_value,y_value,detector_r,base_pixel):
 	y_coord = np.asarray([y_value,np.roll(y_value,-1)]).T[:-1]
 	lat_area = 2*np.pi*detector_r*(y_coord[:,0]-y_coord[:,1])
 	n_step = (lat_area/lat_area[-1]*base_pixel).astype(int)
-	print('Pixel areas per ring: %s' % str(lat_area / n_step))
-	print('Coords: %s %s' % (x_coord, y_coord))
-	print('Values: %s %s' % (x_value, y_value))
+	# print('Pixel areas per ring: %s' % str(lat_area / n_step))
+	# print('Coords: %s %s' % (x_coord, y_coord))
+	# print('Values: %s %s' % (x_value, y_value))
 	return x_coord, y_coord, n_step
 
 def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=8,base_pxl=4,ret_arr=False):
@@ -197,7 +197,7 @@ def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=8,base_pxl=4,ret_arr=
     shift1 = np.sqrt(detector_r**2 - (diameter/2.0)**2)
     theta1 = np.arctan(shift1/(diameter/2.0))
     angles1 = np.linspace(theta1, np.pi/2, nsteps)
-    print('Parameters: %f %f %s' % (shift1, theta1, str(angles1)))
+    # print('Parameters: %f %f %s' % (shift1, theta1, str(angles1)))
     x_value = abs(detector_r*np.cos(angles1))
     y_value = detector_r-detector_r*np.sin(angles1)
     surf = None 

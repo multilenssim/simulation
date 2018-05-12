@@ -8,6 +8,8 @@ import lensmaterials as lm
 import kabamland2 as kbl
 import numpy as np
 import paths
+import utilities
+import detectorconfig
 
 def fixed_dist(sample, radius, in_shell, out_shell, rads=None):
 	loc1 = sph_scatter(sample,in_shell,out_shell)
@@ -39,21 +41,23 @@ def create_double_source_events(locs1, locs2, sigma, amount1, amount2):
 		locs1 = np.reshape(locs1,(1,-1))
 		locs2 = np.reshape(locs2,(1,-1))
 	for loc1,loc2 in zip(locs1,locs2):
-	    event1 = kbl.gaussian_sphere(loc1, sigma, int(amount1))
-	    event2 = kbl.gaussian_sphere(loc2, sigma, int(amount2))
-	    event = event1 + event2						#Just add the list of photons from the two sources into a single event
-	    events.append(event)
+		event1 = kbl.gaussian_sphere(loc1, sigma, int(amount1))
+		event2 = kbl.gaussian_sphere(loc2, sigma, int(amount2))
+		event = event1 + event2						#Just add the list of photons from the two sources into a single event
+		events.append(event)
 	return events
 
+'''
 def sim_setup(config,in_file, useGeant4=False):
 	g4_detector_parameters = G4DetectorParameters(orb_radius=7., world_material='G4_Galactic') if useGeant4 else None
-	kabamland = kbl.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+	kabamland = utilities.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
 	sim = Simulation(kabamland,geant4_processes = 1 if useGeant4 else 0)
 	det_res = DetectorResponseGaussAngle(config,10,10,10,in_file)
 	analyzer = EventAnalyzer(det_res)
 	return sim, analyzer
+'''
 
-def fixed_dist_hist(dist,sample,amount,sim,analyzer,sigma=0.01):
+def fixed_dist_hist(path,dist,sample,amount,sim,analyzer,sigma=0.01):
 	arr = []
 	i = 0
 	locs1, locs2, rad = fixed_dist(sample,5000,rads=dist)
@@ -78,7 +82,7 @@ def fixed_dist_hist(dist,sample,amount,sim,analyzer,sigma=0.01):
 		f.create_dataset('idx',data=arr)
 
 
-def bkg_dist_hist(sample,amount,sim,analyzer,sigma=0.01):
+def bkg_dist_hist(path,sample,amount,sim,analyzer,sigma=0.01):
 	arr = []
 	i = 0
 	location = sph_scatter(sample,in_shell,out_shell)
@@ -102,29 +106,32 @@ def bkg_dist_hist(sample,amount,sim,analyzer,sigma=0.01):
 			i =+ 1
 		f.create_dataset('idx',data=arr)
 
-	
-
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('cfg', help='detector configuration')	
-	parser.add_argument('sl', help='seed_location')
+	parser.add_argument('sl', help='seed_location in the form ri_o (i=inner, o=outer)')
 	args = parser.parse_args()	
 	sample = 500
 	distance = np.linspace(20,450,6)
-	cfg = args.cfg
+        cfg = args.cfg
+        config = detectorconfig.get_detector_config(cfg)
 	seed_loc = args.sl
 	in_shell = int(seed_loc[1])*1000
 	out_shell = int(seed_loc[3])*1000
 
 	data_file_dir = paths.get_data_file_path(cfg)
 	start_time = time.time()
-	sim,analyzer = sim_setup(cfg,paths.get_calibration_file_name(cfg))
+	sim,analyzer = utilities.sim_setup(config,paths.get_calibration_file_name(cfg))
 	print 'configuration loaded in %0.2f' %(time.time()-start_time)
-	bkg_dist_hist(sample,16000,sim,analyzer)
+
+        data_file_dir = paths.get_data_file_path(cfg)
+        data_path = data_file_dir + seed_loc
+
+	bkg_dist_hist(data_path,sample,16000,sim,analyzer)
 	print 's-site done'
 	for dst in distance:
-		fixed_dist_hist(dst,sample,16000,sim,analyzer)
+		fixed_dist_hist(data_path,dst,sample,16000,sim,analyzer)
 		print 'distance '+str(int(dst/10))+' done'
 	print time.time()-start_time
 

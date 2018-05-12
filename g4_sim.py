@@ -2,18 +2,20 @@ from mpl_toolkits.mplot3d import Axes3D
 from chroma.generator import vertex
 import matplotlib.pyplot as plt
 import h5py,time,argparse,os
-import nog4_sim as setup
+
 import paths
+import utilities
+import detectorconfig
 
 def gen_ev(sample,cfg,particle,energy,i_r,o_r):
 	seed_loc = 'r%i-%i'%(i_r,o_r)
-	data_file_dir = paths.get_data_file_path(cfg)
+	data_file_dir = paths.get_data_file_path(cfg.config_name)
 	if not os.path.exists(data_file_dir):
 		os.makedirs(data_file_dir)
         fname = data_file_dir+seed_loc+'_'+str(energy)+particle+'_'+'sim.h5'
-	sim,analyzer = setup.sim_setup(cfg, paths.get_calibration_file_name(cfg), useGeant4=True)
+	sim,analyzer = utilities.sim_setup(cfg, paths.get_calibration_file_name(cfg.config_name), useGeant4=True)
 	print 'configuration loaded'
-	location = setup.sph_scatter(sample,i_r*1000,o_r*1000)
+	location = utilities.sph_scatter(sample,i_r*1000,o_r*1000)
 	arr_tr, arr_depo = [],[]
 	with h5py.File(fname,'w') as f:
 		first = True
@@ -48,9 +50,9 @@ if __name__=='__main__':
 	args = parser.parse_args()
 	sample = 500
 	particle = args.particle
-	cfg = args.cfg
-	s_d = args.s_d
+        config = detectorconfig.get_detector_config(args.cfg)
+        s_d = args.s_d
 	energy = 2
 	start_time = time.time()
-	gen_ev(sample,cfg,particle,energy,int(s_d[0]),int(s_d[1]))
+	gen_ev(sample,config,particle,energy,int(s_d[0]),int(s_d[1]))
 	print time.time()-start_time
