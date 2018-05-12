@@ -30,7 +30,7 @@ class DetectorResponse(object):
         #self.edge_length, self.facecoords, self.direction, self.axis, self.angle, self.spin_angle = return_values(config.edge_length, config.base)
         self.pmtxbins = config.pmtxbins
         self.pmtybins = config.pmtybins
-        self.n_lens_sys = config.lens_count # Number of lens systems per face - XX TODO: not true anymore
+        self.n_lens_sys = config.lens_count # Number of lens systems per face - TODO: not true anymore
         self.detector_r = config.detector_r
         self.nsteps = config.ring_count
         #self.n_triangles_per_surf = int(2*self.nsteps*int((self.nsteps-2)/2.))
@@ -319,7 +319,7 @@ class DetectorResponse(object):
 
         return pmt_number, curved_surface_index, ring, pixel_number_in_ring
 
-	# TODO: Where and what for is this used??
+	# TODO: Used only in EventAnalyzer.generate_tracks()
     def find_pmt_bin_array_new(self, pos_array):
         closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array, max_dist=1.)
         pmts, lenses, rings, pixels = self._scaled_pmt_arr_surf(closest_triangle_index)
@@ -377,6 +377,7 @@ class DetectorResponse(object):
                 print("The following "+str(np.shape(bad_bins)[1])+" photons were not associated to a PMT: " + str(bad_bins))
                 print bad_bins
             return bin_array.astype(int)
+
     def find_closest_triangle_center(self, pos_array, max_dist = 1.):
         #print "Finding closest triangle centers..."
         if(max_dist == 1.):

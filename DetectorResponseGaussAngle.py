@@ -162,9 +162,8 @@ class DetectorResponseGaussAngle(DetectorResponse):
             loops = 0
             event_source = ev_file['photons_start'] if using_h5 else reader
             for index, ev_proxy in enumerate(event_source):  # Not sure if we can enumerate a reader????
-                # TODO: total hackery
+                # TODO: This needs to be cleaned up
                 if (using_h5):
-                    # Highly doubt this will work
                     photons_beg = Photons(ev_proxy, [], [], [])
                     photons_end = Photons(ev_file['photons_stop'][index], [], [], [], flags=ev_file['photon_flags'][index])
                 else:
@@ -259,7 +258,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
                 #with open(directory + bins_pickle_file, 'wb') as outf:
                 #    pickle.dump(pmt_photons, outf)
 
-				# TODO: Did pure h5 not work??
+				# TODO: Pure H5 does not work.  (Because?)
                 #with h5py.File(directory + bins_file + '.h5', 'w') as h5file:
                 #    _ = h5file.create_dataset('photon_pmts', data=pmt_photons, chunks=True)   # Should we assign max shape?
                 #logger.info('Type: ' + str(type(pmt_photons)) + ' ' + str(type(pmt_photons[0])))
