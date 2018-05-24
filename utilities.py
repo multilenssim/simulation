@@ -20,7 +20,7 @@ import pprint
 #import traceback
 
 from chroma.detector import Detector
-from chroma.camera import view
+#from chroma.camera import view
 import kabamland2 as kbl2
 import detectorconfig
 
@@ -318,26 +318,28 @@ def build_gun_specs(particle, position, momentum, energy):
 
 # A Distributed Imaging event file is a "deep dish" HDF5 file containing all of the data about this event
 # TODO:
-#   Need to add: config name, materials config
-#   There is currently much redundancy in the  hdf5 file format
-#   Need to make this support mutiple events
+#   Need to add: materials config
+#   Currently much redundancy in the  hdf5 file format
+#   Make this support mutiple events
 #   Test new format without tracks
-#   Check the config UUID
+#   Check the config UUID upon load or use
 
 '''
 HDF5 file structure:
     config_name
-    config: DetectorConfig object
+    config:         DetectorConfig object (pickled)
     gun_specs
         particle
         position
         momentum
         energy
-    track_tree: dict from chroma
-    tracks:
-    photons:
+    simulation_params:  TODO: not currently implemented
+    track_tree:     dict from chroma (pickled)
+    tracks:         output of EventAnalyzer.generate_tracks() (pickled)
+    photons:        event.photons_beg (pickled)
+    full_event:     full chroma event (pickled)
 
-# Original HDF5 fields:
+    # Original HDF5 file format fields:
     hit_pos:
     means:
     sigmas:

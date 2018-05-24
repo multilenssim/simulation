@@ -56,7 +56,7 @@ class DetectorResponse(object):
         #self.lens_inverse_rotated_displacement_matrix = self.build_lensplane_inverse_rotated_displacement_matrix()
         #new properties for curved surface detectors
 
-        # Temporarily comment this out to allow access to old calibration files
+        # Comment this out to allow access to old calibration files
         self.triangle_centers,self.n_triangles_per_surf,self.ring = get_curved_surf_triangle_centers(config.vtx, self.lns_rad, self.detector_r, self.focal_length, self.nsteps, config.base_pixels)
         self.triangle_centers_tree = spatial.cKDTree(self.triangle_centers)
         self.n_pmts_per_surf = int(self.n_triangles_per_surf/2.)
@@ -66,7 +66,7 @@ class DetectorResponse(object):
         else:
             self.npmt_bins = self.n_lens_sys*self.n_pmts_per_surf # One curved detecting surf for each lens system
 
-        # Temporarily comment this out to allow access to old calibration files
+        # Comment this out to allow access to old calibration files
         self.lens_centers = get_lens_triangle_centers(config.vtx, self.lns_rad, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
         self.lens_rad = config.half_EPD 
 
@@ -295,7 +295,7 @@ class DetectorResponse(object):
 
         mtx = (np.tile(2 * self.c_rings_rolled, (len(renorm_triangle), 1)).T - renorm_triangle).T
         pixels_outside_hit_ring = self.c_rings_rolled[np.argmax(mtx > 0, axis=1) - 1]   # TODO: This may not be the right name for this??
-        complicated = ((renorm_triangle - 2*pixels_outside_hit_ring) % self.ring[np.argmax(mtx>0,axis=1)-1])   # TODO this name is just giving up on understanding
+        complicated = ((renorm_triangle - 2*pixels_outside_hit_ring) % self.ring[np.argmax(mtx>0,axis=1)-1])   # TODO this variable name is just a placeholder
 
         pmt_number = complicated + pixels_outside_hit_ring + curved_surface_index*self.n_pmts_per_surf
 
@@ -319,7 +319,7 @@ class DetectorResponse(object):
 
         return pmt_number, curved_surface_index, ring, pixel_number_in_ring
 
-	# TODO: Used only in EventAnalyzer.generate_tracks()
+	# Currently used only in EventAnalyzer.generate_tracks()
     def find_pmt_bin_array_new(self, pos_array):
         closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array, max_dist=1.)
         pmts, lenses, rings, pixels = self._scaled_pmt_arr_surf(closest_triangle_index)
@@ -335,7 +335,7 @@ class DetectorResponse(object):
         return pmts, lenses, rings, pixels
 
     def find_pmt_bin_array(self, pos_array):
-        if(self.detector_r == 0):   # TODO: this code is appears to be specific to the icosahedron
+        if(self.detector_r == 0):   # This code is specific to the icosahedron
             # returns an array of global pmt bins corresponding to an array of end-positions
             length = np.shape(pos_array)[0]
             #facebin array is left as -1s, that way if a particular photon does not get placed onto a side, it gets ignored (including its pmt_position) in the checking stages at the bottom of this function.

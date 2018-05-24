@@ -10,7 +10,7 @@ from chroma.detector import Detector
 from chroma.sample import uniform_sphere
 from chroma import make, sample
 from chroma.event import Photons
-from chroma.camera import view
+#from chroma.camera import view
 
 import detectorconfig, lenssystem
 import lensmaterials as lm
@@ -264,7 +264,7 @@ def driver_funct(configname):
 	#build_pmt_icosahedron(kabamland, np.linalg.norm(config.vtx[0]), focal_length=config.focal_length)
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
-	view(kabamland)
+	#view(kabamland)
 
 if __name__ == '__main__':
 	driver_funct('cfSam1_K20_8_small')

@@ -1,6 +1,4 @@
-from mpl_toolkits.mplot3d import Axes3D
 from chroma.generator import vertex
-import matplotlib.pyplot as plt
 import h5py,time,argparse,os
 
 import paths

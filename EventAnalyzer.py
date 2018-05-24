@@ -17,8 +17,6 @@ from Tracks import Tracks, Vertex
 
 from logger_lfd import logger
 
-import pprint
-
 class EventAnalyzer(object):
     '''An EventAnalyzer has methods of reconstructing an event and gauging
     the performance of this reconstruction. There are multiple ways to do
@@ -233,7 +231,7 @@ class EventAnalyzer(object):
         
         # Find/fit vertices using adaptive vertex fitter method
         return self.AVF(tracks, min_tracks, chiC, temps, tol, debug) # list of Vertex objects
-            
+
     def AVF(self, tracks, min_tracks=4, chiC=3., temps=[256, 0.25], tol=1.0, debug=False):
         '''Adaptive vertex fitter algorithm to find vertex locations/uncertainties and which tracks 
         to associate with each vertex.
@@ -631,7 +629,7 @@ class EventAnalyzer(object):
                 counts = np.random.choice(len(arr_id))
             fltr = np.random.choice(arr_id,counts,replace=False)
             mask.extend(fltr)
-        return sorted(mask)   # TODO: At some point this became "gen[sorted(mask)]" - Which broke stuff
+        return sorted(mask)
 
     def generate_tracks(self, ev, qe=None, heat_map = False, sig_cone=0.01, n_ph=0, lens_dia=None, debug=False, detec=False):
         #Makes tracks for event ev; allow for multiple track representations?
@@ -756,7 +754,8 @@ class EventAnalyzer(object):
                 #tracks.sigmas[:] = 0.054 # Temporary! Checking if setting all sigmas equal to each other helps or hurts
             if heat_map:
                 if detec: return tracks, event_pmt_bin_array[msk],detected
-                return tracks
+                return tracks, event_pmt_bin_array[msk]
+            return tracks
 
     @staticmethod
     def get_weights(chi, chiC, Tm):

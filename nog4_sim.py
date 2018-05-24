@@ -1,10 +1,4 @@
-from DetectorResponseGaussAngle import DetectorResponseGaussAngle
-from chroma.detector import Detector, G4DetectorParameters
-from EventAnalyzer import EventAnalyzer
-from chroma.loader import load_bvh
-from chroma.sim import Simulation
-import time, h5py, os, argparse
-import lensmaterials as lm
+import time, h5py, argparse
 import kabamland2 as kbl
 import numpy as np
 import paths
