@@ -1,4 +1,4 @@
-from ShortIO.root_short import GaussAngleRootWriter, GaussAngleRootReader, ShortRootReader
+#from ShortIO.root_short import GaussAngleRootWriter, GaussAngleRootReader, ShortRootReader
 from DetectorResponse import DetectorResponse
 from chroma.transform import normalize
 
@@ -73,7 +73,8 @@ class DetectorResponseGaussAngle(DetectorResponse):
         self.sigmas = np.zeros(self.npmt_bins)
         self.configname = configname
         if infile is not None:
-            self.read_from_ROOT(infile)
+            try: self.read_from_ROOT(infile)
+            except NameError: pass
 
     def _find_photons_for_pmt(self, photons_beg_pos, photons_end_pos, detected, end_direction_array, n_det, max_storage):
         beginning_photons = photons_beg_pos[detected]       # Include reflected photons

@@ -8,7 +8,7 @@ import mpl_toolkits.axisartist as AA
 from mpl_toolkits.axes_grid1 import host_subplot
 from chroma.transform import normalize
 from chroma.sample import uniform_sphere
-from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader
+#from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader
 import time as time
 from DetectorResponse import DetectorResponse
 from DetectorResponsePDF import DetectorResponsePDF
@@ -701,7 +701,7 @@ class EventAnalyzer(object):
         else: # Detector is calibrated, use response to generate tracks
             try:
                 tracks = Tracks(event_lens_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = self.det_res.lens_rad)
-	        msk = tracks.sigmas>0.001
+	        msk = tracks.sigmas<0.001
                 tracks.cull(np.where(msk)) # Remove tracks with zero uncertainty (not calibrated)
                 if np.any(np.isnan(tracks.sigmas)):
                     print "Nan tracks!! Removing."
@@ -713,7 +713,7 @@ class EventAnalyzer(object):
                 print "Tracks for calibrated PMTs: " + str(len(tracks))
             #tracks.cull(np.where(tracks.sigmas<0.2)) # Remove tracks with too large uncertainty
             #tracks.sigmas[:] = 0.054 # Temporary! Checking if setting all sigmas equal to each other helps or hurts
-	    if heat_map == True:
+	    if heat_map:
                 if detec: return tracks, event_pmt_bin_array[msk],detected
 	        return tracks, event_pmt_bin_array[msk]
             return tracks     
@@ -722,7 +722,7 @@ class EventAnalyzer(object):
     def get_weights(chi, chiC, Tm):
         # Returns an array of weights, according to the AVF sigmoid weighting function
         return 1.0/(1.0+np.exp((chi**2-chiC**2)/(2*Tm)))
- 
+
     @staticmethod
     def get_track_fit_params(tracks, vtx, chiC, Tm):
         # Calculates distance, weight, and more for tracks being associated to vtx

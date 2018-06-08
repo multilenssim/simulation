@@ -1,10 +1,10 @@
 import platform
 
 # Note that the code assumes that there is a trailing '/' on these
-if platform.node().startswith('exo3'):
-    detector_pickled_path = '/home/jacopodalmasson/Desktop/dev/sphere/pickled_detectors/'
-    detector_calibration_path = '/home/jacopodalmasson/Desktop/dev/sphere/calibrations/'  # Path for the calibration files
-    data_files_path = '/home/jacopodalmasson/Desktop/dev/sphere/'      # Path for the simulation data files
+if platform.node().startswith('multilens'):
+    detector_pickled_path = '/home/jacopo/sphere/pickled_detectors/'
+    detector_calibration_path = '/home/jacopo/sphere/calibrations/'  # Path for the calibration files
+    data_files_path = '/home/jacopo/sphere/'      # Path for the simulation data files
 else:
     detector_pickled_path = '/chroma-data/configurations/'
     detector_calibration_path = '/chroma-data/configurations/'  # Path for the calibration files

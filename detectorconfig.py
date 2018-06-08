@@ -53,4 +53,6 @@ def get_dict_param(conf_fl,conf_name):
 # Newer configurations, including those with curved detecting surfaces and pre-made lens systems
 def configdict(conf_name):
 	fname  =  '%sconf_file.p'%detector_pickled_path
-	return DetectorConfig(get_dict_param(fname,conf_name)[0], get_dict_param(fname,conf_name)[1], get_dict_param(fname,conf_name)[2], get_dict_param(fname,conf_name)[3],0, 0, 1.0, lens_system_name='Sam1', EPD_ratio = get_dict_param(fname,conf_name)[4], light_confinement=True, nsteps=get_dict_param(fname,conf_name)[5],b_pixel=get_dict_param(fname,conf_name)[6])
+        try: lens_system_name = get_dict_param(fname,conf_name)[7]
+        except IndexError: lens_system_name = 'Sam1'
+	return DetectorConfig(get_dict_param(fname,conf_name)[0], get_dict_param(fname,conf_name)[1], get_dict_param(fname,conf_name)[2], get_dict_param(fname,conf_name)[3],0, 0, 1.0, lens_system_name=lens_system_name, EPD_ratio = get_dict_param(fname,conf_name)[4], light_confinement=True, nsteps=get_dict_param(fname,conf_name)[5],b_pixel=get_dict_param(fname,conf_name)[6])

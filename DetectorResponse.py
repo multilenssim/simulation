@@ -1,4 +1,4 @@
-from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader, AngleRootReader, AngleRootWriter
+#from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader, AngleRootReader, AngleRootWriter
 from kabamland2 import get_curved_surf_triangle_centers, get_lens_triangle_centers
 from chroma.transform import make_rotation_matrix, normalize
 from mpl_toolkits.mplot3d import Axes3D
@@ -320,11 +320,11 @@ class DetectorResponse(object):
             #print "Curved surface detector was selected."
             closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array)
 	    bin_array = self.scaled_pmt_arr_surf(closest_triangle_index)
-            bad_bins = np.array(np.where(np.array(bin_array) >= self.npmt_bins))
-            if np.size(bad_bins) > 0:
-				print "The following "+str(np.shape(bad_bins)[1])+" photons were not associated to a PMT: "
-				print bad_bins
-            return bin_array
+            bad_bins = np.array(bin_array) >= self.npmt_bins
+            if sum(bad_bins) > 0:
+				print "The following %s photons were not associated to a PMT: "%sum(bad_bins)
+				print np.where(bad_bins)[0]
+            return bin_array[np.logical_not(bad_bins)]
             
     def find_closest_triangle_center(self, pos_array, max_dist = 1.):
         #print "Finding closest triangle centers..."

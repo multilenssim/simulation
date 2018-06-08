@@ -87,7 +87,7 @@ if __name__ == '__main__':
 	parser.add_argument('lens_system_name',help='provide lens design')
 	args = parser.parse_args()
 	lens_system_name = args.lens_system_name
-	sph_rad = 800.0  #7556.0
+	sph_rad = 7556.0
 	b_pxl = int(raw_input('input number of pixels at the central ring: (more than 3) '))
 	n_lens = int(raw_input('input the number of lens assemblies: '))
 	EPD_ratio = float(raw_input('input the pupil ratio: '))
@@ -108,7 +108,7 @@ if __name__ == '__main__':
 		try:
 			with open(fname,'r') as f:
 				dct = pickle.load(f)
-			dct[conf_name] = [sph_rad,n_lens,max_rad,vtx,EPD_ratio,n_step,b_pxl]
+			dct[conf_name] = [sph_rad,n_lens,max_rad,vtx,EPD_ratio,n_step,b_pxl,lens_system_name]
 			with open(fname,'w') as f:
                                 pickle.dump(dct,f,protocol=pickle.HIGHEST_PROTOCOL)
 		except IOError:
