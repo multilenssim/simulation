@@ -702,7 +702,7 @@ class EventAnalyzer(object):
             try:
                 tracks = Tracks(event_lens_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = self.det_res.lens_rad)
 	        msk = tracks.sigmas<0.001
-                tracks.cull(np.where(msk)) # Remove tracks with zero uncertainty (not calibrated)
+                tracks.cull(np.where(np.logical_not(msk))) # Remove tracks with zero uncertainty (not calibrated)
                 if np.any(np.isnan(tracks.sigmas)):
                     print "Nan tracks!! Removing."
                     nan_tracks = np.where(np.isnan(tracks.sigmas))
