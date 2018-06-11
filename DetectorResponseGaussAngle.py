@@ -73,7 +73,6 @@ class DetectorResponseGaussAngle(DetectorResponse):
         DetectorResponse.__init__(self, config, detectorxbins, detectorybins, detectorzbins)
         self.means = np.zeros((3,self.npmt_bins))
         self.sigmas = np.zeros(self.npmt_bins)
-        # self.configname = configname # Duplicative with super class
         if infile is not None:
             logger.info('Creating detector response / calibration with: %s' % infile)
             if infile.endswith('.h5'):
@@ -81,7 +80,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
                 if self.config.uuid != self.config_in_cal_file.uuid:
                     logger.critical('UUID from calibration file does not match configuration: %s %s' % (self.config.uuid, self.config_in_cal_file.uuid))
                     exit(-1)
-                    # Raise an exception
+                    # TODO: Raise an exception
                 else:
                     logger.info('Calibration file UUID matches')
             else:
@@ -125,7 +124,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
         hit_file_exists = False
         n_min = 10 # Do not calibrate a PMT if <n_min photons hit it
         try:
-            logger.info('Attempting to load pickle hits file: %s%s' % (directory, pickle_name));      # XX TODO: This won't do anything because we no longer write this file
+            logger.info('Attempting to load pickle hits file: %s%s' % (directory, pickle_name));      # TODO: This generally won't do anything because we no longer write this file
             with open(directory + pickle_name, 'rb') as inf:
                 pmt_hits = pickle.load(inf)
             logger.info('Hit map pickle file loaded: ' + pickle_name)
@@ -163,9 +162,8 @@ class DetectorResponseGaussAngle(DetectorResponse):
             loops = 0
             event_source = ev_file['photons_start'] if using_h5 else reader
             for index, ev_proxy in enumerate(event_source):  # Not sure if we can enumerate a reader????
-                # total hackery
+                # TODO: This needs to be cleaned up
                 if (using_h5):
-                    # Highly doubt this will work
                     photons_beg = Photons(ev_proxy, [], [], [])
                     photons_end = Photons(ev_file['photons_stop'][index], [], [], [], flags=ev_file['photon_flags'][index])
                 else:
@@ -233,13 +231,14 @@ class DetectorResponseGaussAngle(DetectorResponse):
         pmt_bins.resize(n_det)
 
         if not hit_file_exists:
+			# TODO: No longer writing the pickle file
             # Write the pickle hits file regardless of whether using fast_calibration or not
-            pmt_hits = {'pmt_bins': pmt_bins, 'end_direction_array': end_direction_array}
+            #pmt_hits = {'pmt_bins': pmt_bins, 'end_direction_array': end_direction_array}
             #with open(directory+pickle_name, 'wb') as outf:
             #    pickle.dump(pmt_hits, outf)
             with h5py.File(directory + base_hits_file_name + '.h5', 'w') as h5file:
-                _ = h5file.create_dataset('pmt_bins', data=pmt_bins, chunks=True)   # Should we assign max shape?
-                _ = h5file.create_dataset('end_direction_array', data=end_direction_array, chunks=True)   # Should we assign max shape?
+                _ = h5file.create_dataset('pmt_bins', data=pmt_bins, chunks=True)   # TODO: Should we assign max shape?
+                _ = h5file.create_dataset('end_direction_array', data=end_direction_array, chunks=True)   # TODO: Should we assign max shape?
             logger.info('Hit map file created: ' + pickle_name)
 
         logger.info("Finished collecting photons (or loading photon hit list).  Time: " + str(time.time()-start_time))
@@ -248,20 +247,23 @@ class DetectorResponseGaussAngle(DetectorResponse):
             bins_base_file_name = self.configname + '-pmt-bins'
             bins_pickle_file = bins_base_file_name + '.pickle'
             try:
-                with open(directory + bins_pickle_file, 'rb') as inf:       # XX TODO: This won't do anything because we no longer write this file
+                with open(directory + bins_pickle_file, 'rb') as inf:       # TODO: This generally won't do anything because we no longer write this file
                     pmt_photons = pickle.load(inf)
                 logger.info('PMT photon list pickle file loaded: ' + bins_pickle_file)
             except IOError as error:
                 start_assign = time.time()
                 pmt_photons = assign_photons(self.npmt_bins, n_det, pmt_bins)
                 logger.info("assign_photons took: " + str(time.time() - start_assign))
+				# TODO: No longer writing the pickle file
                 #with open(directory + bins_pickle_file, 'wb') as outf:
                 #    pickle.dump(pmt_photons, outf)
-                logger.info('Type: ' + str(type(pmt_photons)) + ' ' + str(type(pmt_photons[0])))
-                dd.io.save(directory + bins_base_file_name + '.h5', pmt_photons)
+
+				# TODO: Pure H5 does not work.  (Because?)
                 #with h5py.File(directory + bins_file + '.h5', 'w') as h5file:
                 #    _ = h5file.create_dataset('photon_pmts', data=pmt_photons, chunks=True)   # Should we assign max shape?
-                logger.info('PMT photon list file created: ' + bins_pickle_file)
+                #logger.info('Type: ' + str(type(pmt_photons)) + ' ' + str(type(pmt_photons[0])))
+                dd.io.save(directory + bins_base_file_name + '.h5', pmt_photons)
+                logger.info('PMT photon list file created: ' + bins_base_file_name + '.h5')
 
         logger.info("Finished listing photons by pmt.  Time: " + str(time.time() - start_time))
 
@@ -510,4 +512,4 @@ class DetectorResponseGaussAngle(DetectorResponse):
         self.means = calibration['means']
         self.sigmas = calibration['sigmas']
         self.is_calibrated = True
-        self.config_in_cal_file = calibration['config']  # Hinky name to avoid overwriting config set in DetectorResponse.init() 
+        self.config_in_cal_file = calibration['config']  # Long variable name to avoid overwriting config set in DetectorResponse.init()

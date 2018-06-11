@@ -1,12 +1,12 @@
 import platform
 
-EXO_DATA_FILES = '/home/kwells/chroma-data/'
+EXO_DATA_DIR = '/home/kwells/chroma-data/'
 DEFAULT_CONFIG_DIR = 'configurations/'
 DEFAULT_SIMULATION_DIR = 'simulations/'
 JACOPO = False
 
-sherlock_data_files = '/home/groups/gratta/kwells/chroma-data/'
-aws_data_files = '/chroma-data/'
+SHERLOCK_DATA_FILES = '/home/groups/gratta/kwells/chroma-data/'
+AWS_DATA_FILES = '/chroma-data/'
 
 # Note that the code assumes that there is a trailing '/' on these
 if platform.node().startswith('exo3'):
@@ -15,17 +15,17 @@ if platform.node().startswith('exo3'):
         detector_calibration_path = '/home/jacopodalmasson/Desktop/dev/sphere/calibrations/'  # Path for the calibration files
         data_files_path = '/home/jacopodalmasson/Desktop/dev/sphere/'      # Path for the simulation data files
     else:
-        detector_config_path = EXO_DATA_FILES+DEFAULT_CONFIG_DIR
+        detector_config_path = EXO_DATA_DIR+DEFAULT_CONFIG_DIR
         detector_calibration_path = detector_config_path               # Path for the calibration files
-        data_files_path = EXO_DATA_FILES+DEFAULT_SIMULATION_DIR        # Path for the simulation data files
+        data_files_path = EXO_DATA_DIR+DEFAULT_SIMULATION_DIR        # Path for the simulation data files
 elif platform.node().startswith('multilens'):
-    detector_config_path = EXO_DATA_FILES+DEFAULT_CONFIG_DIR
+    detector_config_path = EXO_DATA_DIR+DEFAULT_CONFIG_DIR
     detector_calibration_path = detector_config_path               # Path for the calibration files
-    data_files_path = EXO_DATA_FILES+DEFAULT_SIMULATION_DIR        # Path for the simulation data files
+    data_files_path = EXO_DATA_DIR+DEFAULT_SIMULATION_DIR        # Path for the simulation data files
 else:
-    detector_config_path = aws_data_files+DEFAULT_CONFIG_DIR
+    detector_config_path = AWS_DATA_FILES+DEFAULT_CONFIG_DIR
     detector_calibration_path = detector_config_path                   # Path for the calibration files
-    data_files_path = aws_data_files+DEFAULT_SIMULATION_DIR            # Path for the simulation data files
+    data_files_path = AWS_DATA_FILES+DEFAULT_SIMULATION_DIR            # Path for the simulation data files
 
 def get_calibration_file_name_base_without_path(config,FV=''):               # To enable switching between ROOT and hdf5 files easily
     return 'detresang-'+config+'_1DVariance_100million'

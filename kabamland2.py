@@ -10,6 +10,7 @@ from chroma.detector import Detector
 from chroma.sample import uniform_sphere
 from chroma import make, sample
 from chroma.event import Photons
+#from chroma.camera import view
 
 import detectorconfig, lenssystem
 import lensmaterials as lm
@@ -50,9 +51,8 @@ def gaussian_sphere(pos, sigma, n):
     wavelengths = np.repeat(300.0, n)
     return Photons(pos, dir, pol, wavelengths) 
 
-def uniform_photons(edge_length, n):
+def uniform_photons(inscribed_radius, n):
     #constructs photons uniformly throughout the detector inside of the inscribed sphere.
-    inscribed_radius = edge_length    # This is really the radius of the detector
     radius_root = inscribed_radius*np.power(np.random.rand(n),1.0/3.0)
     theta = np.arccos(np.random.uniform(-1.0, 1.0, n))
     phi = np.random.uniform(0.0, 2*np.pi, n)
@@ -112,7 +112,14 @@ def get_assembly_xyz(mesh):
     return X, Y, Z 
 	
 def get_lens_triangle_centers(vtx, rad, diameter_ratio, thickness_ratio, half_EPD, blockers=True, blocker_thickness_ratio=1.0/1000, light_confinement=False, focal_length=1.0, lens_system_name=None):
-	"""input edge length of icosahedron 'edge_length', the number of small triangles in the base of each face 'base', the ratio of the diameter of each lens to the maximum diameter possible 'diameter_ratio' (or the fraction of the default such ratio, if a curved detector lens system), the ratio of the thickness of the lens to the chosen (not maximum) diameter 'thickness_ratio', the radius of the blocking entrance pupil 'half_EPD', and the ratio of the thickness of the blockers to that of the lenses 'blocker_thickness_ratio' to return the icosahedron of lenses in kabamland. Light_confinment=True adds cylindrical shells behind each lens that absorb all the light that touches them, so that light doesn't overlap between lenses. If lens_system_name is a string that matches one of the lens systems in lenssystem.py, the corresponding lenses and detectors will be built. Otherwise, a default simple lens will be built, with parameters hard-coded below."""
+	"""input edge length of icosahedron 'edge_length', the number of small triangles in the base of each face 'base',
+	   the ratio of the diameter of each lens to the maximum diameter possible 'diameter_ratio' (or the fraction of the default such ratio,
+	   if a curved detector lens system), the ratio of the thickness of the lens to the chosen (not maximum) diameter 'thickness_ratio',
+	   the radius of the blocking entrance pupil 'half_EPD', and the ratio of the thickness of the blockers to that of the lenses 'blocker_thickness_ratio'
+	   to return the icosahedron of lenses in kabamland. Light_confinment=True adds cylindrical shells behind each lens that
+	   absorb all the light that touches them, so that light doesn't overlap between lenses.
+	   If lens_system_name is a string that matches one of the lens systems in lenssystem.py, the corresponding lenses and detectors will be built.
+	   Otherwise, a default simple lens will be built, with parameters hard-coded below."""
 	# Get the list of lens meshes from the appropriate lens system as well as the lens material
 	scale_rad = rad*diameter_ratio
 	lenses = lenssystem.get_lens_mesh_list(lens_system_name, scale_rad)
@@ -133,7 +140,15 @@ def get_lens_triangle_centers(vtx, rad, diameter_ratio, thickness_ratio, half_EP
 
   
 def build_lens_icosahedron(kabamland, vtx, rad, diameter_ratio, thickness_ratio, half_EPD, blockers=True, blocker_thickness_ratio=1.0/1000, light_confinement=False, focal_length=1.0, lens_system_name=None):
-    """input edge length of icosahedron 'edge_length', the number of small triangles in the base of each face 'base', the ratio of the diameter of each lens to the maximum diameter possible 'diameter_ratio' (or the fraction of the default such ratio, if a curved detector lens system), the ratio of the thickness of the lens to the chosen (not maximum) diameter 'thickness_ratio', the radius of the blocking entrance pupil 'half_EPD', and the ratio of the thickness of the blockers to that of the lenses 'blocker_thickness_ratio' to return the icosahedron of lenses in kabamland. Light_confinment=True adds cylindrical shells behind each lens that absorb all the light that touches them, so that light doesn't overlap between lenses. If lens_system_name is a string that matches one of the lens systems in lenssystem.py, the corresponding lenses and detectors will be built. Otherwise, a default simple lens will be built, with parameters hard-coded below.
+    """input edge length of icosahedron 'edge_length',
+       the number of small triangles in the base of each face 'base',
+       the ratio of the diameter of each lens to the maximum diameter possible 'diameter_ratio' (or the fraction of the default such ratio,
+       if a curved detector lens system), the ratio of the thickness of the lens to the chosen (not maximum) diameter 'thickness_ratio',
+       the radius of the blocking entrance pupil 'half_EPD',
+       and the ratio of the thickness of the blockers to that of the lenses 'blocker_thickness_ratio'
+       to return the icosahedron of lenses in kabamland. Light_confinment=True adds cylindrical shells behind each lens that absorb all the light that touches them,
+       so that light doesn't overlap between lenses. If lens_system_name is a string that matches one of the lens systems in lenssystem.py,
+       the corresponding lenses and detectors will be built. Otherwise, a default simple lens will be built, with parameters hard-coded below.
     """
     # Get the list of lens meshes from the appropriate lens system as well as the lens material'''
     scale_rad = rad*diameter_ratio #max_radius->rad of the lens assembly
@@ -170,8 +185,11 @@ def calc_steps(x_value,y_value,detector_r,base_pixel):
 	y_coord = np.asarray([y_value,np.roll(y_value,-1)]).T[:-1]
 	lat_area = 2*np.pi*detector_r*(y_coord[:,0]-y_coord[:,1])
 	n_step = (lat_area/lat_area[-1]*base_pixel).astype(int)
+	# print('Pixel areas per ring: %s' % str(lat_area / n_step))
+	# print('Coords: %s %s' % (x_coord, y_coord))
+	# print('Values: %s %s' % (x_value, y_value))
 	return x_coord, y_coord, n_step
-    
+
 def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=8,base_pxl=4,ret_arr=False):
     '''Builds a curved surface based on the specified radius. Origin is center of surface.'''
     if (detector_r < diameter/2.0):
@@ -179,6 +197,7 @@ def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=8,base_pxl=4,ret_arr=
     shift1 = np.sqrt(detector_r**2 - (diameter/2.0)**2)
     theta1 = np.arctan(shift1/(diameter/2.0))
     angles1 = np.linspace(theta1, np.pi/2, nsteps)
+    # print('Parameters: %f %f %s' % (shift1, theta1, str(angles1)))
     x_value = abs(detector_r*np.cos(angles1))
     y_value = detector_r-detector_r*np.sin(angles1)
     surf = None 
@@ -229,7 +248,7 @@ def build_kabamland(kabamland, config):
     # focal_length sets dist between lens plane and PMT plane (or back of curved detecting surface);
     #(need not equal true lens focal length)
 
-    # These are not really building the icosahedron right?
+    # TODO: These are not really building the icosahedron right?
     build_lens_icosahedron(kabamland, config.vtx, config.half_EPD/config.EPD_ratio, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
     build_curvedsurface_icosahedron(kabamland, config.vtx, config.half_EPD/config.EPD_ratio, config.diameter_ratio, focal_length=config.focal_length, detector_r=config.detector_r, nsteps=config.ring_count, b_pxl=config.base_pixels)
     build_pmt_icosahedron(kabamland, np.linalg.norm(config.vtx[0]), focal_length=config.focal_length) # Built further out, just as a way of stopping photons    
@@ -245,7 +264,7 @@ def driver_funct(configname):
 	#build_pmt_icosahedron(kabamland, np.linalg.norm(config.vtx[0]), focal_length=config.focal_length)
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
-	view(kabamland)     # No longer exists!!
+	#view(kabamland)
 
 if __name__ == '__main__':
 	driver_funct('cfSam1_K20_8_small')

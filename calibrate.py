@@ -68,14 +68,15 @@ def _full_detector_simulation(config, amount, simname, datadir=""):
                 ev_index += 1
 
                 if USE_ROOT:
-                    # For now, write both hdf5 and ROOT simulation files
+                    # In this case, write both hdf5 and ROOT simulation files
                     f.write_event(ev)
             logger.info('Memory size: %d MB' % (process.memory_info().rss // 1000000))
 
     if USE_ROOT:
         f.close()
 
-    # This is what we were writing to the deepdish file: Centralize this sort of stuff
+    # This is what we were writing to the deepdish file
+	# TODO: Centralize this sort of stuff
     #h5_dict = {'config': config, 'photons_start': photons_start_pos, 'photons_stop': photons_stop_pos, 'photon_flags': photon_flags}
 
 # From detectoranalysis - TODO: remove it from there
@@ -93,7 +94,7 @@ def _calibrate(config, photons_file, detresname, detxbins=10, detybins=10, detzb
     logger.info("=== Detector analysis calibration complete.  Writing calibration file")
 
     if USE_ROOT:
-        # For now, write both hdf5 and ROOT files
+        # In this case write both hdf5 and ROOT files
         dr.write_to_ROOT(datadir + detresname + '.root')
 
     # Config dict is just included for human readability (currently)

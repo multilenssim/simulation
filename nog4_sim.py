@@ -140,7 +140,7 @@ if __name__ == '__main__':
 	bkg_dist_hist(sample,16000,sim,analyzer)
 	print 's-site done'
 	for dst in distance:
-		fixed_dist_hist(dst,sample,16000,sim,analyzer)
+		fixed_dist_hist(data_path,dst,sample,16000,sim,analyzer)
 		print 'distance '+str(int(dst/10))+' done'
 	'''
 	print time.time()-start_time

@@ -233,7 +233,7 @@ class EventAnalyzer(object):
         
         # Find/fit vertices using adaptive vertex fitter method
         return self.AVF(tracks, min_tracks, chiC, temps, tol, debug) # list of Vertex objects
-            
+
     def AVF(self, tracks, min_tracks=4, chiC=3., temps=[256, 0.25], tol=1.0, debug=False):
         '''Adaptive vertex fitter algorithm to find vertex locations/uncertainties and which tracks 
         to associate with each vertex.
@@ -250,7 +250,7 @@ class EventAnalyzer(object):
             are fed back to the algorithm to find the next vertex.
             If min_tracks<1, use as a fraction of the total event's tracks.
         '''
-        WEIGHT_CUT = 0.50  # Initially was 0.50
+        WEIGHT_CUT = 0.50
 
         # Get an array of voxel positions within the detector, for repeated use
         bin_pos_array = np.array(self.det_res.bin_to_position_array())  # Returns 10x10x10 = 1000 coordinate positions
@@ -259,7 +259,7 @@ class EventAnalyzer(object):
         # Only used for analytic (matrix) solution, not numpy's fmin() optimization function
         vtx_scale_factor = 0.5
 
-	# Sets whether to use Gauss probability (additive) or NLL (additive, equivalent to multiplying probs)
+        # Sets whether to use Gauss probability (additive) or NLL (additive, equivalent to multiplying probs)
         doNLL = False
 
         vtcs = [] # List of vertices found
@@ -586,8 +586,8 @@ class EventAnalyzer(object):
             logger.info('>>>>>>>> Remaining tracks: %d' % len(tracks))
 
             # Check that vertex has a (normalized) objective function less than qual*chiC
-            qual = 0.5
-            #qual = 2 
+            qual = 0.95
+            #qual = 2
             _, _, _, _, _, obj_fin = self.get_track_fit_params(trx_assoc, vtx, chiC, 1.0)
             if debug:
                 print 'obj_fin (uses only associated tracks): %f / %f' % (obj_fin, qual*chiC)
@@ -597,7 +597,7 @@ class EventAnalyzer(object):
                 vtx.n_ph = len(trx_assoc)
                 vtcs.append(vtx)
             else: # If the vertex quality is poor or has too few tracks, stop looking for more vertices
-                print('Vertex quality too poor / too few tracks: %f, Targets: %f %d. Dropping and quitting.' % (obj_fin, qual*chiC, min_tracks))
+                logger.info('Vertex quality too poor / too few tracks: %f, Targets: %f %d. Dropping and quitting.' % (obj_fin, qual*chiC, min_tracks))
                 break
         
         # Restrict to unique vertices (distance > tol; only position is relevant for this step)
@@ -637,7 +637,7 @@ class EventAnalyzer(object):
 
         # Find index of closest vertex for each track
         if len(dists) == 0:
-            print('AVF: no vertices found')
+            logger.info('AVF: no vertices found')
             return None
 
         vtx_closest = np.argmin(dists, axis=0)
@@ -719,7 +719,7 @@ class EventAnalyzer(object):
         return tracks
     '''
 
-    def generate_tracks(self, ev, qe=None, heat_map=False, sig_cone=0.0001, n_ph=0, lens_dia=None, debug=True):
+    def generate_tracks(self, ev, qe=None, heat_map = False, sig_cone=0.01, n_ph=0, lens_dia=None, debug=False, detec=False):
         #Makes tracks for event ev; allow for multiple track representations?
         detected = (ev.photons_end.flags & (0x1 <<2)).astype(bool)
         logger.info('Detected: ' + str(detected))
@@ -749,11 +749,12 @@ class EventAnalyzer(object):
         end_direction_array = normalize(ending_photons-beginning_photons).T
         event_pmt_bin_array, lenses, rings, pixels = np.array(self.det_res.find_pmt_bin_array_new(ending_photons)) # Get PMT hit indices
 
-        #qe=1 # Just a test
         if qe == None:
             pass
         else:
             mask = self.QE(event_pmt_bin_array,qe)
+            logger.info('Mask count: %d, qe: %f, original length: %d' % (len(mask), qe, len(event_pmt_bin_array)))
+            logger.info('Mask: %s' % str(mask))
             event_pmt_bin_array = event_pmt_bin_array[mask]
             lenses = lenses[mask]
             rings = rings[mask]
@@ -772,7 +773,7 @@ class EventAnalyzer(object):
             # If lens_dia is not given, only include angular noise of sig_cone
             sigmas = np.zeros(length)
             if lens_dia is None:
-                logger.info('No lens diameter.  Using sig_cone only: %f' % sig_cone) 
+                logger.info('No lens diameter.  Using sig_cone only: %f' % sig_cone)
                 sigmas.fill(sig_cone)
                 sig_th = sig_cone
                 hit_pos = event_pmt_pos_array
@@ -819,30 +820,34 @@ class EventAnalyzer(object):
             tracks = Tracks(hit_pos, means, sigmas, qe=qe)
             #self.plot_tracks(tracks)
             return tracks
-
         else: # Detector is calibrated, use response to generate tracks
-            tracks = Tracks(event_lens_pos_array,
-                            self.det_res.means[:,event_pmt_bin_array],
-                            self.det_res.sigmas[event_pmt_bin_array],
-                            lens_rad = self.det_res.lens_rad,
-                            lenses=lenses,
-                            rings=rings,
-                            pixels_in_ring=pixels,
-                            qe=qe)
-            #tracks = Tracks(event_pmt_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = 0.0000001)   
-            msk = tracks.sigmas > 0.001
-            tracks.cull(np.where(msk)) # Remove tracks with zero uncertainty (not calibrated)
-            if np.any(np.isnan(tracks.sigmas)):
-                print "Nan tracks!! Removing."
-                nan_tracks = np.where(np.isnan(tracks.sigmas))
-                tracks.cull(nan_tracks)
+            try:
+                tracks = Tracks(event_lens_pos_array,
+                                self.det_res.means[:,event_pmt_bin_array],
+                                self.det_res.sigmas[event_pmt_bin_array],
+                                lens_rad = self.det_res.lens_rad,
+                                lenses=lenses,
+                                rings=rings,
+                                pixels_in_ring=pixels,
+                                qe=qe)
+                #tracks = Tracks(event_pmt_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = 0.0000001)
+                msk = tracks.sigmas > 0.001
+                tracks.cull(np.where(msk)) # Remove tracks with zero uncertainty (not calibrated)
+                if np.any(np.isnan(tracks.sigmas)):
+                    print "Nan tracks!! Removing."
+                    nan_tracks = np.where(np.isnan(tracks.sigmas))
+                    tracks.cull(nan_tracks)
+            except IndexError:
+                return None
+
             if debug:
                 print "Tracks for calibrated PMTs: " + str(len(tracks))
-            #tracks.cull(np.where(tracks.sigmas<0.2)) # Remove tracks with too large uncertainty
-            #tracks.sigmas[:] = 0.054 # Temporary! Checking if setting all sigmas equal to each other helps or hurts
-        if heat_map:
-            return tracks, event_pmt_bin_array[msk]
-        return tracks
+                #tracks.cull(np.where(tracks.sigmas<0.2)) # Remove tracks with too large uncertainty
+                #tracks.sigmas[:] = 0.054 # Temporary! Checking if setting all sigmas equal to each other helps or hurts
+            if heat_map:
+                if detec: return tracks, event_pmt_bin_array[msk],detected
+                return tracks, event_pmt_bin_array[msk]
+            return tracks
 
     @staticmethod
     def get_weights(chi, chiC, Tm):
@@ -884,7 +889,7 @@ class EventAnalyzer(object):
         obj = np.sum(wt*chi**2)/np.sum(wt) # Get current value of objective function
         return r, sig, d, chi, wt, obj
  
-    # Move to utilities
+    # TODO: Move to utilities
     def plot_tracks(self, _tracks, pts=None, highlight_pt=None, path=None, show=True, skip_interval=200):
         # Returns a 3D plot of tracks (a Tracks object), as lines extending from their 
         # PMT hit position to the inscribed diameter of the detector. 
@@ -894,7 +899,7 @@ class EventAnalyzer(object):
 
         hit_pos = _tracks.hit_pos.T[0::skip_interval].T
         means = _tracks.means.T[0::skip_interval].T
-        end_pts = hit_pos + (1.5 * self.det_res.inscribed_radius * means)  # Shouldn't need to go to 1.5 here to get the tracks to cross?
+        end_pts = hit_pos + (1.5 * self.det_res.inscribed_radius * means)  # TODO: Shouldn't need to go to 1.5 here to get the tracks to cross?
         logger.info('Plotting %d tracks' % len(hit_pos[0]))
 
         xs = np.vstack((hit_pos[0, :], end_pts[0, :]))

@@ -5,7 +5,7 @@ import uuid
 
 from lenssystem import get_system_measurements
 import detectorconfig as dc
-from detectorconfig import DetectorConfig  # For Pickle reading ???
+from detectorconfig import DetectorConfig  # Note: This is required for the pickle file reading, despite the fact that it is not explicitly referenced
 
 def calc_steps(x_value,y_value,detector_r,n_lens_pixel):
         x_coord = np.asarray([x_value,np.roll(x_value,-1)]).T[:-1]
@@ -27,9 +27,9 @@ def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=20,n_lens_pxl=4):
     # x_coord,y_coord,n_step = calc_steps(x_value,y_value,detector_r,n_lens_pixel=n_lens_pxl) # This is redundant??
     return calc_steps(x_value,y_value,detector_r,n_lens_pxl)
 
-# Something like: for a given number of lenses and lens radius (or max radius) and detector radius
-#   Compute the total number of pixels each for from 2 to 45 rings
-#   And then pick the closest one to 100,000 pixels total
+# This is something like: for a given number of lenses and lens radius (or max radius) and detector radius
+#     Compute the total number of pixels each for from 2 to 45 rings
+#     And then pick the closest one to 100,000 pixels total
 def param_arr(n_lens,b_pxl,l_sys,detec_r,max_rad,target_pixel_count):
 	if l_sys == 'Jiani3':
 		scal_lens = 488.0/643.0
@@ -104,8 +104,8 @@ if __name__ == '__main__':
     ring_count,tot_pxl = param_arr(n_lens,b_pxl,lens_system_name,dtc_r,max_rad,target_pixels)
 
     config = dc.DetectorConfig(sph_rad, n_lens, max_rad, vtx,
-                               1.0,    # Is diameter ratio always 1.0?
-                               ring_count,   # XX This may be off by 1?
+                               1.0,    			# TODO: Is diameter ratio always 1.0?
+                               ring_count,   	# This is actually the ring boundary count, which is one more than the number of actual rings of pixels
                                thickness_ratio=0.25,
                                blockers=True,
                                blocker_thickness_ratio=1.0/1000,

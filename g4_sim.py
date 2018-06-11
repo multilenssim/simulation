@@ -1,11 +1,13 @@
 from chroma.generator import vertex
-
 import h5py,time,argparse
 import os
 import sys
 
 import pycuda.driver as cuda
+
 import paths
+import utilities
+import detectorconfig
 
 from multiprocessing import Pool, TimeoutError
 from multiprocessing.pool import ThreadPool

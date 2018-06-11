@@ -56,7 +56,7 @@ class DetectorConfig(object):
         self.light_confinement = light_confinement
         self.ring_count = ring_count # number of steps to generate curved detecting surface - sets number of PMTs - I think this is now the number of rings
         self.base_pixels = b_pixel # number of pixels in the first ring (active only with NEW PIXELIZATION)
-        self.vtx = vtx
+        self.vtx = vtx    # List of vertices of each lens
         self.tot_pixels = tot_pixels
         if the_uuid is None:
             self.uuid = uuid.uuid1()
