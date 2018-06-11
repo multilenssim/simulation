@@ -376,7 +376,7 @@ class DetectorResponse(object):
             #surface_pmt_index = [((x % self.n_triangles_per_surf) % (self.n_pmts_per_surf)) for x in closest_triangle_index]
             #bin_array = [((x*self.n_pmts_per_surf) + y) for x,y in zip(curved_surface_index,surface_pmt_index)]
             ba2 = np.asarray(bin_array)
-            bad_bins = np.asarray(np.where(ba2 >= self.npmt_bins))  # Why does this have to be an array inside of an array?  How to convert a tuple into an array? asarray() shuld do it
+            bad_bins = np.asarray(np.where(ba2 >= self.npmt_bins))  # TODO: Why does this have to be an array inside of an array?  How to convert a tuple into an array? asarray() shuld do it
             #print np.array(bin_array) >= n_pmts_total
             #print np.extract((np.array(bin_array) >= n_pmts_total), bin_array)
             if np.size(bad_bins) > 0:

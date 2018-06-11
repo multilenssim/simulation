@@ -838,6 +838,7 @@ class EventAnalyzer(object):
                     nan_tracks = np.where(np.isnan(tracks.sigmas))
                     tracks.cull(nan_tracks)
             except IndexError:
+                logger.error('Index eror.  Uh oh.')
                 return None
 
             if debug:

@@ -8,7 +8,6 @@ from numba import jit
 import time
 import pickle
 import h5py
-import deepdish as dd
 
 import linalg_3
 from logger_lfd import logger
