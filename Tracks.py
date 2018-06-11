@@ -1,17 +1,24 @@
 import numpy as np
+from logger_lfd import logger
 
+# Currently only used by Event Analyzer
 class Tracks(object):
     '''A Tracks object contains a list of photon tracks and their uncertainties, working
     backward from their point of detection. The current implementation represents them as
     a hit position, a direction (in 3D), and an uncertainty on the transverse position,
     normalized to unit length (so the track profile is a cone).
     '''
-    def __init__(self, hit_pos, means, sigmas, lens_rad = 0):
+    def __init__(self, hit_pos, means, sigmas, lenses=None, rings=None, pixels_in_ring=None, lens_rad=0, qe=None):
         self.hit_pos = hit_pos # (3, n) numpy array
         self.means = means # (3, n) numpy array
         self.sigmas = sigmas # (n,) numpy array
+        self.lenses = lenses
+        self.rings = rings
+        self.pixels_in_rings = pixels_in_ring
         self.lens_rad = lens_rad
-        
+        self.qe = qe
+        self.printed_warning = False
+
     def __len__(self):
         #Returns the number of tracks in self.
         return len(self.sigmas)
@@ -25,15 +32,21 @@ class Tracks(object):
     def cull(self, ind_remain):
         # Reduces tracks to only those with indices in ind_remain
         ind_remain = np.unique(ind_remain)
+        #logger.info('Culling: %d tracks' % (len(self.hit_pos[0]) - len(ind_remain)))
         self.hit_pos = self.hit_pos[:,ind_remain]
         self.means = self.means[:,ind_remain]
         self.sigmas = self.sigmas[ind_remain]
-        
+        if self.lenses is not None:   # Use lenses as a proxy None check for the others
+            self.lenses = self.lenses[ind_remain]
+            self.rings = self.rings[ind_remain]
+            self.pixels_in_rings = self.pixels_in_rings[ind_remain]
+
     def closest_pts_sigmas(self, v):
-        if self.lens_rad == 0: 
-			print "lens_rad is still 0!!!" 
-        #else: 
-			#print "right lens_rad used:	", self.lens_rad 
+        if self.lens_rad == 0 and (not hasattr(self,'printed_warning') or not self.printed_warning):
+            print "lens_rad is still 0!!!"
+            self.printed_warning = True
+        #else:
+            #print "right lens_rad used:	", self.lens_rad
         # Returns an array of positions along the tracks closest to Vertex v, along with
         # an array of the sigmas scaled by the distance along the track to that point
         r_vec = (v.pos - self.hit_pos.T).T

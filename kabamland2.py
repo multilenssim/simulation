@@ -1,25 +1,20 @@
-from chroma.geometry import Geometry, Material, Mesh, Solid, Surface
-from chroma.transform import make_rotation_matrix, normalize
-from chroma.detector import Detector, G4DetectorParameters
-from chroma.demo.optics import glass, black_surface
-from ShortIO.root_short import ShortRootWriter
-from chroma.sample import uniform_sphere
+import matplotlib.pyplot as plt
 from matplotlib.tri import Triangulation
 from mpl_toolkits.mplot3d import Axes3D
-from chroma import make, view, sample
-from contextlib import contextmanager
-from chroma.generator import vertex
-from chroma.loader import load_bvh
-from chroma.sim import Simulation
-import detectorconfig, lenssystem
-from chroma.pmt import build_pmt
+import numpy as np
+
+from chroma.geometry import Solid
+from chroma.transform import make_rotation_matrix, normalize
+from chroma.demo.optics import glass, black_surface
+from chroma.detector import Detector
+from chroma.sample import uniform_sphere
+from chroma import make, sample
 from chroma.event import Photons
-import matplotlib.pyplot as plt
+#from chroma.camera import view
+
+import detectorconfig, lenssystem
 import lensmaterials as lm
 import meshhelper as mh
-import numpy as np
-import pickle, os
-import paths
 
 inputn = 16.0
 
@@ -56,9 +51,8 @@ def gaussian_sphere(pos, sigma, n):
     wavelengths = np.repeat(300.0, n)
     return Photons(pos, dir, pol, wavelengths) 
 
-def uniform_photons(edge_length, n):
+def uniform_photons(inscribed_radius, n):
     #constructs photons uniformly throughout the detector inside of the inscribed sphere.
-    inscribed_radius = edge_length
     radius_root = inscribed_radius*np.power(np.random.rand(n),1.0/3.0)
     theta = np.arccos(np.random.uniform(-1.0, 1.0, n))
     phi = np.random.uniform(0.0, 2*np.pi, n)
@@ -73,12 +67,23 @@ def uniform_photons(edge_length, n):
     wavelengths = np.repeat(300.0, n)
     return Photons(pos, dir, pol, wavelengths) 
 
+def constant_photons(pos, n):
+    #constructs photons at one location with random propagation directions
+    points = np.empty((n,3))
+    points[:] = pos
+    pos = points
+    dir = uniform_sphere(n)
+    pol = np.cross(dir, uniform_sphere(n))
+    #300 nm is roughly the pseudocumene scintillation wavelength
+    wavelengths = np.repeat(300.0, n)
+    return Photons(pos, dir, pol, wavelengths)
+
 def plot_mesh_object(mesh, centers=[[0,0,0]]): 
     fig = plt.figure(figsize=(10, 8))
     ax = fig.gca(projection='3d')
-	
-    centers = np.array(centers) 
-	
+
+    centers = np.array(centers)
+
     ax.set_xlabel('X Label')
     ax.set_ylabel('Y Label')
     ax.set_zlabel('Z Label')
@@ -107,13 +112,18 @@ def get_assembly_xyz(mesh):
     return X, Y, Z 
 	
 def get_lens_triangle_centers(vtx, rad, diameter_ratio, thickness_ratio, half_EPD, blockers=True, blocker_thickness_ratio=1.0/1000, light_confinement=False, focal_length=1.0, lens_system_name=None):
-	"""input edge length of icosahedron 'edge_length', the number of small triangles in the base of each face 'base', the ratio of the diameter of each lens to the maximum diameter possible 'diameter_ratio' (or the fraction of the default such ratio, if a curved detector lens system), the ratio of the thickness of the lens to the chosen (not maximum) diameter 'thickness_ratio', the radius of the blocking entrance pupil 'half_EPD', and the ratio of the thickness of the blockers to that of the lenses 'blocker_thickness_ratio' to return the icosahedron of lenses in kabamland. Light_confinment=True adds cylindrical shells behind each lens that absorb all the light that touches them, so that light doesn't overlap between lenses. If lens_system_name is a string that matches one of the lens systems in lenssystem.py, the corresponding lenses and detectors will be built. Otherwise, a default simple lens will be built, with parameters hard-coded below."""
+	"""input edge length of icosahedron 'edge_length', the number of small triangles in the base of each face 'base',
+	   the ratio of the diameter of each lens to the maximum diameter possible 'diameter_ratio' (or the fraction of the default such ratio,
+	   if a curved detector lens system), the ratio of the thickness of the lens to the chosen (not maximum) diameter 'thickness_ratio',
+	   the radius of the blocking entrance pupil 'half_EPD', and the ratio of the thickness of the blockers to that of the lenses 'blocker_thickness_ratio'
+	   to return the icosahedron of lenses in kabamland. Light_confinment=True adds cylindrical shells behind each lens that
+	   absorb all the light that touches them, so that light doesn't overlap between lenses.
+	   If lens_system_name is a string that matches one of the lens systems in lenssystem.py, the corresponding lenses and detectors will be built.
+	   Otherwise, a default simple lens will be built, with parameters hard-coded below."""
 	# Get the list of lens meshes from the appropriate lens system as well as the lens material
 	scale_rad = rad*diameter_ratio
 	lenses = lenssystem.get_lens_mesh_list(lens_system_name, scale_rad)
-	lensmat = lenssystem.get_lens_material(lens_system_name)
 	lens_mesh = None
-	lens_centers = [] 	
 	for lns in lenses: # Add all the lenses for the first lens system to solid 'face'
 		if not lens_mesh:
 			lens_mesh = lns
@@ -130,36 +140,44 @@ def get_lens_triangle_centers(vtx, rad, diameter_ratio, thickness_ratio, half_EP
 
   
 def build_lens_icosahedron(kabamland, vtx, rad, diameter_ratio, thickness_ratio, half_EPD, blockers=True, blocker_thickness_ratio=1.0/1000, light_confinement=False, focal_length=1.0, lens_system_name=None):
-    """input edge length of icosahedron 'edge_length', the number of small triangles in the base of each face 'base', the ratio of the diameter of each lens to the maximum diameter possible 'diameter_ratio' (or the fraction of the default such ratio, if a curved detector lens system), the ratio of the thickness of the lens to the chosen (not maximum) diameter 'thickness_ratio', the radius of the blocking entrance pupil 'half_EPD', and the ratio of the thickness of the blockers to that of the lenses 'blocker_thickness_ratio' to return the icosahedron of lenses in kabamland. Light_confinment=True adds cylindrical shells behind each lens that absorb all the light that touches them, so that light doesn't overlap between lenses. If lens_system_name is a string that matches one of the lens systems in lenssystem.py, the corresponding lenses and detectors will be built. Otherwise, a default simple lens will be built, with parameters hard-coded below.
+    """input edge length of icosahedron 'edge_length',
+       the number of small triangles in the base of each face 'base',
+       the ratio of the diameter of each lens to the maximum diameter possible 'diameter_ratio' (or the fraction of the default such ratio,
+       if a curved detector lens system), the ratio of the thickness of the lens to the chosen (not maximum) diameter 'thickness_ratio',
+       the radius of the blocking entrance pupil 'half_EPD',
+       and the ratio of the thickness of the blockers to that of the lenses 'blocker_thickness_ratio'
+       to return the icosahedron of lenses in kabamland. Light_confinment=True adds cylindrical shells behind each lens that absorb all the light that touches them,
+       so that light doesn't overlap between lenses. If lens_system_name is a string that matches one of the lens systems in lenssystem.py,
+       the corresponding lenses and detectors will be built. Otherwise, a default simple lens will be built, with parameters hard-coded below.
     """
-	# Get the list of lens meshes from the appropriate lens system as well as the lens material'''
+    # Get the list of lens meshes from the appropriate lens system as well as the lens material'''
     scale_rad = rad*diameter_ratio #max_radius->rad of the lens assembly
     lenses = lenssystem.get_lens_mesh_list(lens_system_name, scale_rad)
     lensmat = lenssystem.get_lens_material(lens_system_name)
     face = None
     for lns in lenses:
-    	#lns = mh.rotate(lns,make_rotation_matrix(ph,ax)) 
+        #lns = mh.rotate(lns,make_rotation_matrix(ph,ax))
         if not face:
-        	face = Solid(lns, lensmat, kabamland.detector_material)
-       	else:
-        	face += Solid(lns, lensmat, kabamland.detector_material)
+            face = Solid(lns, lensmat, kabamland.detector_material)
+        else:
+            face += Solid(lns, lensmat, kabamland.detector_material)
 
     if light_confinement:
-	shield = mh.rotate(cylindrical_shell(rad*(1 - 0.001), rad, focal_length,32), make_rotation_matrix(np.pi/2.0, (1,0,0)))
-	baffle = Solid(shield, lensmat, kabamland.detector_material, black_surface, 0xff0000)
+        shield = mh.rotate(cylindrical_shell(rad*(1 - 0.001), rad, focal_length,32), make_rotation_matrix(np.pi/2.0, (1,0,0)))
+        baffle = Solid(shield, lensmat, kabamland.detector_material, black_surface, 0xff0000)
 
     if blockers:
-    	blocker_thickness = 2*rad*blocker_thickness_ratio
-    	if half_EPD < rad:
-		c1 = lenssystem.get_lens_sys(lens_system_name).c1*lenssystem.get_scale_factor(lens_system_name,scale_rad)
-		offset = [0,0,c1-np.sqrt(c1*c1-rad*rad)]
-        	anulus_blocker = mh.shift(mh.rotate(cylindrical_shell(half_EPD, rad, blocker_thickness, 32), make_rotation_matrix(np.pi/2.0, (1,0,0))),offset)
-		face += Solid(anulus_blocker, lensmat, kabamland.detector_material, black_surface, 0xff0000)
+        blocker_thickness = 2*rad*blocker_thickness_ratio
+        if half_EPD < rad:
+            c1 = lenssystem.get_lens_sys(lens_system_name).c1*lenssystem.get_scale_factor(lens_system_name,scale_rad)
+            offset = [0,0,c1-np.sqrt(c1*c1-rad*rad)]
+            anulus_blocker = mh.shift(mh.rotate(cylindrical_shell(half_EPD, rad, blocker_thickness, 32), make_rotation_matrix(np.pi/2.0, (1,0,0))),offset)
+            face += Solid(anulus_blocker, lensmat, kabamland.detector_material, black_surface, 0xff0000)
     phi, axs = rot_axis([0,0,1],vtx)
     for vx,ph,ax in zip(vtx,-phi,axs):
         kabamland.add_solid(face, rotation=make_rotation_matrix(ph,ax), displacement = -vx)
-	if light_confinement:
-	        kabamland.add_solid(baffle, rotation=make_rotation_matrix(ph,ax), displacement = -normalize(vx)*(np.linalg.norm(vx)+focal_length/2.0))
+        if light_confinement:
+            kabamland.add_solid(baffle, rotation=make_rotation_matrix(ph,ax), displacement = -normalize(vx)*(np.linalg.norm(vx)+focal_length/2.0))
 
 
 def calc_steps(x_value,y_value,detector_r,base_pixel):
@@ -167,8 +185,11 @@ def calc_steps(x_value,y_value,detector_r,base_pixel):
 	y_coord = np.asarray([y_value,np.roll(y_value,-1)]).T[:-1]
 	lat_area = 2*np.pi*detector_r*(y_coord[:,0]-y_coord[:,1])
 	n_step = (lat_area/lat_area[-1]*base_pixel).astype(int)
+	# print('Pixel areas per ring: %s' % str(lat_area / n_step))
+	# print('Coords: %s %s' % (x_coord, y_coord))
+	# print('Values: %s %s' % (x_value, y_value))
 	return x_coord, y_coord, n_step
-    
+
 def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=8,base_pxl=4,ret_arr=False):
     '''Builds a curved surface based on the specified radius. Origin is center of surface.'''
     if (detector_r < diameter/2.0):
@@ -176,6 +197,7 @@ def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=8,base_pxl=4,ret_arr=
     shift1 = np.sqrt(detector_r**2 - (diameter/2.0)**2)
     theta1 = np.arctan(shift1/(diameter/2.0))
     angles1 = np.linspace(theta1, np.pi/2, nsteps)
+    # print('Parameters: %f %f %s' % (shift1, theta1, str(angles1)))
     x_value = abs(detector_r*np.cos(angles1))
     y_value = detector_r-detector_r*np.sin(angles1)
     surf = None 
@@ -222,15 +244,17 @@ def build_pmt_icosahedron(kabamland, vtx, focal_length=1.0):
     		kabamland.add_pmt(Solid(square, glass, kabamland.detector_material, lm.fullabsorb, 0xBBFFFFFF), rotation = make_rotation_matrix(np.pi/2,vr), displacement = offset*trasl)
 		kabamland.add_pmt(Solid(square, glass, kabamland.detector_material, lm.fullabsorb, 0xBBFFFFFF), rotation = make_rotation_matrix(np.pi/2,vr), displacement = -offset*trasl)
 
-def build_kabamland(kabamland, configname):
+def build_kabamland(kabamland, config):
     # focal_length sets dist between lens plane and PMT plane (or back of curved detecting surface);
     #(need not equal true lens focal length)
-    config = detectorconfig.configdict(configname)
+
+    # TODO: These are not really building the icosahedron right?
     build_lens_icosahedron(kabamland, config.vtx, config.half_EPD/config.EPD_ratio, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
-    build_curvedsurface_icosahedron(kabamland, config.vtx, config.half_EPD/config.EPD_ratio, config.diameter_ratio, focal_length=config.focal_length, detector_r=config.detector_r, nsteps=config.nsteps, b_pxl=config.b_pixel)
+    build_curvedsurface_icosahedron(kabamland, config.vtx, config.half_EPD/config.EPD_ratio, config.diameter_ratio, focal_length=config.focal_length, detector_r=config.detector_r, nsteps=config.ring_count, b_pxl=config.base_pixels)
     build_pmt_icosahedron(kabamland, np.linalg.norm(config.vtx[0]), focal_length=config.focal_length) # Built further out, just as a way of stopping photons    
 
 def driver_funct(configname):
+	from chroma.loader import load_bvh  # Requires CUDA so only import it when necessary
 	kabamland = Detector(lm.create_scintillation_material())
 	config = detectorconfig.configdict(configname)
 	#get_lens_triangle_centers(vtx, rad_assembly, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
@@ -240,70 +264,7 @@ def driver_funct(configname):
 	#build_pmt_icosahedron(kabamland, np.linalg.norm(config.vtx[0]), focal_length=config.focal_length)
 	kabamland.flatten()
 	kabamland.bvh = load_bvh(kabamland)
-	view(kabamland)
-
-def full_detector_simulation(amount, configname, simname, datadir="",cal=''):
-        #simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron. Note that viewing may crash if there are too many lenses. (try using configview)
-
-        config = detectorconfig.configdict(configname)
-        print('Starting to build')
-        g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
-        kabamland = load_or_build_detector(configname, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
-        print('Detector was built')
-
-        f = ShortRootWriter(datadir + simname)
-        sim = Simulation(kabamland,geant4_processes=0)
-	scale_factor = 1
-	if cal == '_narrow':
-		scale_factor = 0.2
-        for j in range(100):
-                print j
-                sim_events = [uniform_photons(config.edge_length*scale_factor, amount) for i in range(10)]
-                for ev in sim.simulate(sim_events, keep_photons_beg = True, keep_photons_end = True, run_daq=False, max_steps=100):
-                        f.write_event(ev)
-        f.close()
-
-def load_or_build_detector(config, detector_material, g4_detector_parameters):
-    filename = paths.detector_pickled_path + config + '.pickle'
-    if not os.path.exists(paths.detector_pickled_path):
-        os.makedirs(paths.detector_pickled_path)
-    # How to ensure the material and detector parameters are correct??
-    try:
-        with open(filename,'rb') as pickle_file:
-            print("** Loading detector configuration: " + config)
-            kabamland = pickle.load(pickle_file)
-            pickle_has_g4_dp = hasattr(kabamland, 'g4_detector_parameters') and kabamland.g4_detector_parameters is not None
-            pickle_has_g4_dm = hasattr(kabamland, 'detector_material') and kabamland.detector_material is not None
-            if g4_detector_parameters is not None:
-                print('*** Using Geant4 detector parameters specified' +
-                      (' - replacement' if pickle_has_g4_dp else '') + ' ***')
-                kabamland.g4_detector_parameters = g4_detector_parameters
-            elif pickle_has_g4_dp:
-                print('*** Using Geant4 detector parameters found in loaded file ***')
-            else:
-                print('*** No Geant4 detector parameters found at all ***')
-
-            if detector_material is not None:
-                print('*** Using Geant4 detector material specified' +
-                      (' - replacement' if pickle_has_g4_dm else '') + ' ***')
-                kabamland.detector_material = detector_material
-            elif pickle_has_g4_dm:
-                print('*** Using Geant4 detector material found in loaded file ***')
-            else:
-                print('*** No Geant4 detector material found at all ***')
-    except IOError as error:
-        print("** Building detector configuration: " + config)
-        kabamland = Detector(lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
-        build_kabamland(kabamland, config)
-        kabamland.flatten()
-        kabamland.bvh = load_bvh(kabamland)
-        try:
-            with open(filename,'wb') as pickle_file:
-                pickle.dump(kabamland, pickle_file)
-        except IOError as error:
-            print("Error writing pickle file: " + filename)
-    return kabamland
-
+	#view(kabamland)
 
 if __name__ == '__main__':
 	driver_funct('cfSam1_K20_8_small')

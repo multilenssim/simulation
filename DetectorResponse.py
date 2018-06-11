@@ -1,14 +1,14 @@
-from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader, AngleRootReader, AngleRootWriter
+#from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader, AngleRootReader, AngleRootWriter
 from kabamland2 import get_curved_surf_triangle_centers, get_lens_triangle_centers
 from chroma.transform import make_rotation_matrix, normalize
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
-import lensmaterials as lm
 from scipy import spatial
 import detectorconfig
 import numpy as np
-import time
+#import time
 
+from logger_lfd import logger
 
 class DetectorResponse(object):
     '''A DetectorResponse represents the information available to the detector
@@ -18,19 +18,21 @@ class DetectorResponse(object):
     The configuration of the detector is also stored in this object, so that
     its geometry is known.    
     '''
-    def __init__(self, configname, detectorxbins=10, detectorybins=10, detectorzbins=10):
-        config = detectorconfig.configdict(configname)
+    def __init__(self, config, detectorxbins=10, detectorybins=10, detectorzbins=10):
+        # TODO: Duplicates a lot of stuff in the config
+        self.config = config   # To enable saving configuration with the calibration file
+        self.configname = config.config_name  # Adding this for intermediate calibration file writing
         self.is_calibrated = False
-	self.lns_rad = config.half_EPD/config.EPD_ratio
+        self.lns_rad = config.half_EPD/config.EPD_ratio
         self.detectorxbins = detectorxbins
         self.detectorybins = detectorybins
         self.detectorzbins = detectorzbins
         #self.edge_length, self.facecoords, self.direction, self.axis, self.angle, self.spin_angle = return_values(config.edge_length, config.base)
         self.pmtxbins = config.pmtxbins
         self.pmtybins = config.pmtybins
-        self.n_lens_sys = config.base # Number of lens systems per face
+        self.n_lens_sys = config.lens_count # Number of lens systems per face - TODO: not true anymore
         self.detector_r = config.detector_r
-        self.nsteps = config.nsteps
+        self.nsteps = config.ring_count
         #self.n_triangles_per_surf = int(2*self.nsteps*int((self.nsteps-2)/2.))
         
         #self.n_pmts_per_surf = int(self.n_triangles_per_surf/2.)
@@ -46,29 +48,39 @@ class DetectorResponse(object):
 
         ##end changed
         #self.pmt_side_length = np.sqrt(3)*(3-np.sqrt(5))*self.focal_length
-        self.inscribed_radius = config.edge_length
+        self.inscribed_radius = config.detector_radius
         #self.rotation_matrices = self.build_rotation_matrices()
         #self.inverse_rotation_matrices = np.linalg.inv(self.rotation_matrices)
         #self.displacement_matrix = self.build_displacement_matrix()
         #self.inverse_rotated_displacement_matrix = self.build_inverse_rotated_displacement_matrix()
         #self.lens_inverse_rotated_displacement_matrix = self.build_lensplane_inverse_rotated_displacement_matrix()
         #new properties for curved surface detectors
-        self.triangle_centers,self.n_triangles_per_surf,self.ring = get_curved_surf_triangle_centers(config.vtx, self.lns_rad, self.detector_r, self.focal_length, self.nsteps, config.b_pixel)
+
+        # Comment this out to allow access to old calibration files
+        self.triangle_centers,self.n_triangles_per_surf,self.ring = get_curved_surf_triangle_centers(config.vtx, self.lns_rad, self.detector_r, self.focal_length, self.nsteps, config.base_pixels)
         self.triangle_centers_tree = spatial.cKDTree(self.triangle_centers)
         self.n_pmts_per_surf = int(self.n_triangles_per_surf/2.)
+
         if not self.detector_r:
             self.npmt_bins = 20*self.pmtxbins*self.pmtybins
         else:
-            self.npmt_bins = self.n_lens_sys*self.n_pmts_per_surf # One curved detecting surf for each lens system        
+            self.npmt_bins = self.n_lens_sys*self.n_pmts_per_surf # One curved detecting surf for each lens system
+
+        # Comment this out to allow access to old calibration files
         self.lens_centers = get_lens_triangle_centers(config.vtx, self.lns_rad, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
         self.lens_rad = config.half_EPD 
-        
+
         #self.calc1 = self.pmtxbins/self.pmt_side_length
         #self.calc2 = self.pmtxbins/2.0
         #self.calc3 = 2*self.pmtybins/(np.sqrt(3)*self.pmt_side_length)
         #self.calc4 = self.pmtybins/3.0
         #self.calc5 = self.pmtxbins*self.pmtybins
-        
+        self.c_rings = np.cumsum(self.ring)
+        self.c_rings_rolled = np.roll(self.c_rings, 1)
+        self.c_rings_rolled[0] = 0
+
+        logger.info('Detector rings: %s, cumulative pixels in rings: %s' % (str(self.ring), str(self.c_rings)))
+
     def build_rotation_matrices(self):
         rotation_matrices = np.empty((20, 3, 3))
         for k in range(20):
@@ -99,7 +111,11 @@ class DetectorResponse(object):
         print "Base class DetectorResponse has no specific calibration method - instantiate as a subclass."
         
     def angles_response(self, config, simname, nolens=False, rmax_frac=1.0):
-        #takes a simulation file and creates an array of angles that photons hit the pmts at. (replace lenses with disk pmts for the simulation to see what angles light hits the lenses at. Light needs to land on an icosahedron face plane so use disks instead of just changing the surface of the lens to detecting.) ev.photons_end.dir[detected] is always 0s as of now because we aren't saving directions in event or simulation files. 
+        # takes a simulation file and creates an array of angles that photons hit the pmts at.
+        # (replace lenses with disk pmts for the simulation to see what angles light hits the lenses at.
+        # Light needs to land on an icosahedron face plane so use disks instead of just changing the surface of the lens to detecting.)
+        # ev.photons_end.dir[detected] is always 0s as of now because we aren't saving directions in event or simulation files.
+
         #If nolens is True, assumes a "perfectres" type detector, with no lenses instead of lenses replaced with PMTs.
         #Restricts starting photons to be w/in rmax_frac*inscribed_radius of the center.
         reader = ShortRootReader(simname)
@@ -186,7 +202,7 @@ class DetectorResponse(object):
         plt.hist(total_angles, bins=100)
         plt.xlabel('Angles')
         plt.ylabel('Amount')
-        plt.title('Angles Response Histogram for ' + config)
+        plt.title('Angles Response Histogram for ' + config.config_name)
         plt.show()
 
         return total_angles
@@ -272,20 +288,54 @@ class DetectorResponse(object):
 
         return detector_dir_list
 
-    def scaled_pmt_arr_surf(self,closest_triangle_index):
+    def _scaled_pmt_arr_surf(self, closest_triangle_index):
         closest_triangle_index = np.asarray(closest_triangle_index)
         curved_surface_index = (closest_triangle_index/self.n_triangles_per_surf).astype(int)
         renorm_triangle = closest_triangle_index % self.n_triangles_per_surf
-        c_rings = np.cumsum(self.ring)
-        c_rings = np.roll(c_rings,1)
-        c_rings[0] = 0
-        mtx = (np.tile(2*c_rings,(len(renorm_triangle),1)).T - renorm_triangle).T
-        stop_arr = c_rings[np.argmax(mtx>0,axis=1)-1]
-        return ((renorm_triangle - 2*stop_arr) % self.ring[np.argmax(mtx>0,axis=1)-1]) + stop_arr + curved_surface_index*self.n_pmts_per_surf
+
+        mtx = (np.tile(2 * self.c_rings_rolled, (len(renorm_triangle), 1)).T - renorm_triangle).T
+        pixels_outside_hit_ring = self.c_rings_rolled[np.argmax(mtx > 0, axis=1) - 1]   # TODO: This may not be the right name for this??
+        complicated = ((renorm_triangle - 2*pixels_outside_hit_ring) % self.ring[np.argmax(mtx>0,axis=1)-1])   # TODO this variable name is just a placeholder
+
+        pmt_number = complicated + pixels_outside_hit_ring + curved_surface_index*self.n_pmts_per_surf
+
+        ### Alternative calculation  for cross check ###
+        new_lens_number = (pmt_number / self.n_pmts_per_surf).astype(int)
+        pixel_number_in_lens = pmt_number - curved_surface_index*self.n_pmts_per_surf       # Depends on PMT number...
+        ring = np.searchsorted(self.c_rings, pixel_number_in_lens, side='right')
+        pixel_number_in_ring = pixel_number_in_lens - self.c_rings_rolled[ring]
+        pixels_outside_hit_ring2 = self.c_rings_rolled[ring]
+        pmt_number2 = pixel_number_in_ring + pixels_outside_hit_ring2 + curved_surface_index*self.n_pmts_per_surf
+
+        for i in range(len(closest_triangle_index)):
+            if new_lens_number[i] != curved_surface_index[i]:
+                print('Lens number mismatch: %d, %d, %d' % (i, new_lens_number[i], new_lens_number[i]))
+            if pmt_number[i] != pmt_number2[i]:
+                print('Pixel number mismatch: %d, %d, %d, %d' % (i, pmt_number[i], pmt_number2[i], pmt_number[i] - pmt_number2[i]))
+            if pixel_number_in_ring[i] != complicated[i]:
+                print('Pixel number in ring mismatch: %d, %d, %d, %d' % (i, pixel_number_in_ring[i], complicated[i], pixel_number_in_ring[i] - complicated[i]))
+            if pixels_outside_hit_ring[i] != pixels_outside_hit_ring2[i]:
+                print('Pixel number outside ring mismatch: %d, %d, %d, %d, ring: %d' % (i, pixels_outside_hit_ring[i], pixels_outside_hit_ring2[i], pixels_outside_hit_ring[i] - pixels_outside_hit_ring2[i], ring[i]))
+
+        return pmt_number, curved_surface_index, ring, pixel_number_in_ring
+
+	# Currently used only in EventAnalyzer.generate_tracks()
+    def find_pmt_bin_array_new(self, pos_array):
+        closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array, max_dist=1.)
+        pmts, lenses, rings, pixels = self._scaled_pmt_arr_surf(closest_triangle_index)
+        bad_bins = np.asarray(np.where(pmts >= self.npmt_bins))  # TODO: Why does this have to be an array inside of an array?  How to convert a tuple into an array? asarray() should do it
+        if np.size(bad_bins) > 0:
+            print('Bad bin count: ' + str(len(bad_bins[0])))
+            print("The following " + str(np.shape(bad_bins)[1]) + " photons were not associated to a PMT: " + str(bad_bins))
+            pmts = np.delete(pmts, bad_bins) # TODO: Note: this line wont work with new scaled_pmt_arr_surf scheme, and it also breaks calibration
+            lenses = np.delete(lenses, bad_bins)
+            rings = np.delete(rings, bad_bins)
+            pixels = np.delete(pixels, bad_bins)
+            print('New bin array length: ' + str(len(pmts)))
+        return pmts, lenses, rings, pixels
 
     def find_pmt_bin_array(self, pos_array):
-        
-        if(self.detector_r == 0):
+        if(self.detector_r == 0):   # This code is specific to the icosahedron
             # returns an array of global pmt bins corresponding to an array of end-positions
             length = np.shape(pos_array)[0]
             #facebin array is left as -1s, that way if a particular photon does not get placed onto a side, it gets ignored (including its pmt_position) in the checking stages at the bottom of this function.
@@ -313,19 +363,21 @@ class DetectorResponse(object):
             for i in range(length):
                 if (xbin_array[i] >= self.pmtxbins) or (xbin_array[i] < 0) or (ybin_array[i] >= self.pmtybins) or (ybin_array[i] < 0) or (facebin_array[i] == -1):
                     bin_array[i] = -1
-                    print "photon " + str(i) + " is a culprit"
+                    print("photon " + str(i) + " is a culprit")
             return bin_array.astype(int)
             
         else:
-            #print "Curved surface detector was selected."
-            closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array)
-	    bin_array = self.scaled_pmt_arr_surf(closest_triangle_index)
-            bad_bins = np.array(np.where(np.array(bin_array) >= self.npmt_bins))
+            #print("Curved surface detector was selected.")
+            closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array, max_dist=1.)  # TODO: check out the addition of the max_dist parameter
+            bin_array, _, _, _ = self._scaled_pmt_arr_surf(closest_triangle_index)
+            ba2 = np.asarray(bin_array)
+            bad_bins = np.asarray(np.where(ba2 >= self.npmt_bins))  # Why does this have to be an array inside of an array?  How to convert a tuple into an array? asarray() shuld do it
             if np.size(bad_bins) > 0:
-				print "The following "+str(np.shape(bad_bins)[1])+" photons were not associated to a PMT: "
-				print bad_bins
-            return bin_array
-            
+                print('Bad bin count: ' + str(len(bad_bins[0])))
+                print("The following "+str(np.shape(bad_bins)[1])+" photons were not associated to a PMT: " + str(bad_bins))
+                print bad_bins
+            return bin_array.astype(int)
+
     def find_closest_triangle_center(self, pos_array, max_dist = 1.):
         #print "Finding closest triangle centers..."
         if(max_dist == 1.):
