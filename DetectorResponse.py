@@ -323,8 +323,9 @@ class DetectorResponse(object):
     def find_pmt_bin_array_new(self, pos_array):
         closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array, max_dist=1.)
         pmts, lenses, rings, pixels = self._scaled_pmt_arr_surf(closest_triangle_index)
-        bad_bins = np.asarray(np.where(pmts >= self.npmt_bins))  # TODO: Why does this have to be an array inside of an array?  How to convert a tuple into an array? asarray() should do it
-        if np.size(bad_bins) > 0:
+        bad_bins = np.array(pmts) >= self.npmt_bins
+
+        if sum(bad_bins) > 0:
             print('Bad bin count: ' + str(len(bad_bins[0])))
             print("The following " + str(np.shape(bad_bins)[1]) + " photons were not associated to a PMT: " + str(bad_bins))
             pmts = np.delete(pmts, bad_bins) # TODO: Note: this line wont work with new scaled_pmt_arr_surf scheme, and it also breaks calibration
@@ -370,13 +371,11 @@ class DetectorResponse(object):
             #print("Curved surface detector was selected.")
             closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array, max_dist=1.)  # TODO: check out the addition of the max_dist parameter
             bin_array, _, _, _ = self._scaled_pmt_arr_surf(closest_triangle_index)
-            ba2 = np.asarray(bin_array)
-            bad_bins = np.asarray(np.where(ba2 >= self.npmt_bins))  # Why does this have to be an array inside of an array?  How to convert a tuple into an array? asarray() shuld do it
-            if np.size(bad_bins) > 0:
-                print('Bad bin count: ' + str(len(bad_bins[0])))
-                print("The following "+str(np.shape(bad_bins)[1])+" photons were not associated to a PMT: " + str(bad_bins))
-                print bad_bins
-            return bin_array.astype(int)
+            bad_bins = np.array(bin_array) >= self.npmt_bins
+            if sum(bad_bins) > 0:
+                print "The following %s photons were not associated to a PMT: "%sum(bad_bins)
+                print np.where(bad_bins)[0]
+            return bin_array[np.logical_not(bad_bins)]
 
     def find_closest_triangle_center(self, pos_array, max_dist = 1.):
         #print "Finding closest triangle centers..."

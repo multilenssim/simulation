@@ -1,4 +1,3 @@
-#from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader
 import numpy as np
 
 from DetectorResponse import DetectorResponse

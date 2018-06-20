@@ -640,6 +640,7 @@ class EventAnalyzer(object):
         reflected_specular = (ev.photons_end.flags & (0x1 <<6)).astype(bool)
         good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
              
+        self.photons_beg_dir = ev.photons_beg.dir[detected]
         beginning_photons = ev.photons_beg.pos[detected] # Include reflected photons
         ending_photons = ev.photons_end.pos[detected]
         length = np.shape(ending_photons)[0]
@@ -662,7 +663,7 @@ class EventAnalyzer(object):
         event_pmt_bin_array, lenses, rings, pixels = np.array(self.det_res.find_pmt_bin_array_new(ending_photons)) # Get PMT hit indices
 
         if qe == None:
-            pass
+            good_photons = detected
         else:
             mask = self.QE(event_pmt_bin_array,qe)
             logger.info('Mask count: %d, qe: %f, original length: %d' % (len(mask), qe, len(event_pmt_bin_array)))
@@ -671,6 +672,9 @@ class EventAnalyzer(object):
             lenses = lenses[mask]
             rings = rings[mask]
             pixels = pixels[mask]
+            detected = detected[detected]
+            good_photons = np.zeros(detected.shape)
+            good_photons[mask] = 1
 
         # print('PMT bins: ' + str(event_pmt_bin_array))
         event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T
@@ -740,7 +744,7 @@ class EventAnalyzer(object):
                                 qe=qe)
                 #tracks = Tracks(event_pmt_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = 0.0000001)
                 msk = tracks.sigmas > 0.001
-                tracks.cull(np.where(msk)) # Remove tracks with zero uncertainty (not calibrated)
+                tracks.cull(np.where(np.logical_not(msk))) # Remove tracks with zero uncertainty (not calibrated)
                 if np.any(np.isnan(tracks.sigmas)):
                     print "Nan tracks!! Removing."
                     nan_tracks = np.where(np.isnan(tracks.sigmas))
@@ -753,7 +757,7 @@ class EventAnalyzer(object):
                 #tracks.cull(np.where(tracks.sigmas<0.2)) # Remove tracks with too large uncertainty
                 #tracks.sigmas[:] = 0.054 # Temporary! Checking if setting all sigmas equal to each other helps or hurts
             if heat_map:
-                if detec: return tracks, event_pmt_bin_array[msk],detected
+                if detec: return tracks, event_pmt_bin_array[msk],good_photons.astype(bool)
                 return tracks, event_pmt_bin_array[msk]
             return tracks
 

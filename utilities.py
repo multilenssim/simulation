@@ -109,7 +109,7 @@ def load_or_build_detector(config, detector_material, g4_detector_parameters):
     return kabamland
 
 # TODO: Better seed?
-def sim_setup(config, in_file, useGeant4=False, geant4_processes=4, seed=12345, cuda_device=None, no_gpu=False):
+def sim_setup(config, in_file, useGeant4=False, geant4_processes=4, seed=None, cuda_device=None, no_gpu=False):
     # Imports are here both to avoid loading Geant4 when unnecessary, and to avoid circular imports
     from chroma.detector import G4DetectorParameters
     import DetectorResponseGaussAngle
