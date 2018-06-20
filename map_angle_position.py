@@ -60,7 +60,7 @@ class perf_resolution(object):
 
 
     def tracks(self):
-        return Tracks(self._det_res.lens_centers[self._lns_index].T, self.b_dir.T, np.zeros(len(self.b_dir)))
+        return Tracks(self._det_res.lens_centers[self._lns_index].T, self.b_dir.T, np.zeros(len(self.b_dir)),lens_rad=self._det_res.lens_rad)
 
 
 if __name__ == '__main__':
