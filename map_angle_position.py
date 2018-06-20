@@ -65,7 +65,7 @@ class perf_resolution(object):
 
 if __name__ == '__main__':
 
-    cfg = detectorconfig.get_detector_config('cfSam1_l200_p107600_b4_e10')
+    cfg = detectorconfig.get_detector_config('cfSam1_l100_p96000_b4_e5')    # 'cfSam1_l200_p107600_b4_e10')
     amount = 16000
     pos = (2*np.random.rand(amount,3)-1)
     drc = config_stat.normalize(np.tile(-cfg.vtx,amount/len(cfg.vtx)).reshape(-1,3),1)
