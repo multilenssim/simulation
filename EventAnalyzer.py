@@ -731,7 +731,12 @@ class EventAnalyzer(object):
             means = normalize((-end_direction_array+ang_noise).T).T
             tracks = Tracks(hit_pos, means, sigmas, qe=qe)
             #self.plot_tracks(tracks)
+
+            if heat_map:
+                if detec: return tracks, event_pmt_bin_array,good_photons.astype(bool)
+                return tracks, event_pmt_bin_array
             return tracks
+
         else: # Detector is calibrated, use response to generate tracks
             try:
                 tracks = Tracks(event_lens_pos_array,

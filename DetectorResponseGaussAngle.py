@@ -76,7 +76,11 @@ class DetectorResponseGaussAngle(DetectorResponse):
         if infile is not None:
             logger.info('Creating detector response / calibration with: %s' % infile)
             if infile.endswith('.h5'):
-                self.read_from_hdf5(infile)
+                try:
+                    self.read_from_hdf5(infile)
+                except IOError as error:
+                    logger.warning('No calibration file found %s.  Continuing uncalibrated' % infile)
+                    return
                 if self.config.uuid != self.config_in_cal_file.uuid:
                     logger.critical('UUID from calibration file does not match configuration: %s %s' % (self.config.uuid, self.config_in_cal_file.uuid))
                     exit(-1)
@@ -85,6 +89,8 @@ class DetectorResponseGaussAngle(DetectorResponse):
                     logger.info('Calibration file UUID matches')
             else:
                 self.read_from_ROOT(infile)
+        else:
+            logger.warning('No calibration file specified.  Continuing uncalibrated')
 
     def _find_photons_for_pmt(self, photons_beg_pos, photons_end_pos, detected, end_direction_array, n_det, max_storage):
         beginning_photons = photons_beg_pos[detected]       # Include reflected photons

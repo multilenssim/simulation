@@ -17,10 +17,13 @@ import utilities
 
 from chroma.detector import G4DetectorParameters
 
+# TODO: Geant4 is pulled in and initialized by this line in lensmaterials: from Geant4.hepunit import *
+# Which inits the whole Geant4 module.  This line in __init__ fires Geant4 up: gRunManagerKernel = G4RunManagerKernel.GetRunManagerKernel()
+
 USE_ROOT = False
 
 # TODO: Move this method and uniform_photons to utilities?
-def _full_detector_simulation(config, amount, simname, datadir=""):
+def _full_detector_simulation(config, kabamland, amount, simname, datadir=""):
     # simulates 1000*amount photons uniformly spread throughout a sphere whose radius is the inscribed radius of the icosahedron.
     # Note that viewing may crash if there are too many lenses. (try using configview)
     from chroma.sim import Simulation     # Require CUDA, so only import when necessary
@@ -30,12 +33,6 @@ def _full_detector_simulation(config, amount, simname, datadir=""):
     if USE_ROOT:
         from ShortIO.root_short import ShortRootWriter
         f = ShortRootWrite(file_name_base+'.root')
-
-    logger.info('Starting to load/build: %s' % config_name)
-
-    g4_detector_parameters=G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
-    kabamland = utilities.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
-    logger.info('Detector was loaded/built')
 
     # SHERLOCK: Have to set the seed because Sherlock compute machines blow up if we use chroma's algorithm!!!!
     # sim = Simulation(kabamland, geant4_processes=0, seed=65432)  # For now, does not take advantage of multiple cores  # TODO: use sim_setup()?
@@ -102,7 +99,7 @@ def _calibrate(config, photons_file, detresname, detxbins=10, detybins=10, detzb
     dd.io.save(datadir + detresname +'.h5', detector_data)
 
 
-def simulate_and_calibrate(config):
+def simulate_and_calibrate(config, build_only=False):
     config_name = config.config_name
     if os.path.isfile(paths.get_calibration_file_name(config_name)):
         logger.info('Found calibration file: %s' % paths.get_calibration_file_name(config_name))
@@ -112,32 +109,42 @@ def simulate_and_calibrate(config):
         photons_file_base = 'sim-'+config_name+'_100million'
         photons_file_full_path_base = paths.detector_calibration_path + photons_file_base
         if not (os.path.exists(photons_file_full_path_base+'.root') or os.path.exists(photons_file_full_path_base+'.h5')):
-            logger.info('==== Building detector and simulating photons: %s  ====' % photons_file_base)
-            _full_detector_simulation(config, 100000, photons_file_base, datadir=paths.detector_calibration_path)
+            logger.info('Starting to load/build: %s' % config_name)
+            g4_detector_parameters = G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
+            kabamland = utilities.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+            logger.warning('=== Detector was loaded/built')
+            if build_only:
+                return
+            logger.info('==== Simulating photons: %s  ====' % photons_file_base)
+            _full_detector_simulation(config, kabamland, 100000, photons_file_base, datadir=paths.detector_calibration_path)
+            logger.info('==== Simulation complete')
             simulation_file = photons_file_base + '.h5'
+
         elif os.path.exists(photons_file_full_path_base+'.h5'):  # TODO: The double if's and constantly adding extensions needs to be reworked
             simulation_file = photons_file_base+ '.h5'
         else:     # Fall back to root
             simulation_file = photons_file_base+ '.root'
-        logger.info('==== Found/built photons file: %s ====' % simulation_file)
-        logger.info("==== Step 2: Calibrating  ====")
-        _calibrate(config,
-                simulation_file,
-                paths.get_calibration_file_name_base_without_path(config_name),
-                method="GaussAngle",
-                nevents=10000,
-                datadir=paths.detector_calibration_path,
-                fast_calibration=True)
-        #os.remove(photons_file)  # Would need to remove both
-        logger.info("==== Calibration complete ====")
+        logger.warning('==== Found/created photons file: %s ====' % simulation_file)
+
+        if not build_only:
+            logger.info("==== Step 2: Calibrating  ====")
+            _calibrate(config,
+                    simulation_file,
+                    paths.get_calibration_file_name_base_without_path(config_name),
+                    method="GaussAngle",
+                    nevents=10000,
+                    datadir=paths.detector_calibration_path,
+                    fast_calibration=True)
+            #os.remove(photons_file)  # Would need to remove both
+            logger.warning("==== Calibration complete ====")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('config_name', help='configuration')
+    parser.add_argument('config_name', help='Configuration name')
+    parser.add_argument('--build_only', '-b', action='store_true', help='Build the detector only.  Do not Calibrate.')
     _args = parser.parse_args()
     config_name = _args.config_name
 
     config = detectorconfig.get_detector_config(config_name)
-
-    simulate_and_calibrate(config)
+    simulate_and_calibrate(config, _args.build_only)
 
