@@ -324,8 +324,9 @@ class DetectorResponse(object):
     def find_pmt_bin_array_new(self, pos_array):
         closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array, max_dist=1.)
         pmts, lenses, rings, pixels = self._scaled_pmt_arr_surf(closest_triangle_index)
-        bad_bins = np.asarray(np.where(pmts >= self.npmt_bins))  # TODO: Why does this have to be an array inside of an array?  How to convert a tuple into an array? asarray() should do it
-        if np.size(bad_bins) > 0:
+        bad_bins = np.array(pmts) >= self.npmt_bins
+
+        if sum(bad_bins) > 0:
             print('Bad bin count: ' + str(len(bad_bins[0])))
             print("The following " + str(np.shape(bad_bins)[1]) + " photons were not associated to a PMT: " + str(bad_bins))
             pmts = np.delete(pmts, bad_bins) # TODO: Note: this line wont work with new scaled_pmt_arr_surf scheme, and it also breaks calibration
@@ -371,34 +372,11 @@ class DetectorResponse(object):
             #print("Curved surface detector was selected.")
             closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array, max_dist=1.)  # TODO: check out the addition of the max_dist parameter
             bin_array, _, _, _ = self._scaled_pmt_arr_surf(closest_triangle_index)
-            #logger.info('Bin array length: ' + str(len(bin_array)))
-            #curved_surface_index = [int(x / self.n_triangles_per_surf) for x in closest_triangle_index]
-            #surface_pmt_index = [((x % self.n_triangles_per_surf) % (self.n_pmts_per_surf)) for x in closest_triangle_index]
-            #bin_array = [((x*self.n_pmts_per_surf) + y) for x,y in zip(curved_surface_index,surface_pmt_index)]
-            ba2 = np.asarray(bin_array)
-            bad_bins = np.asarray(np.where(ba2 >= self.npmt_bins))  # TODO: Why does this have to be an array inside of an array?  How to convert a tuple into an array? asarray() shuld do it
-            #print np.array(bin_array) >= n_pmts_total
-            #print np.extract((np.array(bin_array) >= n_pmts_total), bin_array)
-            if np.size(bad_bins) > 0:
-                print('Bad bin count: ' + str(len(bad_bins[0])))
-                print("The following "+str(np.shape(bad_bins)[1])+" photons were not associated to a PMT: " + str(bad_bins))
-                # Note: Deleting these will break calibration
-                #bin_array = np.delete(bin_array, bad_bins[0])
-                print('New bin array length: ' + str(len(bin_array)))
-                #print max(closest_triangle_index)
-                #print max(bin_array)
-                #print n_pmts_total
-                #print "Distances to nearest PMT: "
-                #print closest_triangle_dist[bad_bins[0]] # Determine distances correctly
-            #fig = plt.figure(figsize=(15, 10))
-            #plt.hist(bin_array,bins=6*20)
-            #plt.xlabel("PMT index")
-            #plt.ylabel("counts")
-            #plt.show()
-            #for ii in range(len(bin_array)):
-                #print ii, "\t", closest_triangle_index[ii],"\t",curved_surface_index[ii], "\t",surface_pmt_index[ii], "\t",bin_array[ii]    
-            #print('bin_array: ' + str(bin_array))
-            return bin_array.astype(int)
+            bad_bins = np.array(bin_array) >= self.npmt_bins
+            if sum(bad_bins) > 0:
+                print "The following %s photons were not associated to a PMT: "%sum(bad_bins)
+                print np.where(bad_bins)[0]
+            return bin_array[np.logical_not(bad_bins)]
 
     def find_closest_triangle_center(self, pos_array, max_dist = 1.):
         #print "Finding closest triangle centers..."

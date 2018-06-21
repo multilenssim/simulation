@@ -4,7 +4,7 @@ import pprint
 import uuid
 
 from logger_lfd import logger
-from lenssystem import get_system_measurements, get_half_EPD
+from lenssystem import get_system_measurements, get_half_EPD  # TODO: this line brings in Geant4 ultimately through Geant4.hepunits in lensmaterials
 import paths
 
 class DetectorConfig(object):
@@ -78,6 +78,7 @@ class DetectorConfig(object):
         print ('  Central pixels:\t%d'      % self.base_pixels)
         print ('  UUID:\t\t\t\t%s'          % str(self.uuid))
         print ('  Total pixels in detector:\t%s'  % '{:,}'.format(self.tot_pixels))
+        print ('  Lens focal length:\t%0.2f'   % self.focal_length)
 
         #lens_system_name = config_name.split('_')[0][2:]
         #dtc_r = get_system_measurements(lens_system_name, max_rad)[1]
@@ -147,7 +148,7 @@ def get_detector_config(config_name):
 # Display lists of available detector configurations
 #
 if __name__ == '__main__':
-    global _configs_pickle_file
+    global _configs_pickle_file     # TODO: throws a warning: SyntaxWarning: name '_configs_pickle_file' is assigned to before global declaration
 
     parser = argparse.ArgumentParser('Display detector configurations')
     parser.add_argument('--simple_list', '-s', action='store_true', help='List only the detector configuration names in the configuration file')

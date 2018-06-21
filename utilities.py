@@ -28,7 +28,7 @@ import lensmaterials as lm
 import paths
 from logger_lfd import logger
 
-def load_or_build_detector(config, detector_material, g4_detector_parameters):
+def load_or_build_detector(config, detector_material, g4_detector_parameters, force_build=False):
     configname = config.config_name
     filename_base = paths.detector_config_path + configname
     if not os.path.exists(paths.detector_config_path):
@@ -36,17 +36,18 @@ def load_or_build_detector(config, detector_material, g4_detector_parameters):
 
     kabamland = None
     # How to ensure the material and detector parameters are correct??
-    try:
-        detector_config = dd.io.load(filename_base+'.h5')
-        kabamland = detector_config['detector']
-        logger.info("** Loaded HDF5 (deepdish) detector configuration: " + configname)
-    except IOError as error:  # Will dd throw an exception?
+    if not force_build:
         try:
-            with open(filename_base+'.pickle','rb') as pickle_file:
-                kabamland = pickle.load(pickle_file)
-                logger.info("** Loaded pickle detector configuration: " + configname)
-        except IOError as error:
-            pass
+            detector_config = dd.io.load(filename_base+'.h5')
+            kabamland = detector_config['detector']
+            logger.info("** Loaded HDF5 (deepdish) detector configuration: " + configname)
+        except IOError as error:  # Will dd throw an exception?
+            try:
+                with open(filename_base+'.pickle','rb') as pickle_file:
+                    kabamland = pickle.load(pickle_file)
+                    logger.info("** Loaded pickle detector configuration: " + configname)
+            except IOError as error:
+                pass
     if kabamland is not None:
         config_has_g4_dp = hasattr(kabamland, 'g4_detector_parameters') and kabamland.g4_detector_parameters is not None
         config_has_g4_dm = hasattr(kabamland, 'detector_material') and kabamland.detector_material is not None
@@ -109,7 +110,7 @@ def load_or_build_detector(config, detector_material, g4_detector_parameters):
     return kabamland
 
 # TODO: Better seed?
-def sim_setup(config, in_file, useGeant4=False, geant4_processes=4, seed=12345, cuda_device=None, no_gpu=False):
+def sim_setup(config, in_file, useGeant4=False, geant4_processes=4, seed=None, cuda_device=None, no_gpu=False):
     # Imports are here both to avoid loading Geant4 when unnecessary, and to avoid circular imports
     from chroma.detector import G4DetectorParameters
     import DetectorResponseGaussAngle
