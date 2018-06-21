@@ -19,7 +19,7 @@ def ring_return(arr_bin,ring):
     return ring_arr.astype(int)
 
 
-cfg = detectorconfig.get_detector_config('cfSam1_l200_p107600_b4_e10')
+cfg = detectorconfig.get_detector_config('cfSam2-0.5_l200_p92600_b4_e5') # cfSam1_l200_p107600_b4_e10')  # cfSam1_l200_p107600_b4_e5')
 sim, analyzer = setup.sim_setup(cfg,paths.get_calibration_file_name(cfg.config_name),useGeant4=False)
 det_res = analyzer.det_res
 pmt_center = det_res.pmt_bin_to_position(np.arange(det_res.n_pmts_per_surf))
@@ -53,11 +53,13 @@ for alpha in off_center:
     e_pos = e_pos[msk]
     u_proj = np.einsum('ij,j->i',e_pos,u_vers)
     v_proj = np.einsum('ij,j->i',e_pos,v_vers)
+
     ax1.scatter(u_proj,v_proj,s=0.5)
     ax1.set_xlim(-det_res.lns_rad,det_res.lns_rad)
     ax1.set_ylim(-det_res.lns_rad,det_res.lns_rad)
     ax2.scatter(np.arctan(np.linalg.norm(alpha)/np.linalg.norm(l_c))/np.pi,float(u_proj.shape[0])/amount,c='b')
     ax2.set_xlabel('incident angle [$\pi^{-1}$]')
     ax2.set_ylabel('collection efficiency')
+    plt.title(cfg.config_name)
 plt.show()
 

@@ -99,19 +99,21 @@ def _calibrate(config, photons_file, detresname, detxbins=10, detybins=10, detzb
     dd.io.save(datadir + detresname +'.h5', detector_data)
 
 
-def simulate_and_calibrate(config, build_only=False):
+def simulate_and_calibrate(config, build_only=False, force=False):
     config_name = config.config_name
-    if os.path.isfile(paths.get_calibration_file_name(config_name)):
+    if (not force) and os.path.isfile(paths.get_calibration_file_name(config_name)):
         logger.info('Found calibration file: %s' % paths.get_calibration_file_name(config_name))
     else:
         logger.info('Failed to find calibration file: ' + paths.get_calibration_file_name(config_name))
         logger.info('==== Step 1: Setting up the detector ====')
         photons_file_base = 'sim-'+config_name+'_100million'
         photons_file_full_path_base = paths.detector_calibration_path + photons_file_base
-        if not (os.path.exists(photons_file_full_path_base+'.root') or os.path.exists(photons_file_full_path_base+'.h5')):
+        if force or (not (os.path.exists(photons_file_full_path_base+'.root') or os.path.exists(photons_file_full_path_base+'.h5'))):
+            if force:
+                logger.info('Forcing detector build')
             logger.info('Starting to load/build: %s' % config_name)
             g4_detector_parameters = G4DetectorParameters(orb_radius=7., world_material='G4_Galactic')
-            kabamland = utilities.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters)
+            kabamland = utilities.load_or_build_detector(config, lm.create_scintillation_material(), g4_detector_parameters=g4_detector_parameters, force_build=force)
             logger.warning('=== Detector was loaded/built')
             if build_only:
                 return
@@ -141,10 +143,11 @@ def simulate_and_calibrate(config, build_only=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('config_name', help='Configuration name')
-    parser.add_argument('--build_only', '-b', action='store_true', help='Build the detector only.  Do not Calibrate.')
+    parser.add_argument('--build_only', '-b', action='store_true', help='Build the detector only.  Do not calibrate.')
+    parser.add_argument('--force_build', '-f', action='store_true', help='Force rebuilding and calibrating the detector.')   # TODO: the force calibration is not implemented yet
     _args = parser.parse_args()
     config_name = _args.config_name
 
     config = detectorconfig.get_detector_config(config_name)
-    simulate_and_calibrate(config, _args.build_only)
+    simulate_and_calibrate(config, build_only=_args.build_only, force=_args.force_build)
 

@@ -78,6 +78,7 @@ class DetectorConfig(object):
         print ('  Central pixels:\t%d'      % self.base_pixels)
         print ('  UUID:\t\t\t\t%s'          % str(self.uuid))
         print ('  Total pixels in detector:\t%s'  % '{:,}'.format(self.tot_pixels))
+        print ('  Lens focal length:\t%0.2f'   % self.focal_length)
 
         #lens_system_name = config_name.split('_')[0][2:]
         #dtc_r = get_system_measurements(lens_system_name, max_rad)[1]
