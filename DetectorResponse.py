@@ -1,5 +1,5 @@
 #from ShortIO.root_short import PDFRootWriter, PDFRootReader, ShortRootReader, AngleRootReader, AngleRootWriter
-from kabamland2 import get_curved_surf_triangle_centers, get_lens_triangle_centers
+import kabamland2 as kb2
 from chroma.transform import make_rotation_matrix, normalize
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
@@ -58,7 +58,7 @@ class DetectorResponse(object):
         #new properties for curved surface detectors
 
         # Comment this out to allow access to old calibration files
-        self.triangle_centers,self.n_triangles_per_surf,self.ring = get_curved_surf_triangle_centers(config.vtx, self.lns_rad, self.detector_r, self.focal_length, self.nsteps, config.base_pixels)
+        self.triangle_centers,self.n_triangles_per_surf,self.ring = kb2.get_curved_surf_triangle_centers(config.vtx, self.lns_rad, self.detector_r, self.focal_length, self.nsteps, config.base_pixels)
         self.triangle_centers_tree = spatial.cKDTree(self.triangle_centers)
         self.n_pmts_per_surf = int(self.n_triangles_per_surf/2.)
 
@@ -67,9 +67,17 @@ class DetectorResponse(object):
         else:
             self.npmt_bins = self.n_lens_sys*self.n_pmts_per_surf # One curved detecting surf for each lens system
 
-        # Comment this out to allow access to old calibration files
-        self.lens_centers = get_lens_triangle_centers(config.vtx, self.lns_rad, config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement, focal_length=config.focal_length, lens_system_name=config.lens_system_name)
-        self.lens_rad = config.half_EPD 
+        # Comment this out to allow access to old calibration files (TODO: This comment is probably no longer relevant)
+        #self.lens_centers = kb2.get_lens_triangle_centers(config.vtx, self.lns_rad, config.diameter_ratio, config.thickness_ratio, config.half_EPD,
+        #                                               config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio,
+        #                                               light_confinement=config.light_confinement, focal_length=config.focal_length,
+        #                                               lens_system_name=config.lens_system_name)
+
+        # Note: Pixel/lens centers and triangle centers are NOT the same thing.  Generally have two triangles per pixel
+        # There is a variable in DRGA 'triangle centers' that is 198400 coordinates (two per pixel)
+
+        self.lens_centers = kb2.get_lens_triangle_centers(config.vtx, self.lns_rad, config.diameter_ratio, lens_system_name=config.lens_system_name)
+        self.lens_rad = config.half_EPD
 
         #self.calc1 = self.pmtxbins/self.pmt_side_length
         #self.calc2 = self.pmtxbins/2.0
@@ -119,6 +127,7 @@ class DetectorResponse(object):
 
         #If nolens is True, assumes a "perfectres" type detector, with no lenses instead of lenses replaced with PMTs.
         #Restricts starting photons to be w/in rmax_frac*inscribed_radius of the center.
+        from ShortIO.root_short import ShortRootReader
         reader = ShortRootReader(simname)
         total_angles = np.zeros(0)
         loops = 0
@@ -210,6 +219,7 @@ class DetectorResponse(object):
 
     def build_perfect_resolution_direction_list(self, simname, filename):
         # creates a list of average ending direction per detectorbin per pmtbin. Each pmtbin will have an array of detectorbins with an average ending direction of photons eminating from each one for each one. Simulation must just be the pmticosohedron.  Make sure that the focal length is the same for the simulation as it is in this file at the top.
+        from ShortIO.root_short import ShortRootReader
         reader = ShortRootReader(simname)
         detectorbins = self.detectorxbins*self.detectorybins*self.detectorzbins
         calc6x = self.detectorxbins/(2*self.inscribed_radius)
@@ -281,6 +291,7 @@ class DetectorResponse(object):
         
         print 'culprit_count: ' + str(culprit_count)
 
+        from ShortIO.root_short import AngleRootWriter
         writer = AngleRootWriter(filename)
         for i in range(self.npmt_bins):
             writer.write_PMT(detector_dir_list[i], i, self.detectorxbins, self.detectorybins, self.detectorzbins)
@@ -308,6 +319,7 @@ class DetectorResponse(object):
         pixels_outside_hit_ring2 = self.c_rings_rolled[ring]
         pmt_number2 = pixel_number_in_ring + pixels_outside_hit_ring2 + curved_surface_index*self.n_pmts_per_surf
 
+        # TODO: only do this in the case of debugging
         for i in range(len(closest_triangle_index)):
             if new_lens_number[i] != curved_surface_index[i]:
                 print('Lens number mismatch: %d, %d, %d' % (i, new_lens_number[i], new_lens_number[i]))
@@ -324,16 +336,21 @@ class DetectorResponse(object):
     def find_pmt_bin_array_new(self, pos_array):
         closest_triangle_index, closest_triangle_dist = self.find_closest_triangle_center(pos_array, max_dist=1.)
         pmts, lenses, rings, pixels = self._scaled_pmt_arr_surf(closest_triangle_index)
-        bad_bins = np.array(pmts) >= self.npmt_bins
 
-        if sum(bad_bins) > 0:
-            print('Bad bin count: ' + str(len(bad_bins[0])))
-            print("The following " + str(np.shape(bad_bins)[1]) + " photons were not associated to a PMT: " + str(bad_bins))
-            pmts = np.delete(pmts, bad_bins) # TODO: Note: this line wont work with new scaled_pmt_arr_surf scheme, and it also breaks calibration
+        # TODO: Document what a bin is and what makes them bad.
+        # There seem to have been latent bugs in here that were only triggered (afer a long time) by a certain configuration
+        bad_bins = np.where(pmts >= self.npmt_bins)[0]
+        if bad_bins.size != 0:
+            print('The following %d photons were not associated to a PMT: %s' % (len(bad_bins), str(bad_bins)))
+            pmts = np.delete(pmts, bad_bins) # TODO: Note: this line wont work with new scaled_pmt_arr_surf scheme, and it also breaks calibration (TODO: old comment?)
             lenses = np.delete(lenses, bad_bins)
             rings = np.delete(rings, bad_bins)
             pixels = np.delete(pixels, bad_bins)
+            # TODO: Just for debugging
             print('New bin array length: ' + str(len(pmts)))
+            bad_bins_2 = np.where(pmts >= self.npmt_bins)[0]
+            if bad_bins_2.size != 0:
+                print('Still have bad bins: %s' % str(bad_bins_2))
         return pmts, lenses, rings, pixels
 
     def find_pmt_bin_array(self, pos_array):
@@ -506,6 +523,21 @@ class DetectorResponse(object):
             ring_offset = cumulative_ring[ring_label]
             triangle_bin1 = curved_surf_bin*self.n_triangles_per_surf + ring_offset + (pmtbin % self.n_pmts_per_surf)
             triangle_bin2 = triangle_bin1+self.ring[ring_label] # Second triangle for this PMT
+            if len(triangle_bin1) == 0:
+                logger.warning('triangle_bin1 is empty')
+                return None
+            if len(triangle_bin2) == 0:
+                logger.warning('triangle_bin2 is empty')
+                return None
+            # Diagnostic / debugging
+            max_triangle_index = len(self.triangle_centers) - 1
+            if np.amax(triangle_bin1) > max_triangle_index:
+                logger.warning('triangle_bin1 has invalid indices: %s' % str(np.where(triangle_bin1 > max_triangle_index)))
+                return None
+            if np.amax(triangle_bin2) > max_triangle_index:
+                logger.warning('triangle_bin2 has invalid indices: %s' % str(np.where(triangle_bin2 > max_triangle_index)))
+                return None
+
             triangle_pos1 = self.triangle_centers[triangle_bin1]
             triangle_pos2 = self.triangle_centers[triangle_bin2]
 

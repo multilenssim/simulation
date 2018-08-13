@@ -1,12 +1,14 @@
-import utilities as setup
 from mpl_toolkits.mplot3d import Axes3D
 from chroma.event import Photons
 import matplotlib.pyplot as plt
-import detectorconfig
 import config_stat
 import numpy as np
 import kabamland2
 import paths
+import utilities
+import argparse
+import detectorconfig
+from logger_lfd import logger
 
 def ring_return(arr_bin,ring):
     ring_arr = np.zeros((arr_bin.shape))
@@ -19,8 +21,14 @@ def ring_return(arr_bin,ring):
     return ring_arr.astype(int)
 
 
-cfg = detectorconfig.get_detector_config('cfSam2-0.5_l200_p92600_b4_e5') # cfSam1_l200_p107600_b4_e10')  # cfSam1_l200_p107600_b4_e5')
-sim, analyzer = setup.sim_setup(cfg,paths.get_calibration_file_name(cfg.config_name),useGeant4=False)
+parser = argparse.ArgumentParser()
+parser.add_argument('config_name', help='detector configuration', nargs='?', default='cfSam2-0.5_l200_p99200_b8_e5')
+_args = parser.parse_args()
+
+config_name = _args.config_name
+config = detectorconfig.get_detector_config(config_name)
+
+sim, analyzer = utilities.sim_setup(config,paths.get_calibration_file_name(config_name),useGeant4=False)
 det_res = analyzer.det_res
 pmt_center = det_res.pmt_bin_to_position(np.arange(det_res.n_pmts_per_surf))
 l_c = det_res.lens_centers[0]
@@ -36,6 +44,7 @@ ax1.scatter(u_pmt,v_pmt,s=0.5,c='black')
 sample = 15
 off_center = np.einsum('ij,i->ij',np.tile(u_vers,sample).reshape(sample,3),np.linspace(0,np.linalg.norm(det_res.lens_centers[0]),sample))
 for alpha in off_center:
+    logger.info('Angle alpha: %f' % np.linalg.norm(alpha))
     off_axis = np.random.rand(amount,3)*2-1
     drc = np.tile((l_c+alpha)/np.linalg.norm(l_c+alpha),amount).reshape(amount,3)
     pos = np.einsum('ij,i->ij',np.einsum('ij,i->ij',off_axis,1/np.linalg.norm(off_axis,axis=1)),np.linspace(0,det_res.lens_rad,amount))*0.5-alpha
@@ -58,8 +67,11 @@ for alpha in off_center:
     ax1.set_xlim(-det_res.lns_rad,det_res.lns_rad)
     ax1.set_ylim(-det_res.lns_rad,det_res.lns_rad)
     ax2.scatter(np.arctan(np.linalg.norm(alpha)/np.linalg.norm(l_c))/np.pi,float(u_proj.shape[0])/amount,c='b')
+    start, end = ax2.get_xlim()
+    ax2.xaxis.set_ticks(np.arange(0, end, 0.05))
     ax2.set_xlabel('incident angle [$\pi^{-1}$]')
     ax2.set_ylabel('collection efficiency')
-    plt.title(cfg.config_name)
-plt.show()
+    ax2.grid()
 
+fig.suptitle(config_name)
+plt.show()

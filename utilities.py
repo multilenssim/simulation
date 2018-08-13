@@ -9,7 +9,7 @@
 #
 
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D # Required for projection='3d' below
+from mpl_toolkits.mplot3d import Axes3D         # Required for projection='3d' below
 import pickle
 import numpy as np
 import deepdish as dd
@@ -76,7 +76,7 @@ def load_or_build_detector(config, detector_material, g4_detector_parameters, fo
         kbl2.build_kabamland(kabamland, config)
         # view(kabamland)
         kabamland.flatten()
-        kabamland.bvh = load_bvh(kabamland)
+        kabamland.bvh = load_bvh(kabamland, bvh_name=config.config_name, read_bvh_cache=(not force_build))
         try:
             with open(filename_base+'.pickle','wb') as pickle_file:
                 pickle.dump(kabamland, pickle_file)
@@ -104,7 +104,12 @@ def load_or_build_detector(config, detector_material, g4_detector_parameters, fo
         '''
         # TODO: Saving the whole dict and the object is redundant
         # TODO: Also, saving all of kabamland vs. just the parameters above adds about 1 Meg to the file size (I think)
-        detector_data = {'config': config, 'config_dict': vars(config), 'detector': kabamland}
+        import lenssystem
+
+        ld_name = configname.split('_')[0][2:]
+        lens_design = lenssystem.get_lens_sys(ld_name)
+        config_data = {'detector_config': config, 'detector_config_dict': vars(config), 'lens_config_dict': vars(lens_design)}
+        detector_data = {'config': config_data, 'detector': kabamland}
         dd.io.save(filename_base + '.h5', detector_data)
 
     return kabamland
@@ -138,11 +143,25 @@ def sph_scatter(sample_count,in_shell,out_shell):
         loc[bl_idx] = np.random.uniform(-out_shell,out_shell,(smpl,3))
     return loc
 
+def print_dictionary(dict, key_width=8, exclusion_list=None):
+    print_str = '  %-' + str(key_width) + 's:\t%s'
+    print_str_float = '  %-' + str(key_width) + 's:\t%0.2f'
+    for key in sorted(dict.keys()):
+        if exclusion_list is None or key not in exclusion_list:
+            value = dict[key]
+            if type(value) in [float, np.float64] and value >= 1.0:
+                print(print_str_float % (key, value))
+            else:
+                print(print_str % (key, str(value)))
+
+
 # Fire Geant4 particles within a spherical shell, or from a specific location
 # Writes both DIEventFile (one per sample_count if file name is provided) and original HDF5 file
 # 'location' is a flag as to whether to generate random locations, momentum, and energy or not
 # If location is provided, those parameters will be fixed, and sample_count will be ignored
-def fire_g4_particles(sample_count, config, particle, energy, inner_radius, outer_radius, h5_file, location=None, momentum=None, di_file_base=None, qe=None):
+def fire_g4_particles(sample_count, config, particle, energy, inner_radius, outer_radius,
+                      h5_file, location=None, momentum=None, di_file_base=None, qe=None,
+                      time_cut=None):
     from chroma.generator import vertex
 
     config_name = config.config_name
@@ -155,16 +174,19 @@ def fire_g4_particles(sample_count, config, particle, energy, inner_radius, oute
     logger.info('Sim count:\t\t%d' % sample_count)
     logger.info('File:\t\t%s' % h5_file)
 
+    track_trees = []
+
     if location is None: # Location is a flag
         loc_array = sph_scatter(sample_count, inner_radius * 1000, outer_radius * 1000)
     else:
         loc_array = [location]
 
+    result_events = []
     with h5py.File(h5_file, 'w') as f:
         first = True
         logger.info('Running locations:\t%d' % len(loc_array))
         for i, lg in enumerate(loc_array):
-            logger.info('Location:\t\t%s' % str(lg))
+            logger.info('Location:\t\t%s, Momentum: %s' % (str(lg), str(momentum)))
             if location is None:
                 gun = vertex.particle_gun([particle], vertex.constant(lg), vertex.isotropic(), vertex.flat(float(energy) * 0.999, float(energy) * 1.001))
             else:
@@ -172,11 +194,13 @@ def fire_g4_particles(sample_count, config, particle, energy, inner_radius, oute
 
             events = sim.simulate(gun, keep_photons_beg=True, keep_photons_end=True, run_daq=False, max_steps=100)
             for ev in events:   # Note: There is really only ever one event because we enumerate loc_array above
+                result_events.append(ev)
                 vert = ev.photons_beg.pos
-                tracks = analyzer.generate_tracks(ev, qe=qe)
+                tracks = analyzer.generate_tracks(ev, qe=qe, time_cut=time_cut)
                 write_h5_reverse_track_file_event(f, vert, tracks, first)
                 first=False
 
+                track_trees.append(ev.photons_beg.track_tree)
                 #vertices = utilities.AVF_analyze_event(analyzer, ev)
                 #utilities.plot_vertices(ev.photons_beg.track_tree, 'AVF plot', reconstructed_vertices=vertices)
                 if di_file_base is not None:
@@ -186,6 +210,7 @@ def fire_g4_particles(sample_count, config, particle, energy, inner_radius, oute
 
             logger.info('Photons detected:\t%s' % str(tracks.sigmas.shape[0]))
             logger.info('============')
+    return track_trees, result_events
 
 def plot_vertices(track_tree, title, with_electrons=True, file_name=None, reconstructed_vertices=None, reconstructed_vertices2=None):
     particles = {}

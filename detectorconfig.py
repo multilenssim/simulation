@@ -4,8 +4,9 @@ import pprint
 import uuid
 
 from logger_lfd import logger
-from lenssystem import get_system_measurements, get_half_EPD  # TODO: this line brings in Geant4 ultimately through Geant4.hepunits in lensmaterials
+import lenssystem  # TODO: this line brings in Geant4 ultimately through Geant4.hepunits in lensmaterials
 import paths
+import utilities # Currently only for print_dictionary
 
 class DetectorConfig(object):
     def __init__ (self, sph_rad, n_lens, max_radius, vtx,
@@ -22,7 +23,8 @@ class DetectorConfig(object):
                   b_pixel=4,
                   tot_pixels=None,
                   the_uuid=None,
-                  config_name=None):
+                  config_name=None,
+                  filling_factor=None):
         # Spherical geometry the focal surface is considered curve (planar surface not considered).
         # The parameters of the lens system defined in lenssystem.py for any given name. 
         # Note that focal_length can only be explicitly set for planar detectors (otherwise lenssystem
@@ -38,30 +40,30 @@ class DetectorConfig(object):
         # aside from the detector surface size (but including detector radius of curvature) 
         # Hence, diameter_ratio=1.0 means use the ratio set by the default lens system parameters.
         self.diameter_ratio = diameter_ratio         
-        self.thickness_ratio = thickness_ratio # Sets lens params for old configs; deprecated
-        self.blockers = blockers # Toggles blocking surfaces at the lens plane between lenses
+        self.thickness_ratio = thickness_ratio  # Sets lens params for old configs; deprecated
+        self.blockers = blockers                # Toggles blocking surfaces at the lens plane between lenses
         self.blocker_thickness_ratio = blocker_thickness_ratio # Sets thickness of blockers; should have no effect
         self.lens_system_name = lens_system_name
         self.max_radius = max_radius
         if lens_system_name:
+            scale_rad = max_radius*diameter_ratio   # TODO: put this in the config?
+            self.scale_factor = lenssystem.get_scale_factor(lens_system_name, scale_rad)
             # Get focal length and radius of curvature of detecting surfaces; detecting surface will
             # extend to the maximum allowable radius, but its radius of curvature (and all other lens
             # system parameters) will scale with the diameter_ratio
-            self.focal_length, self.detector_r = get_system_measurements(lens_system_name, max_radius*diameter_ratio)
-            self.half_EPD = get_half_EPD(lens_system_name, max_radius*diameter_ratio, self.EPD_ratio)
+            self.focal_length, self.detector_r = lenssystem.get_system_measurements(lens_system_name, scale_rad)
+            self.half_EPD = lenssystem.get_half_EPD(lens_system_name, scale_rad, self.EPD_ratio)
         else: # Default, for flat detecting surface
-            self.focal_length = focal_length # Use given focal length
-            self.detector_r = 0. # Flat detector
+            self.focal_length = focal_length    # Use given focal length
+            self.detector_r = 0.                # Flat detector
             self.half_EPD = diameter_ratio*max_radius # Just uses diameter_ratio instead of EPD_ratio, for backwards compatibility
         self.light_confinement = light_confinement
-        self.ring_count = ring_count # number of steps to generate curved detecting surface - sets number of PMTs - I think this is now the number of rings
-        self.base_pixels = b_pixel # number of pixels in the first ring (active only with NEW PIXELIZATION)
-        self.vtx = vtx    # List of vertices of each lens
+        self.ring_count = ring_count            # number of steps to generate curved detecting surface - sets number of PMTs - I think this is now the number of rings
+        self.base_pixels = b_pixel              # number of pixels in the first ring (active only with NEW PIXELIZATION)
+        self.vtx = vtx                          # List of vertices of each lens
         self.tot_pixels = tot_pixels
-        if the_uuid is None:
-            self.uuid = uuid.uuid1()
-        else:
-            self.uuid = the_uuid
+        self.uuid = the_uuid if the_uuid is not None else uuid.uuid1()
+        self.filling_factor = filling_factor
         if config_name is None:
             # Note: lens_system_name could be None
             self.config_name = 'cf%s_l%i_p%i_b%i_e%i' % (self.lens_system_name, self.lens_count, self.tot_pixels, self.base_pixels, int(self.EPD_ratio*10))
@@ -69,7 +71,10 @@ class DetectorConfig(object):
             self.config_name = config_name
 
     def display_configuration(self):
-        print('=== Config: %s =====' % self.config_name)
+        print('=== Detector config: %s =====' % self.config_name)
+        utilities.print_dictionary(vars(self), 18, 'vtx')
+
+        '''
         print ('  Detector radius:\t%0.2f'  % self.detector_radius)
         print ('  Number of lenses:\t%d'    % self.lens_count)
         print ('  Max radius:\t\t%0.2f'     % self.max_radius)
@@ -79,7 +84,9 @@ class DetectorConfig(object):
         print ('  UUID:\t\t\t\t%s'          % str(self.uuid))
         print ('  Total pixels in detector:\t%s'  % '{:,}'.format(self.tot_pixels))
         print ('  Lens focal length:\t%0.2f'   % self.focal_length)
-
+        print('Full configuration:')
+        pprint.pprint(self.__dict__)
+        '''
         #lens_system_name = config_name.split('_')[0][2:]
         #dtc_r = get_system_measurements(lens_system_name, max_rad)[1]
         #n_step, tot_pxl = param_arr(n_lens, b_pxl, lens_system_name, dtc_r, max_rad)
@@ -117,7 +124,7 @@ class DetectorConfigurationList(object):
 
         conf_name = config.config_name
         if conf_name in _config_list:
-            logger.info('Replacing configuration: ' + conf_name)
+            logger.warning('Replacing configuration: ' + conf_name)
         _config_list[conf_name] = config
         self._save_config_list()
         logger.info('Configuration saved: ' + conf_name)
@@ -144,6 +151,12 @@ def get_detector_config(config_name):
 
 # The old parameters:    edge_length, base, pmtxbins, pmtybins, diameter_ratio,
 
+def print_lens_design(design_name, config):
+    ld_name = design_name.split('_')[0][2:]
+    lens_design = lenssystem.get_lens_sys(ld_name)
+    print('===== Lens design: %s (unscaled) ======' % ld_name)
+    utilities.print_dictionary(vars(lens_design), 18)  # vars() and .__dict__ produce the same output
+
 #
 # Display lists of available detector configurations
 #
@@ -154,6 +167,7 @@ if __name__ == '__main__':
     parser.add_argument('--simple_list', '-s', action='store_true', help='List only the detector configuration names in the configuration file')
     parser.add_argument('--full_list', '-f', action='store_true', help='List the full detector configurations')
     parser.add_argument('--convert', '-c', action='store_true', help='Convert from old style array based configuration, to new styleobject-based')
+    parser.add_argument('--design', '-d', nargs='?', help='Show all of the details of a single configuration')
     args = parser.parse_args()
 
     if args.convert:
@@ -179,7 +193,27 @@ if __name__ == '__main__':
         with open(_configs_pickle_file+'.2.pickle','w') as f:
             pickle.dump(new_config_dict, f, protocol=pickle.HIGHEST_PROTOCOL)
 
+    elif args.design:
+        import lenssystem
+
+        cl = DetectorConfigurationList()
+        config_dict = cl._get_dict()
+        config = config_dict[args.design]
+        print('========================')
+
+        print_lens_design(args.design, config)
+
+        config.display_configuration()
+        #pprint.pprint(vars(config))    # Redundant while we have the extra debugginh in display_configuratio()
+
+        print('========================')
+        print('========================')
+
+        # TODO: Add geometric coverage
+
     else:
+        import lenssystem
+
         cl = DetectorConfigurationList()
         dct = cl._get_dict()
         for key, value in dct.iteritems():
@@ -188,5 +222,6 @@ if __name__ == '__main__':
             else:
                 value.display_configuration()
                 if args.full_list:
-                    pprint.pprint(vars(value))
+                    print_lens_design(key, value)
+                    # pprint.pprint(vars(value))
                     print('========================')

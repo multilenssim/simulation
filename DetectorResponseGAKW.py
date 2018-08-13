@@ -1,4 +1,4 @@
-from ShortIO.root_short import GaussAngleRootWriter, GaussAngleRootReader, ShortRootReader
+#from ShortIO.root_short import GaussAngleRootWriter, GaussAngleRootReader, ShortRootReader
 import numpy as np
 from linalg_3 import *
 
@@ -180,7 +180,7 @@ class DetectorResponseGAKW(DetectorResponse):
         if nevents < 1:
             nevents = len(reader)   # This will blow up
         total_means = np.zeros((self.npmt_bins, 3))
-        total_variances = np.zeros((self.npmt_bins))
+        total_variances = np.zeros(s(self.npmt_bins))
         total_u_minus_v = np.zeros((self.npmt_bins))
         amount_of_hits = np.zeros((self.npmt_bins))
 
@@ -305,25 +305,25 @@ class DetectorResponseGAKW(DetectorResponse):
             #print("---End calibrate PMT----")
 
             try:
-                #draw_pmt_ind = None
-				draw_pmt_ind = int(draw_pmt_ind)
+                # draw_pmt_ind = None
+                draw_pmt_ind = int(draw_pmt_ind)
                 '''
-                if i == draw_pmt_ind or draw_pmt_ind<0:
+                if i == draw_pmt_ind or draw_pmt_ind < 0:
                     # Temporary, to visualize histogram of angles, distances
-                    #angles = np.arccos(projection_norms)
-                    #ang_variance = np.var(angles, ddof=1)
-                    #fig1 = plt.figure(figsize=(7.8, 6))
-                    #plt.hist(angles, bins=20)
-                    #plt.xlabel('Angular Separation to Mean Angle')
-                    #plt.ylabel('Counts per bin')
-                    #plt.title('Angles Histogram for PMT ' + str(i))
+                    # angles = np.arccos(projection_norms)
+                    # ang_variance = np.var(angles, ddof=1)
+                    # fig1 = plt.figure(figsize=(7.8, 6))
+                    # plt.hist(angles, bins=20)
+                    # plt.xlabel('Angular Separation to Mean Angle')
+                    # plt.ylabel('Counts per bin')
+                    # plt.title('Angles Histogram for PMT ' + str(i))
                     ##plt.show()
                     #
-                    #fig2 = plt.figure(figsize=(7.8, 6))
-                    #plt.hist(angles, bins=20, weights=1./np.sin(angles))
-                    #plt.xlabel('Angular Separation to Mean Angle')
-                    #plt.ylabel('Counts per solid angle')
-                    #plt.title('Angles Histogram for PMT ' + str(i))
+                    # fig2 = plt.figure(figsize=(7.8, 6))
+                    # plt.hist(angles, bins=20, weights=1./np.sin(angles))
+                    # plt.xlabel('Angular Separation to Mean Angle')
+                    # plt.ylabel('Counts per solid angle')
+                    # plt.title('Angles Histogram for PMT ' + str(i))
 
                     fig3 = plt.figure(figsize=(7.8, 6))
                     plt.hist(orthogonal_complements, bins=20)
@@ -344,8 +344,8 @@ class DetectorResponseGAKW(DetectorResponse):
                     plt.title('V Distances Histogram for PMT ' + str(i))
                     plt.show()
 
-                    #print "Average projected variance: ", variance
-                    #print "Variance of projected 2D norms: ", np.var(orthogonal_complements, ddof=1)
+                    # print "Average projected variance: ", variance
+                    # print "Variance of projected 2D norms: ", np.var(orthogonal_complements, ddof=1)
                     draw_pmt_ind = raw_input("Enter index of next PMT to draw; will stop drawing if not a valid PMT index.\n")
                 '''
             except ValueError:

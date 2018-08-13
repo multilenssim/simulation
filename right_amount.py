@@ -79,6 +79,7 @@ def calc_rad(vtx,rad_sp):
                 rad = rad/math.sqrt(1-math.pow(rad,2))
                 new_geom_eff = (1-np.cos(np.arctan(rad)))/2.0*vtx.shape[0]
                 if new_geom_eff-geom_eff<0.000005 and i>5:
+                        print('Max rad.: %f, %f' % (rad_sp*rd, rd))
                         return rad_sp*vtx, rad_sp*rd,geom_eff
                 rd = rad
                 vtx = mod_vtx
@@ -100,9 +101,9 @@ if __name__ == '__main__':
     n_lens = int(raw_input('input the number of lens assemblies: '))
     EPD_ratio = float(raw_input('input the pupil ratio: '))
     vtx,max_rad,geom_eff = calc_rad(fibonacci_sphere(n_lens),sph_rad)
-    dtc_r = get_system_measurements(lens_system_name,max_rad)[1]
+    _, dtc_r = get_system_measurements(lens_system_name,max_rad)
     ring_count,tot_pxl = param_arr(n_lens,b_pxl,lens_system_name,dtc_r,max_rad,target_pixels)
-
+    filling_factor = geom_eff*math.pow(EPD_ratio,2)
     config = dc.DetectorConfig(sph_rad, n_lens, max_rad, vtx,
                                1.0,    			# TODO: Is diameter ratio always 1.0?
                                ring_count,   	# This is actually the ring boundary count, which is one more than the number of actual rings of pixels
@@ -114,10 +115,11 @@ if __name__ == '__main__':
                                focal_length=1.0,
                                light_confinement=False,
                                b_pixel=b_pxl,
-                               tot_pixels=tot_pxl)
+                               tot_pixels=tot_pxl,
+                               filling_factor=filling_factor)
     config.display_configuration()
 
-    print '  Geometrical filling factor: %0.2f'%(geom_eff*math.pow(EPD_ratio,2))
+    print('  Geometrical filling factor: %0.2f'%(filling_factor))
     anw = raw_input('add %s configuration (y or n)?: '%config.config_name)
     if anw == 'y':
         cl = dc.DetectorConfigurationList()

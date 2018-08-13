@@ -119,7 +119,7 @@ def simulate_and_calibrate(config, build_only=False, force=False):
                 return
             logger.info('==== Simulating photons: %s  ====' % photons_file_base)
             _full_detector_simulation(config, kabamland, 100000, photons_file_base, datadir=paths.detector_calibration_path)
-            logger.info('==== Simulation complete')
+            logger.warning('==== Simulation complete')
             simulation_file = photons_file_base + '.h5'
 
         elif os.path.exists(photons_file_full_path_base+'.h5'):  # TODO: The double if's and constantly adding extensions needs to be reworked

@@ -13,6 +13,7 @@ import time as time
 from DetectorResponse import DetectorResponse      # Ick - some weird import loop due to detectorconfig importing utils
 from DetectorResponseGAKW import DetectorResponseGAKW
 from DetectorResponseGaussAngle import DetectorResponseGaussAngle
+
 from Tracks import Tracks, Vertex
 
 from logger_lfd import logger
@@ -235,7 +236,7 @@ class EventAnalyzer(object):
         return self.AVF(tracks, min_tracks, chiC, temps, tol, debug) # list of Vertex objects
 
     def AVF(self, tracks, min_tracks=4, chiC=3., temps=[256, 0.25], tol=1.0, debug=False):
-        '''Adaptive vertex fitter algorithm to find vertex locations/uncertainties and which tracks 
+        '''Adaptive vertex fitter algorithm to find vertex locations/uncertainties and which tracks
         to associate with each vertex.
         The algorithm, in brief:
         While there are fewer than min_tracks unassociated tracks:
@@ -250,6 +251,7 @@ class EventAnalyzer(object):
             are fed back to the algorithm to find the next vertex.
             If min_tracks<1, use as a fraction of the total event's tracks.
         '''
+
         WEIGHT_CUT = 0.50
 
         # Get an array of voxel positions within the detector, for repeated use
@@ -719,11 +721,13 @@ class EventAnalyzer(object):
         return tracks
     '''
 
-    def generate_tracks(self, ev, qe=None, heat_map = False, sig_cone=0.01, n_ph=0, lens_dia=None, debug=False, detec=False):
+    # TODO: Document the parameters
+    def generate_tracks(self, ev, qe=None, heat_map=False, sig_cone=0.0001,
+                        n_ph=0, lens_dia=None, debug=True, detec=False,
+                        time_cut=None):
         #Makes tracks for event ev; allow for multiple track representations?
         detected = (ev.photons_end.flags & (0x1 <<2)).astype(bool)
         logger.info('Detected: ' + str(detected))
-        logger.info(str(ev.photons_end.flags));
         reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
         reflected_specular = (ev.photons_end.flags & (0x1 <<6)).astype(bool)
         good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
@@ -766,6 +770,9 @@ class EventAnalyzer(object):
 
         # print('PMT bins: ' + str(event_pmt_bin_array))
         event_pmt_pos_array = np.array(self.det_res.pmt_bin_to_position(event_pmt_bin_array)).T
+        logger.warning('Shape: ' + str(np.shape(event_pmt_pos_array)))
+        if event_pmt_pos_array is None:
+            logger.warning('Empty PMT array')
         event_lens_bin_array = np.array(event_pmt_bin_array/self.det_res.n_pmts_per_surf)
         event_lens_pos_array = np.array([self.det_res.lens_centers[x] for x in event_lens_bin_array]).T
         
@@ -840,17 +847,23 @@ class EventAnalyzer(object):
                                 qe=qe)
                 #tracks = Tracks(event_pmt_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = 0.0000001)
                 msk = tracks.sigmas > 0.001
-                tracks.cull(np.where(np.logical_not(msk))) # Remove tracks with zero uncertainty (not calibrated)
+                tracks.cull(np.where(msk)) # Remove tracks with zero uncertainty (not calibrated)
+                if time_cut is not None:
+                    time_mask = ev.photons_end.t < time_cut # is this really the right way to cut?
+                    tracks.cull(np.where(time_mask))
+                    logger.info('Culled tracks by time.  Remaining: %d' % len(tracks.hit_pos[0]))
                 if np.any(np.isnan(tracks.sigmas)):
-                    print "Nan tracks!! Removing."
+                    logger.error("Nan tracks!! Removing.")
                     nan_tracks = np.where(np.isnan(tracks.sigmas))
                     tracks.cull(nan_tracks)
             except IndexError:
-                logger.error('Index eror.  Uh oh.')
+                logger.error('Index error.  Uh oh.')
                 return None
 
             if debug:
-                print "Tracks for calibrated PMTs: " + str(len(tracks))
+                logger.info('Ending photon positions: %s' % ev.photons_end.pos)
+                logger.info('Tracks for calibrated PMTs: ' + str(len(tracks)))
+                logger.info('Lenses: %s\nRings: %s\nPixels: %s' % (str(lenses), str(rings), str(pixels)))
                 #tracks.cull(np.where(tracks.sigmas<0.2)) # Remove tracks with too large uncertainty
                 #tracks.sigmas[:] = 0.054 # Temporary! Checking if setting all sigmas equal to each other helps or hurts
             if heat_map:
