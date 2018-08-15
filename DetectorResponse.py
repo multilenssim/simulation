@@ -45,10 +45,10 @@ class DetectorResponse(object):
         self.diameter_ratio = config.diameter_ratio
         self.thickness_ratio = config.thickness_ratio
         ##changed
-        self.focal_length = config.focal_length
+        self.pmt_surface_location = config.pmt_surface_position
 
         ##end changed
-        #self.pmt_side_length = np.sqrt(3)*(3-np.sqrt(5))*self.focal_length
+        #self.pmt_side_length = np.sqrt(3)*(3-np.sqrt(5))*self.pmt_surface_position
         self.inscribed_radius = config.detector_radius
         #self.rotation_matrices = self.build_rotation_matrices()
         #self.inverse_rotation_matrices = np.linalg.inv(self.rotation_matrices)
@@ -58,7 +58,7 @@ class DetectorResponse(object):
         #new properties for curved surface detectors
 
         # Comment this out to allow access to old calibration files
-        self.triangle_centers,self.n_triangles_per_surf,self.ring = kb2.get_curved_surf_triangle_centers(config.vtx, self.lns_rad, self.detector_r, self.focal_length, self.nsteps, config.base_pixels)
+        self.triangle_centers,self.n_triangles_per_surf,self.ring = kb2.get_curved_surf_triangle_centers(config.vtx, self.lns_rad, self.detector_r, self.pmt_surface_location, self.nsteps, config.base_pixels)
         self.triangle_centers_tree = spatial.cKDTree(self.triangle_centers)
         self.n_pmts_per_surf = int(self.n_triangles_per_surf/2.)
 
@@ -70,7 +70,7 @@ class DetectorResponse(object):
         # Comment this out to allow access to old calibration files (TODO: This comment is probably no longer relevant)
         #self.lens_centers = kb2.get_lens_triangle_centers(config.vtx, self.lns_rad, config.diameter_ratio, config.thickness_ratio, config.half_EPD,
         #                                               config.blockers, blocker_thickness_ratio=config.blocker_thickness_ratio,
-        #                                               light_confinement=config.light_confinement, focal_length=config.focal_length,
+        #                                               light_confinement=config.light_confinement, focal_length=config.pmt_surface_position,
         #                                               lens_system_name=config.lens_system_name)
 
         # Note: Pixel/lens centers and triangle centers are NOT the same thing.  Generally have two triangles per pixel
@@ -99,7 +99,7 @@ class DetectorResponse(object):
     def build_displacement_matrix(self):
         displacement_matrix = np.empty((20, 3))
         for k in range(20):
-            displacement_matrix[k] = self.facecoords[k] + self.focal_length*normalize(self.facecoords[k])
+            displacement_matrix[k] = self.facecoords[k] + self.pmt_surface_location * normalize(self.facecoords[k])
         return displacement_matrix
 
     def build_inverse_rotated_displacement_matrix(self):

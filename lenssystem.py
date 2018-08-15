@@ -30,25 +30,22 @@ class LensSys(object):
         self._c2 = c2
         self._c3 = c3
         self._c4 = c4
+
         # Thickness of the lenses
-
-        logger.info('================================')
-        logger.info('==== Lens system: %s ====' % self.name)
-
-        # Temporary hack!!
-        if False: # c1 is not None:  # Jiani3 uses None
-            self._t1 = t1 + thickness_of_lens_curved_part(c1, lens1_rad) + thickness_of_lens_curved_part(c2, lens1_rad)
-            self._t2 = t2 + thickness_of_lens_curved_part(c3, lens2_rad) + thickness_of_lens_curved_part(c4, lens1_rad)
-        else:
-            self._t1 = t1
-            self._t2 = t2
+        self._t1 = t1
+        self._t2 = t2
 
         self._gap = gap                                  # Gap between the lenses
         self._focal_surface_gap = focal_surface_gap      # Distance from outer most lens surface to image surface - TODO: is this comment wrong??
         self._epd_gap = epd_gap                          # Distance from front of lens #1 to the iris
 
-        if c1 is not None:  # Jiani3 uses None
-            self.epd_offset = epd_gap + thickness_of_lens_curved_part(c1, lens1_rad)  # Distance form the "zero point" (edge of front curvature of lens #1) to the iris
+        logger.info('================================')
+        logger.info('==== Lens system: %s ====' % self.name)
+
+        # The reference plane or "zero point" of the central axis lens system measurements is the front edge of cylindrical portion of lens #1
+        if name != 'Jiani3':
+            # TODO: thought that we were saving the curvature thicknesses for diagnostic purposes?
+            self.epd_offset = epd_gap + thickness_of_lens_curved_part(c1, lens1_rad)  # Distance from the "zero point" to the iris
 
             # TODO: Also check that the radius of curvature is not greater than diameter
             lens1_curved_thickness = thickness_of_lens_curved_part(c1, lens1_rad) + thickness_of_lens_curved_part(c2, lens1_rad)
@@ -63,26 +60,18 @@ class LensSys(object):
                 logger.critical('=== Lens 2 geometry is inconsistent - overriding thickness')
                 self._t2 = lens2_curved_thickness
 
-        # TODO: needs testing
-        # Note: this is not really the focal length.  It's just the distance from the reference plane to the detector surface along the central axis
-        computed_fl = None
-        if focal_length is None:
+            # TODO: needs testing
+            # Note: this is not really the focal length.  It's just the distance from the reference plane to the detector surface along the central axis
+            # TODO: get rid of focal length
             distance_to_lens_2 = self._t1 - thickness_of_lens_curved_part(c1, lens1_rad) + gap
-            self._d2 = distance_to_lens_2 + thickness_of_lens_curved_part(c3, lens2_rad)
+            self._d2 = distance_to_lens_2 + thickness_of_lens_curved_part(c3, lens2_rad)  # TODO: believe that d2 is only used in one place below
             computed_fl = distance_to_lens_2 + self._t2 + self._focal_surface_gap
-            self._focal_length = computed_fl
+            if focal_length is not None:
+                logger.info('"Focal length" specified vs. computed for %s: %s, %s' % (name, str(focal_length), str(computed_fl)))
+                self._focal_length = focal_length
+            self._location_of_focal_surface = computed_fl
         else:
-            try:
-                # TODO: merge this duplicate code
-                distance_to_lens_2 = self._t1 - thickness_of_lens_curved_part(c1, lens1_rad) + gap
-                self._d2 = distance_to_lens_2 + thickness_of_lens_curved_part(c3, lens2_rad)
-                computed_fl = distance_to_lens_2 + self._t2 + self._focal_surface_gap
-            except Exception as e:
-                if name != 'Jiani3':      # Hack to suppress Jiani3
-                    logger.info('Exception computing focal length for: %s, %s' % (name, e))
-                pass
             self._focal_length = focal_length
-        logger.info('Focal length specified vs. computed for %s: %s, %s' % (name, str(focal_length), str(computed_fl)))
         logger.info('Image surface gap: %s' % (str(focal_surface_gap)))
 
     def __str__(self):
@@ -90,7 +79,6 @@ class LensSys(object):
 
 # TODO: Do I need to retest this?
 _lensdict = {'Jiani3': LensSys('Jiani3', sys_rad=643., focal_length=1074., detector_r_curve=943., c1 = None, lens1_rad=488.)}
-
 
 '''
         # Old Sam1 computations
@@ -112,23 +100,18 @@ _lensdict['Sam1-old'] =  LensSys('Sam1-old', sys_rad=350., detector_r_curve=480.
 # TODO: use negative curvatures?
 #   lens_rad is just a guess so far
 #   Need to double check the "focal length" computations
-_lensdict['Sam2-0.7'] =  LensSys('Sam2-0.7', sys_rad=300., detector_r_curve=600., lens1_rad=300., lens2_rad=600.,
+_lensdict['Sam2-0.7'] =  LensSys('Sam2-0.7', sys_rad=600., detector_r_curve=600., lens1_rad=380., lens2_rad=430.,
                                  c1=932.5, c2=444.0, c3=802.2, c4=822., t1=300.03, t2=250.,
-                                 gap=10.8, focal_surface_gap=384.0,
+                                 gap=10.8, focal_surface_gap=384.0, epd_gap=45.1,
                                  lensmat=lm.lensmat_ohara)
-_lensdict['Sam2-0.6'] =  LensSys('Sam2-0.6', sys_rad=300., detector_r_curve=600., lens1_rad=300., lens2_rad=600.,
+_lensdict['Sam2-0.6'] =  LensSys('Sam2-0.6', sys_rad=600., detector_r_curve=600., lens1_rad=370., lens2_rad=430.,
                                  c1=890.7, c2=431.9, c3=797.4, c4=845.7, t1=300., t2=250.,
-                                 gap=6.2, focal_surface_gap=395.7,
+                                 gap=6.2, focal_surface_gap=395.7, epd_gap=43.7,
                                  lensmat=lm.lensmat_ohara)
-_lensdict['Sam2-0.5'] =  LensSys('Sam2-0.5', sys_rad=600., detector_r_curve=600., lens1_rad=380., lens2_rad=600.,
-                                 c1=744.9, c2=397.2, c3=739.1, c4=1521.5, t1=300., t2=250.,
-                                 gap=22.9, focal_surface_gap=369.1, epd_gap=35.3,
-                                 lensmat=lm.lensmat_ohara)
-_lensdict['Sam2-0.5-600'] =  LensSys('Sam2-0.5-600', sys_rad=600., detector_r_curve=600., lens1_rad=300., lens2_rad=600.,
-                                     c1=744.9, c2=397.2, c3=739.1, c4=1521.5, t1=300., t2=250.,
-                                     gap=22.9, focal_surface_gap=369.1, epd_gap=35.3,
-                                     lensmat=lm.lensmat_ohara)
-
+_lensdict['Sam2-0.5'] =  LensSys('Sam2-0.5', sys_rad=600., detector_r_curve=600., lens1_rad=350., lens2_rad=475.,
+                                  c1=744.9, c2=397.2, c3=739.1, c4=1521.5, t1=300., t2=250.,
+                                  gap=22.9, focal_surface_gap=369.1, epd_gap=35.3,
+                                  lensmat=lm.lensmat_ohara)
 
 #pprint.pprint(lensdict) # Doesn't print object fields even when __str__ is implemented
 
@@ -162,22 +145,28 @@ def get_half_EPD(lens_system_name, scale_rad, EPD_ratio):
     # radius, scaled up appropriately
     scale_factor = get_scale_factor(lens_system_name, scale_rad)
     lens_sys = get_lens_sys(lens_system_name)
+
+    # This change makes the scale factor consistent throughout
+    #sys_rad_unscaled = lens_sys._sys_rad
+    #sys_rad = scale_factor*sys_rad_unscaled
+    #return sys_rad*EPD_ratio
     lens1_rad_unscaled = lens_sys._lens1_rad
     lens1_rad = scale_factor*lens1_rad_unscaled
     return lens1_rad*EPD_ratio
-  
+
+
 def get_system_measurements(lens_system_name, scale_rad):
-    # Returns the focal length and detecting surface radius of curvature for 
+    # Returns the focal surface position and detecting surface radius of curvature for
     # a given lens system of name lens_system_name; 
     scale_factor = get_scale_factor(lens_system_name, scale_rad)
     lens_sys = get_lens_sys(lens_system_name)
-    fl_unscaled = lens_sys._focal_length
+    fsp_unscaled = lens_sys._location_of_focal_surface if hasattr(lens_sys, '_location_of_focal_surface') else lens_sys._focal_length
     det_r_unscaled = lens_sys._detector_r_curve
-    fl = fl_unscaled*scale_factor
-    det_r = det_r_unscaled*scale_factor
-    
-    return fl, det_r
-    #det_diam < 2*det_r = 2*sys_det_r*scale_factor
+    fsp = fsp_unscaled * scale_factor
+    det_r = det_r_unscaled * scale_factor
+
+    return fsp, det_r
+    # det_diam < 2*det_r = 2*sys_det_r*scale_factor
 
 def get_lens_mesh_list(lens_system_name, scale_rad):
     # Returns a list of lens meshes for the given lens_system_name, scaled to match scale_rad

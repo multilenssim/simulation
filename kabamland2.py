@@ -130,9 +130,10 @@ def get_lens_triangle_centers(vtx, rad, diameter_ratio, lens_system_name=None):
     for vx,ph,ax in zip(vtx,-phi,axs):
         lns_center_arr.append(np.dot(make_rotation_matrix(ph,ax),lens_centers) - vx)
     return np.asarray(lns_center_arr)
-  
+
+# TODO: get rid of the default focal length?  Or the focal length at all?  It's only used to place the baffles
 def build_lens_icosahedron(kabamland, vtx, rad, diameter_ratio, thickness_ratio, half_EPD, blockers=True,
-                           blocker_thickness_ratio=1.0/1000, light_confinement=False, focal_length=1.0, lens_system_name=None):
+                           blocker_thickness_ratio=1.0/1000, light_confinement=False, pmt_surface_position=1.0, lens_system_name=None):
     """input edge length of icosahedron 'edge_length', the number of small triangles in the base of each face 'base',
        the ratio of the diameter of each lens to the maximum diameter possible 'diameter_ratio' (or the fraction of the default such ratio,
        if a curved detector lens system), the ratio of the thickness of the lens to the chosen (not maximum) diameter 'thickness_ratio',
@@ -156,30 +157,38 @@ def build_lens_icosahedron(kabamland, vtx, rad, diameter_ratio, thickness_ratio,
             face += Solid(lns, lensmat, kabamland.detector_material)
         element_vertex_offsets.append(len(face.mesh.vertices))
 
+    # TODO cleanup:
+    #   When we need which variables and when we have which variables in the config
+    #   get rid of focal length - it's not the right dimension for the baffle length anyway - it needs to be the EPD to focal array distance.
+    #   See below
+    lens_config = lenssystem.get_lens_sys(lens_system_name)
+    scale_factor = lenssystem.get_scale_factor(lens_system_name, scale_rad)
+    epd_offset = [0,0,lens_config.epd_offset*scale_factor]
+    baffle_offset = [0, 0, lens_config.epd_offset * scale_factor - pmt_surface_position / 2]  # lens_config.epd_offset*scale_factor-1000]
     if light_confinement:
-        shield = mh.rotate(cylindrical_shell(rad*(1 - 0.001), rad, focal_length,32), make_rotation_matrix(np.pi/2.0, (1,0,0)))
+        shield = mh.shift(mh.rotate(cylindrical_shell(rad * (1 - 0.001), rad, pmt_surface_position, 32), make_rotation_matrix(np.pi / 2.0, (1, 0, 0))), baffle_offset)
         baffle = Solid(shield, lensmat, kabamland.detector_material, black_surface, 0xff0000)
 
     if blockers:
         blocker_thickness = 2*rad*blocker_thickness_ratio
         if half_EPD < rad:
-            lens_config = lenssystem.get_lens_sys(lens_system_name)
-            scale_factor = lenssystem.get_scale_factor(lens_system_name,scale_rad)
             c1 = lens_config._c1 * scale_factor   # TODO XXXXX: make an accessor for c1
             z_ofst = c1-np.sqrt(c1*c1-rad*rad)
             correct_offset = z_ofst + 35.3
             print('curvature: %f, radius: %f (of what), scale_factor: %f, initial offset: %f, correct offset: %f, new offset: %f' %
                   (c1, rad, scale_factor, z_ofst, correct_offset, lens_config.epd_offset*scale_factor))
             print('Half EPD: %f' % half_EPD)
-            offset = [0,0,lens_config.epd_offset*scale_factor]
-            anulus_blocker = mh.shift(mh.rotate(cylindrical_shell(half_EPD, rad, blocker_thickness, 32), make_rotation_matrix(np.pi/2.0, (1,0,0))),offset)
+            anulus_blocker = mh.shift(mh.rotate(cylindrical_shell(half_EPD, rad, blocker_thickness, 32), make_rotation_matrix(np.pi/2.0, (1,0,0))),epd_offset)
             face += Solid(anulus_blocker, lensmat, kabamland.detector_material, black_surface, 0xff0000)
             element_vertex_offsets.append(len(face.mesh.vertices))
+            #face += baffle  # TODO: Just add to plot baffle - so the baffle is added twice? - right now in different places...
+            #element_vertex_offsets.append(len(face.mesh.vertices))
+
     phi, axs = rot_axis([0,0,1],vtx)
     for vx,ph,ax in zip(vtx,-phi,axs):
         kabamland.add_solid(face, rotation=make_rotation_matrix(ph,ax), displacement = -vx)
         if light_confinement:
-            kabamland.add_solid(baffle, rotation=make_rotation_matrix(ph,ax), displacement = -normalize(vx)*(np.linalg.norm(vx)+focal_length/2.0))
+            kabamland.add_solid(baffle, rotation=make_rotation_matrix(ph,ax), displacement = -normalize(vx)*(np.linalg.norm(vx) - pmt_surface_position / 2.0))
     return element_vertex_offsets
 
 def calc_steps(x_value,y_value,detector_r,base_pixel):
@@ -212,7 +221,7 @@ def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=8,base_pxl=4,ret_arr=
     if ret_arr: return  surf, n_step
     else: return surf
 
-def get_curved_surf_triangle_centers(vtx, rad, detector_r = 1.0, focal_length=1.0, nsteps = 10, b_pxl=4):
+def get_curved_surf_triangle_centers(vtx, rad, detector_r, pmt_surface_position, nsteps = 10, b_pxl=4):
     #Changed the rotation matrix to try and keep the curved surface towards the interior
     #Make sure diameter, etc. are set properly
     curved_surf_triangle_centers = []
@@ -222,19 +231,19 @@ def get_curved_surf_triangle_centers(vtx, rad, detector_r = 1.0, focal_length=1.
     phi, axs = rot_axis([0,0,1],vtx)
     for vx,ph,ax in zip(vtx,-phi,axs):
 	curved_surf_triangle_centers.extend(mh.shift(mh.rotate(initial_curved_surf,make_rotation_matrix(ph,ax)),
-                                                 -normalize(vx)*(np.linalg.norm(vx)+focal_length)).get_triangle_centers())
+                                                 -normalize(vx)*(np.linalg.norm(vx)+pmt_surface_position)).get_triangle_centers())
     return np.asarray(curved_surf_triangle_centers),triangles_per_surface,ring
 
-def build_curvedsurface_icosahedron(kabamland, vtx, rad, diameter_ratio, focal_length=1.0, detector_r = 1.0, nsteps = 10, b_pxl=4):
+def build_curvedsurface_icosahedron(kabamland, vtx, rad, pmt_surface_position, detector_r, nsteps = 10, b_pxl=4):
     initial_curved_surf = mh.rotate(curved_surface2(detector_r, diameter=rad*2, nsteps=nsteps, base_pxl=b_pxl), make_rotation_matrix(-np.pi/2, (1,0,0)))
     face = Solid(initial_curved_surf, kabamland.detector_material, kabamland.detector_material, lm.fulldetect, 0x0000FF)
     phi, axs = rot_axis([0,0,1],vtx)
     for vx,ph,ax in zip(vtx,-phi,axs):
-        kabamland.add_solid(face, rotation=make_rotation_matrix(ph,ax), displacement = -normalize(vx)*(np.linalg.norm(vx)+focal_length))
+        kabamland.add_solid(face, rotation=make_rotation_matrix(ph,ax), displacement = -normalize(vx)*(np.linalg.norm(vx)+pmt_surface_position))
 
 
-def build_pmt_icosahedron(kabamland, vtx, focal_length=1.0):
-    offset = 1.2*(vtx+focal_length)
+def build_pmt_icosahedron(kabamland, vtx, pmt_surface_position):
+    offset = 1.2*(vtx+pmt_surface_position)
     angles = np.linspace(np.pi/4, 2*np.pi+np.pi/4, 4, endpoint=False)
     square = make.linear_extrude(offset*np.sqrt(2)*np.cos(angles),offset*np.sqrt(2)*np.sin(angles),2.0)
     vrs = np.eye(3)
@@ -250,7 +259,7 @@ def build_pmt_icosahedron(kabamland, vtx, focal_length=1.0):
                               rotation = make_rotation_matrix(np.pi/2,vr), displacement = -offset*trasl)
 
 def build_kabamland(kabamland, config):
-    # focal_length sets dist between lens plane and PMT plane (or back of curved detecting surface);
+    # pmt_surface_position / focal_length sets dist between lens plane and PMT plane (or back of curved detecting surface);
     # (need not equal true lens focal length)
 
     # TODO: These are not really building the icosahedron right?
@@ -258,19 +267,19 @@ def build_kabamland(kabamland, config):
     #build_lens_icosahedron(kabamland, config.vtx, config.half_EPD/config.EPD_ratio,
     #       config.diameter_ratio, config.thickness_ratio, config.half_EPD, config.blockers,
     #       blocker_thickness_ratio=config.blocker_thickness_ratio, light_confinement=config.light_confinement,
-    #       focal_length=config.focal_length, lens_system_name=config.lens_system_name)
+    #       pmt_surface_position=config.pmt_surface_position, lens_system_name=config.lens_system_name)
     #build_curvedsurface_icosahedron(kabamland, config.vtx, config.half_EPD/config.EPD_ratio,
-    #       config.diameter_ratio, focal_length=config.focal_length,
+    #       config.diameter_ratio, pmt_surface_position=config.pmt_surface_position,
     #       detector_r=config.detector_r, nsteps=config.ring_count, b_pxl=config.base_pixels)
     build_lens_icosahedron(kabamland, config.vtx, config.max_radius, config.diameter_ratio,
                            config.thickness_ratio, config.half_EPD, config.blockers,
                            blocker_thickness_ratio=config.blocker_thickness_ratio,
-                           light_confinement=config.light_confinement, focal_length=config.focal_length,
+                           light_confinement=config.light_confinement, pmt_surface_position=config.pmt_surface_position,
                            lens_system_name=config.lens_system_name)
-    build_curvedsurface_icosahedron(kabamland, config.vtx, config.max_radius, config.diameter_ratio,
-                                    focal_length=config.focal_length, detector_r=config.detector_r,
+    build_curvedsurface_icosahedron(kabamland, config.vtx, config.max_radius,
+                                    config.pmt_surface_position, config.detector_r,
                                     nsteps=config.ring_count, b_pxl=config.base_pixels)
-    build_pmt_icosahedron(kabamland, np.linalg.norm(config.vtx[0]), focal_length=config.focal_length) # Built further out, just as a way of stopping photons
+    build_pmt_icosahedron(kabamland, np.linalg.norm(config.vtx[0]), config.pmt_surface_position) # Built further out, just as a way of stopping photons
 
 def driver_funct(configname):
     from chroma.loader import load_bvh  # Requires CUDA so only import it when necessary
@@ -279,19 +288,19 @@ def driver_funct(configname):
     #get_lens_triangle_centers(vtx, rad_assembly, config.diameter_ratio,
     #       config.thickness_ratio, config.half_EPD, config.blockers,
     #       blocker_thickness_ratio=config.blocker_thickness_ratio,
-    #       light_confinement=config.light_confinement, focal_length=config.focal_length,
+    #       light_confinement=config.light_confinement, pmt_surface_position=config.pmt_surface_position,
     #       lens_system_name=config.lens_system_name)
     #print get_curved_surf_triangle_centers(config.vtx, config.half_EPD/config.EPD_ratio,
-    #       config.detector_r, config.focal_length, config.nsteps, config.b_pixel)[0]
-    element_vertex_offsets = build_lens_icosahedron(kabamland, config.vtx, config.half_EPD/config.EPD_ratio, config.diameter_ratio,
-                           config.thickness_ratio, config.half_EPD, config.blockers,
-                           blocker_thickness_ratio=config.blocker_thickness_ratio,
-                           light_confinement=config.light_confinement, focal_length=config.focal_length,
-                           lens_system_name=config.lens_system_name)
+    #       config.detector_r, config.pmt_surface_position, config.nsteps, config.b_pixel)[0]
+    element_vertex_offsets = build_lens_icosahedron(kabamland, config.vtx, config.half_EPD / config.EPD_ratio, config.diameter_ratio,
+                                                    config.thickness_ratio, config.half_EPD, config.blockers,
+                                                    blocker_thickness_ratio=config.blocker_thickness_ratio,
+                                                    light_confinement=config.light_confinement, pmt_surface_position=config.pmt_surface_position,
+                                                    lens_system_name=config.lens_system_name)
     #build_curvedsurface_icosahedron(kabamland, config.vtx, config.half_EPD/config.EPD_ratio,
-    #       config.diameter_ratio, focal_length=config.focal_length, detector_r=config.detector_r,
+    #       config.diameter_ratio, pmt_surface_position=config.pmt_surface_position, detector_r=config.detector_r,
     #       nsteps=config.nsteps, b_pxl=config.b_pixel)
-    #build_pmt_icosahedron(kabamland, np.linalg.norm(config.vtx[0]), focal_length=config.focal_length)
+    #build_pmt_icosahedron(kabamland, np.linalg.norm(config.vtx[0]), pmt_surface_position=config.pmt_surface_position)
     kabamland.flatten()
     #kabamland.bvh = load_bvh(kabamland)
     view(kabamland)
@@ -300,7 +309,7 @@ def driver_funct(configname):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('config_name', help='detector configuration', nargs='?', default='cfSam2-0.5-600_l200_p104400_b8_e5')
+    parser.add_argument('config_name', help='detector configuration', nargs='?', default='cfSam2-0.5_l200_p104400_b8_e5')
     _args = parser.parse_args()
     config_name = _args.config_name
 

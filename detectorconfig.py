@@ -12,14 +12,14 @@ class DetectorConfig(object):
     def __init__ (self, sph_rad, n_lens, max_radius, vtx,
                   diameter_ratio,
                   ring_count,
-                  pmtxbins=None, pmtybins=None,   # Only used for flat detector surface
+                  pmtxbins=None, pmtybins=None,  # Only used for flat detector surface
                   thickness_ratio=0.25,
                   blockers=True,
                   blocker_thickness_ratio=1.0/1000,
                   lens_system_name=None,
                   EPD_ratio=1.0,
-                  focal_length=1.0,
-                  light_confinement=False,
+                  pmt_surface_position=1.0,
+                  light_confinement=True,  # False,
                   b_pixel=4,
                   tot_pixels=None,
                   the_uuid=None,
@@ -27,8 +27,8 @@ class DetectorConfig(object):
                   filling_factor=None):
         # Spherical geometry the focal surface is considered curve (planar surface not considered).
         # The parameters of the lens system defined in lenssystem.py for any given name. 
-        # Note that focal_length can only be explicitly set for planar detectors (otherwise lenssystem
-        # parameters override it).
+        # Note that the pmt surface position (what was caled "focal_length") can only be explicitly
+        # set for planar detectors (otherwise lenssystem parameters override it).
         # The attributes' names are the same of the icosahedron to have the scripts compatible
         self.EPD_ratio = EPD_ratio
         self.detector_radius = sph_rad  # Radius of the detector
@@ -51,10 +51,10 @@ class DetectorConfig(object):
             # Get focal length and radius of curvature of detecting surfaces; detecting surface will
             # extend to the maximum allowable radius, but its radius of curvature (and all other lens
             # system parameters) will scale with the diameter_ratio
-            self.focal_length, self.detector_r = lenssystem.get_system_measurements(lens_system_name, scale_rad)
+            self.pmt_surface_position, self.detector_r = lenssystem.get_system_measurements(lens_system_name, scale_rad)
             self.half_EPD = lenssystem.get_half_EPD(lens_system_name, scale_rad, self.EPD_ratio)
         else: # Default, for flat detecting surface
-            self.focal_length = focal_length    # Use given focal length
+            self.pmt_surface_position = pmt_surface_position    # Use given focal length
             self.detector_r = 0.                # Flat detector
             self.half_EPD = diameter_ratio*max_radius # Just uses diameter_ratio instead of EPD_ratio, for backwards compatibility
         self.light_confinement = light_confinement

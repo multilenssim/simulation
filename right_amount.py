@@ -105,14 +105,14 @@ if __name__ == '__main__':
     ring_count,tot_pxl = param_arr(n_lens,b_pxl,lens_system_name,dtc_r,max_rad,target_pixels)
     filling_factor = geom_eff*math.pow(EPD_ratio,2)
     config = dc.DetectorConfig(sph_rad, n_lens, max_rad, vtx,
-                               1.0,    			# TODO: Is diameter ratio always 1.0?
-                               ring_count,   	# This is actually the ring boundary count, which is one more than the number of actual rings of pixels
+                               1.0,  # TODO: Is diameter ratio always 1.0?
+                               ring_count,  # This is actually the ring boundary count, which is one more than the number of actual rings of pixels
                                thickness_ratio=0.25,
                                blockers=True,
                                blocker_thickness_ratio=1.0/1000,
                                lens_system_name=lens_system_name,
                                EPD_ratio=EPD_ratio,
-                               focal_length=1.0,
+                               pmt_surface_position=1.0,
                                light_confinement=False,
                                b_pixel=b_pxl,
                                tot_pixels=tot_pxl,

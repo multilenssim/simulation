@@ -180,7 +180,7 @@ class DetectorResponseGAKW(DetectorResponse):
         if nevents < 1:
             nevents = len(reader)   # This will blow up
         total_means = np.zeros((self.npmt_bins, 3))
-        total_variances = np.zeros(s(self.npmt_bins))
+        total_variances = np.zeros((self.npmt_bins))
         total_u_minus_v = np.zeros((self.npmt_bins))
         amount_of_hits = np.zeros((self.npmt_bins))
 
