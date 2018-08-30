@@ -1,6 +1,6 @@
 import platform
 
-EXO_DATA_DIR = '/home/kwells/chroma-data/'
+EXO_DATA_DIR = '/home/jacopo/chroma-data/'
 DEFAULT_CONFIG_DIR = 'configurations/'
 DEFAULT_SIMULATION_DIR = 'simulations/'
 JACOPO = False

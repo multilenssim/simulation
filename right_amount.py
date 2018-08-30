@@ -35,7 +35,7 @@ def param_arr(n_lens,b_pxl,l_sys,detec_r,max_rad,target_pixel_count):
 	elif l_sys == 'Sam1':
 		scal_lens = 1.0
 	arr,ix = [],[]
-	for i in xrange(2,45):
+	for i in xrange(2,100):
 		ix.append(i)
 		arr.append(sum(curved_surface2(detec_r,2*max_rad,i,b_pxl)[2]))
 	arr = np.asarray(arr)
@@ -111,7 +111,7 @@ if __name__ == '__main__':
                                lens_system_name=lens_system_name,
                                EPD_ratio=EPD_ratio,
                                focal_length=1.0,
-                               light_confinement=False,
+                               light_confinement=True,
                                b_pixel=b_pxl,
                                tot_pixels=tot_pxl)
     config.display_configuration()

@@ -638,7 +638,7 @@ class EventAnalyzer(object):
         logger.info(str(ev.photons_end.flags));
         reflected_diffuse = (ev.photons_end.flags & (0x1 <<5)).astype(bool)
         reflected_specular = (ev.photons_end.flags & (0x1 <<6)).astype(bool)
-        good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
+        #good_photons = detected & np.logical_not(reflected_diffuse) & np.logical_not(reflected_specular)
              
         self.photons_beg_dir = ev.photons_beg.dir[detected]
         beginning_photons = ev.photons_beg.pos[detected] # Include reflected photons
@@ -749,7 +749,7 @@ class EventAnalyzer(object):
                                 qe=qe)
                 #tracks = Tracks(event_pmt_pos_array, self.det_res.means[:,event_pmt_bin_array], self.det_res.sigmas[event_pmt_bin_array], lens_rad = 0.0000001)
                 msk = tracks.sigmas > 0.001
-                tracks.cull(np.where(np.logical_not(msk))) # Remove tracks with zero uncertainty (not calibrated)
+                tracks.cull(np.where(msk)) # Remove tracks with zero uncertainty (not calibrated)
                 if np.any(np.isnan(tracks.sigmas)):
                     print "Nan tracks!! Removing."
                     nan_tracks = np.where(np.isnan(tracks.sigmas))
