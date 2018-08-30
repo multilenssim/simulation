@@ -77,13 +77,13 @@ def load_or_build_detector(config, detector_material, g4_detector_parameters, fo
         # view(kabamland)
         kabamland.flatten()
         kabamland.bvh = load_bvh(kabamland, bvh_name=config.config_name, read_bvh_cache=(not force_build))
-		'''
+        '''
         try:
             with open(filename_base+'.pickle','wb') as pickle_file:
                 pickle.dump(kabamland, pickle_file)
         except IOError as error:
             logger.info("Error writing pickle file: " + filename_base+'.pickle')
-		'''
+        '''
 
         # Write h5 file with configuration data structure
         logger.info('Saving h5 detector configuration.  UUID: %s' % config.uuid)

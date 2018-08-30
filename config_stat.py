@@ -2,14 +2,18 @@ import DetectorResponseGaussAngle as dr
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
+import argparse
+
 import paths
+import detectorconfig
 
 def normalize(arr, ax):
 	return np.einsum('ij,i->ij',arr,1/np.linalg.norm(arr,axis=ax))
 
-def proj(cfg,cl):
-	in_file = paths.get_calibration_file_name(cfg,cl)
-	det_res = dr.DetectorResponseGaussAngle(cfg,10,10,10,in_file)
+def proj(config_name,cl):
+	in_file = paths.get_calibration_file_name(config_name,cl)
+	config = detectorconfig.get_detector_config(config_name)
+	det_res = dr.DetectorResponseGaussAngle(config,10,10,10,in_file)
 	n_lens = det_res.n_lens_sys
 	n_pmts_per_surf = det_res.n_pmts_per_surf
 	lns_center = det_res.lens_centers
@@ -29,11 +33,14 @@ def proj(cfg,cl):
 
 if __name__ == '__main__':
 	cut = True 
-	for s in ['K200_8_small']:
-		cfg = 'cfSam1_%s'%s
+	parser = argparse.ArgumentParser()
+	parser.add_argument('config_name', help='detector configuration')
+	args = parser.parse_args()
+
+	for config_name in [args.config_name]: # For loop is just to avoid reindenting the whole method.  This will only run once
 		cal = '_narrow'
-		print cfg
-		px_lens_means, px_lens_sigmas, u_proj, v_proj = proj(cfg,cal)
+		print config_name
+		px_lens_means, px_lens_sigmas, u_proj, v_proj = proj(config_name,cal)
 		sin_dir = np.linalg.norm([u_proj.flatten(),v_proj.flatten()],axis=0)
 		_,bn,_ = plt.hist(np.arcsin(sin_dir),bins=100)
 		#asn = np.arcsin(sin_dir).reshape((u_proj.shape))
