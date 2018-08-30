@@ -78,7 +78,7 @@ def _full_detector_simulation(config, kabamland, amount, simname, datadir=""):
 
 # From detectoranalysis - TODO: remove it from there
 # saves a detector response list of pdfs-1 for each pixel-given a simulation file of photons emitted isotropically throughout the detector.
-def _calibrate(config, photons_file, detresname, detxbins=10, detybins=10, detzbins=10, method="PDF", nevents=-1, datadir="", fast_calibration=False):
+def _calibrate(config, photons_file, detresname, detxbins=10, detybins=10, detzbins=10, method="PDF", nevents=-1, datadir="", fast_calibration=True):
     logger.info('Calibrating with: ' + datadir + photons_file)
     if method == "PDF":
         dr = DetectorResponsePDF(config, detxbins, detybins, detzbins)       # Do we need to continue to carry this?
@@ -99,7 +99,7 @@ def _calibrate(config, photons_file, detresname, detxbins=10, detybins=10, detzb
     dd.io.save(datadir + detresname +'.h5', detector_data)
 
 
-def simulate_and_calibrate(config, build_only=False, force=False):
+def simulate_and_calibrate(config, build_only=False, force=False, fast_calibration=True):
     config_name = config.config_name
     if (not force) and os.path.isfile(paths.get_calibration_file_name(config_name)):
         logger.info('Found calibration file: %s' % paths.get_calibration_file_name(config_name))
@@ -136,18 +136,19 @@ def simulate_and_calibrate(config, build_only=False, force=False):
                     method="GaussAngle",
                     nevents=10000,
                     datadir=paths.detector_calibration_path,
-                    fast_calibration=True)
+                    fast_calibration=fast_calibration)
             #os.remove(photons_file)  # Would need to remove both
-            logger.warning("==== Calibration complete ====")
+            logger.warning('==== Calibration complete: %s %s ====' % (config_name, 'fast' if fast_calibration else 'slow'))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('config_name', help='Configuration name')
     parser.add_argument('--build_only', '-b', action='store_true', help='Build the detector only.  Do not calibrate.')
-    parser.add_argument('--force_build', '-f', action='store_true', help='Force rebuilding and calibrating the detector.')   # TODO: the force calibration is not implemented yet
+    parser.add_argument('--force_build', '-f', action='store_true', help='Force rebuilding and calibrating the detector.')
+    parser.add_argument('--slow_calibration', '-s', action='store_true', help='Use slow calibration.')
     _args = parser.parse_args()
     config_name = _args.config_name
 
     config = detectorconfig.get_detector_config(config_name)
-    simulate_and_calibrate(config, build_only=_args.build_only, force=_args.force_build)
+    simulate_and_calibrate(config, build_only=_args.build_only, force=_args.force_build, fast_calibration=not _args.slow_calibration)
 

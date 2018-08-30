@@ -16,10 +16,10 @@ class DetectorConfig(object):
                   thickness_ratio=0.25,
                   blockers=True,
                   blocker_thickness_ratio=1.0/1000,
-                  lens_system_name=None,
+                  lens_system=None,
                   EPD_ratio=1.0,
                   pmt_surface_position=1.0,
-                  light_confinement=True,  # False,
+                  light_confinement=True,
                   b_pixel=4,
                   tot_pixels=None,
                   the_uuid=None,
@@ -43,16 +43,17 @@ class DetectorConfig(object):
         self.thickness_ratio = thickness_ratio  # Sets lens params for old configs; deprecated
         self.blockers = blockers                # Toggles blocking surfaces at the lens plane between lenses
         self.blocker_thickness_ratio = blocker_thickness_ratio # Sets thickness of blockers; should have no effect
-        self.lens_system_name = lens_system_name
+        self.lens_system_name = lens_system.name
         self.max_radius = max_radius
-        if lens_system_name:
+        if lens_system:
             scale_rad = max_radius*diameter_ratio   # TODO: put this in the config?
-            self.scale_factor = lenssystem.get_scale_factor(lens_system_name, scale_rad)
+            self.scale_factor = lens_system.get_scale_factor(scale_rad)
+            self.sys_rad = lens_system._sys_rad * self.scale_factor
             # Get focal length and radius of curvature of detecting surfaces; detecting surface will
             # extend to the maximum allowable radius, but its radius of curvature (and all other lens
             # system parameters) will scale with the diameter_ratio
-            self.pmt_surface_position, self.detector_r = lenssystem.get_system_measurements(lens_system_name, scale_rad)
-            self.half_EPD = lenssystem.get_half_EPD(lens_system_name, scale_rad, self.EPD_ratio)
+            self.pmt_surface_position, self.detector_r = lens_system.get_system_measurements(scale_rad)
+            self.half_EPD = lens_system.get_half_EPD(scale_rad, self.EPD_ratio)
         else: # Default, for flat detecting surface
             self.pmt_surface_position = pmt_surface_position    # Use given focal length
             self.detector_r = 0.                # Flat detector
@@ -175,6 +176,7 @@ if __name__ == '__main__':
         new_config_dict = {}
         with open(_configs_pickle_file, 'r') as f:
             dct = pickle.load(f)
+            lens_system = lenssystem.get_lens_sys('Sam1')
             for key, value in dct.iteritems():
                 det_config = DetectorConfig(value[0],
                                     value[1],
@@ -182,7 +184,7 @@ if __name__ == '__main__':
                                     value[3],
                                     1.0,
                                     value[5],
-                                    lens_system_name='Sam1',
+                                    lens_system=lens_system,
                                     EPD_ratio=value[4],
                                     light_confinement=True,
                                     b_pixel=value[6],

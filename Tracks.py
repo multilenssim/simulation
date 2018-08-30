@@ -22,7 +22,7 @@ class Tracks(object):
     def __len__(self):
         #Returns the number of tracks in self.
         return len(self.sigmas)
-        
+
     def __iter__(self):
         #Allows for iterating over tracks. 
         #Returns results as a tuple (hit_pos, mean, sigma).

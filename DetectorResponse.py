@@ -19,20 +19,28 @@ class DetectorResponse(object):
     its geometry is known.    
     '''
     def __init__(self, config, detectorxbins=10, detectorybins=10, detectorzbins=10):
-        # TODO: Duplicates a lot of stuff in the config
-        self.config = config   # To enable saving configuration with the calibration file
-        self.configname = config.config_name  # Adding this for intermediate calibration file writing
         self.is_calibrated = False
-        self.lns_rad = config.half_EPD/config.EPD_ratio
         self.detectorxbins = detectorxbins
         self.detectorybins = detectorybins
         self.detectorzbins = detectorzbins
         #self.edge_length, self.facecoords, self.direction, self.axis, self.angle, self.spin_angle = return_values(config.edge_length, config.base)
         self.pmtxbins = config.pmtxbins
         self.pmtybins = config.pmtybins
+
+        # TODO: Duplicates a lot of stuff in the config
+        self.config = config   # To enable saving configuration with the calibration file
         self.n_lens_sys = config.lens_count # Number of lens systems per face - TODO: not true anymore
-        self.detector_r = config.detector_r
-        self.nsteps = config.ring_count
+        #self.detector_r = config.detector_r
+        #self.nsteps = config.ring_count
+        self.lns_rad = config.half_EPD/config.EPD_ratio
+        self.lens_rad = config.half_EPD
+        self.configname = config.config_name  # Adding this for intermediate calibration file writing
+        self.diameter_ratio = config.diameter_ratio
+        self.thickness_ratio = config.thickness_ratio
+        ##changed
+        #self.pmt_surface_location = config.pmt_surface_position
+        self.inscribed_radius = config.detector_radius
+
         #self.n_triangles_per_surf = int(2*self.nsteps*int((self.nsteps-2)/2.))
         
         #self.n_pmts_per_surf = int(self.n_triangles_per_surf/2.)
@@ -42,14 +50,9 @@ class DetectorResponse(object):
         #else:
         #    self.npmt_bins = 20*self.n_lens_sys*self.n_pmts_per_surf # One curved detecting surf for each lens system
         
-        self.diameter_ratio = config.diameter_ratio
-        self.thickness_ratio = config.thickness_ratio
-        ##changed
-        self.pmt_surface_location = config.pmt_surface_position
-
         ##end changed
         #self.pmt_side_length = np.sqrt(3)*(3-np.sqrt(5))*self.pmt_surface_position
-        self.inscribed_radius = config.detector_radius
+
         #self.rotation_matrices = self.build_rotation_matrices()
         #self.inverse_rotation_matrices = np.linalg.inv(self.rotation_matrices)
         #self.displacement_matrix = self.build_displacement_matrix()
@@ -58,11 +61,13 @@ class DetectorResponse(object):
         #new properties for curved surface detectors
 
         # Comment this out to allow access to old calibration files
-        self.triangle_centers,self.n_triangles_per_surf,self.ring = kb2.get_curved_surf_triangle_centers(config.vtx, self.lns_rad, self.detector_r, self.pmt_surface_location, self.nsteps, config.base_pixels)
+        self.triangle_centers,self.n_triangles_per_surf,self.ring = kb2.get_curved_surf_triangle_centers(config.vtx, self.lns_rad, config.detector_r,
+                                                                                                         config.pmt_surface_position, config.ring_count,
+                                                                                                         config.base_pixels)
         self.triangle_centers_tree = spatial.cKDTree(self.triangle_centers)
         self.n_pmts_per_surf = int(self.n_triangles_per_surf/2.)
 
-        if not self.detector_r:
+        if not config.detector_r:
             self.npmt_bins = 20*self.pmtxbins*self.pmtybins
         else:
             self.npmt_bins = self.n_lens_sys*self.n_pmts_per_surf # One curved detecting surf for each lens system
@@ -77,7 +82,6 @@ class DetectorResponse(object):
         # There is a variable in DRGA 'triangle centers' that is 198400 coordinates (two per pixel)
 
         self.lens_centers = kb2.get_lens_triangle_centers(config.vtx, self.lns_rad, config.diameter_ratio, lens_system_name=config.lens_system_name)
-        self.lens_rad = config.half_EPD
 
         #self.calc1 = self.pmtxbins/self.pmt_side_length
         #self.calc2 = self.pmtxbins/2.0
@@ -354,7 +358,7 @@ class DetectorResponse(object):
         return pmts, lenses, rings, pixels
 
     def find_pmt_bin_array(self, pos_array):
-        if(self.detector_r == 0):   # This code is specific to the icosahedron
+        if(self.config.detector_r == 0):   # This code is specific to the icosahedron
             # returns an array of global pmt bins corresponding to an array of end-positions
             length = np.shape(pos_array)[0]
             #facebin array is left as -1s, that way if a particular photon does not get placed onto a side, it gets ignored (including its pmt_position) in the checking stages at the bottom of this function.
@@ -398,7 +402,7 @@ class DetectorResponse(object):
     def find_closest_triangle_center(self, pos_array, max_dist = 1.):
         #print "Finding closest triangle centers..."
         if(max_dist == 1.):
-            max_dist = 1.1*2*np.pi*self.lns_rad/self.nsteps # Circumference of detecting surface divided by number of steps, with 1.1x of wiggle room
+            max_dist = 1.1*2*np.pi*self.lns_rad/self.config.ring_count # Circumference of detecting surface divided by number of steps, with 1.1x of wiggle room
         query_results = self.triangle_centers_tree.query(pos_array,distance_upper_bound = max_dist)
         #print('Tree query results: ' + str(query_results))
         closest_triangle_index = query_results[1].tolist()
@@ -501,7 +505,7 @@ class DetectorResponse(object):
         #input a pmtbin number (or array of pmtbin numbers) to output its coordinate center in 3d-space. 
         #init_coord is the initial coordinate of the pmt center before it is rotated and displaced 
         #onto the correct pmtface. 
-        if(self.detector_r==0):
+        if(self.config.detector_r==0):
             facebin, xbin, ybin = self.pmt_bin_to_tuple(pmtbin, self.pmtxbins, self.pmtybins)
             init_xcoord = self.pmt_side_length/(2.0*self.pmtxbins)*(2*xbin+1) - self.pmt_side_length/2.0
             init_ycoord = np.sqrt(3)*self.pmt_side_length/(4.0*self.pmtybins)*(2*ybin+1) - np.sqrt(3)*self.pmt_side_length/6.0

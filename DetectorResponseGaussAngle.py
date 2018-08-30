@@ -122,6 +122,7 @@ class DetectorResponseGaussAngle(DetectorResponse):
         # Uses all photons hitting a given PMT at once (better estimate of sigma,
         # but may run out of memory in some cases).
         # Will not calibrate PMTs with <n_min hits
+        logger.info('Fast calibration: %s' % str(fast_calibration))
         self.is_calibrated = True
         start_time = time.time()
 

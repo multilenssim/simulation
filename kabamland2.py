@@ -116,7 +116,8 @@ def get_assembly_xyz(mesh):
 def get_lens_triangle_centers(vtx, rad, diameter_ratio, lens_system_name=None):
     # TODO: The comment here was a copy of the comment for build_lens_icosahedron.  Needs a new description
     scale_rad = rad*diameter_ratio
-    lenses = lenssystem.get_lens_mesh_list(lens_system_name, scale_rad)  # TODO: this should come from the detector file so that we don't have to recalculate
+    lens_config = lenssystem.get_lens_sys(lens_system_name)
+    lenses = lens_config.get_lens_mesh_list(scale_rad)  # TODO: this should come from the detector file so that we don't have to recalculate
     lens_mesh = None
     for lns in lenses: # Add all the lenses for the first lens system to solid 'face'
         if not lens_mesh:
@@ -144,9 +145,10 @@ def build_lens_icosahedron(kabamland, vtx, rad, diameter_ratio, thickness_ratio,
        Otherwise, a default simple lens will be built, with parameters hard-coded below.
     """
     # Get the list of lens meshes from the appropriate lens system as well as the lens material
+    lens_config = lenssystem.get_lens_sys(lens_system_name)
     scale_rad = rad*diameter_ratio #max_radius->rad of the lens assembly
-    lenses = lenssystem.get_lens_mesh_list(lens_system_name, scale_rad)
-    lensmat = lenssystem.get_lens_material(lens_system_name)
+    lenses = lens_config.get_lens_mesh_list(scale_rad)
+    lensmat = lens_config.get_lens_material()
     face = None
     element_vertex_offsets = [0]  # Track the number of vertices in each component for plotting purposes
     for lns in lenses:
@@ -161,8 +163,7 @@ def build_lens_icosahedron(kabamland, vtx, rad, diameter_ratio, thickness_ratio,
     #   When we need which variables and when we have which variables in the config
     #   get rid of focal length - it's not the right dimension for the baffle length anyway - it needs to be the EPD to focal array distance.
     #   See below
-    lens_config = lenssystem.get_lens_sys(lens_system_name)
-    scale_factor = lenssystem.get_scale_factor(lens_system_name, scale_rad)
+    scale_factor = lens_config.get_scale_factor(scale_rad)
     epd_offset = [0,0,lens_config.epd_offset*scale_factor]
     baffle_offset = [0, 0, lens_config.epd_offset * scale_factor - pmt_surface_position / 2]  # lens_config.epd_offset*scale_factor-1000]
     if light_confinement:
@@ -191,48 +192,53 @@ def build_lens_icosahedron(kabamland, vtx, rad, diameter_ratio, thickness_ratio,
             kabamland.add_solid(baffle, rotation=make_rotation_matrix(ph,ax), displacement = -normalize(vx)*(np.linalg.norm(vx) - pmt_surface_position / 2.0))
     return element_vertex_offsets
 
-def calc_steps(x_value,y_value,detector_r,base_pixel):
-	x_coord = np.asarray([x_value,np.roll(x_value,-1)]).T[:-1]
-	y_coord = np.asarray([y_value,np.roll(y_value,-1)]).T[:-1]
-	lat_area = 2*np.pi*detector_r*(y_coord[:,0]-y_coord[:,1])
-	n_step = (lat_area/lat_area[-1]*base_pixel).astype(int)
-	# print('Pixel areas per ring: %s' % str(lat_area / n_step))
-	# print('Coords: %s %s' % (x_coord, y_coord))
-	# print('Values: %s %s' % (x_value, y_value))
-	return x_coord, y_coord, n_step
 
-def curved_surface2(detector_r=2.0, diameter = 2.5, nsteps=8,base_pxl=4,ret_arr=False):
+def calc_steps(x_value, y_value, detector_r, base_pixel):
+    x_coord = np.asarray([x_value, np.roll(x_value, -1)]).T[:-1]
+    y_coord = np.asarray([y_value, np.roll(y_value, -1)]).T[:-1]
+    lat_area = 2 * np.pi * detector_r * (y_coord[:, 0] - y_coord[:, 1])
+    n_step = (lat_area / lat_area[-1] * base_pixel).astype(int)
+    # print('Pixel areas per ring: %s' % str(lat_area / n_step))
+    # print('Coords: %s %s' % (x_coord, y_coord))
+    # print('Values: %s %s' % (x_value, y_value))
+    return x_coord, y_coord, n_step
+
+
+def curved_surface2(detector_r=2.0, diameter=2.5, nsteps=8, base_pxl=4, ret_arr=False):
     '''Builds a curved surface based on the specified radius. Origin is center of surface.'''
-    if (detector_r < diameter/2.0):
+    if (detector_r < diameter / 2.0):
         raise Exception('The Radius of the curved surface must be larger than diameter/2.0')
-    shift1 = np.sqrt(detector_r**2 - (diameter/2.0)**2)
-    theta1 = np.arctan(shift1/(diameter/2.0))
-    angles1 = np.linspace(theta1, np.pi/2, nsteps)
+    shift1 = np.sqrt(detector_r ** 2 - (diameter / 2.0) ** 2)
+    theta1 = np.arctan(shift1 / (diameter / 2.0))
+    angles1 = np.linspace(theta1, np.pi / 2, nsteps)
     # print('Parameters: %f %f %s' % (shift1, theta1, str(angles1)))
-    x_value = abs(detector_r*np.cos(angles1))
-    y_value = detector_r-detector_r*np.sin(angles1)
-    surf = None 
-    x_coord,y_coord,n_step = calc_steps(x_value,y_value,detector_r,base_pixel=base_pxl)
-    for i,(x,y,n_stp) in enumerate(zip(x_coord,y_coord,n_step)):
-	if i == 0:
-		surf = make.rotate_extrude(x,y,n_stp)
-	else:
-		surf += make.rotate_extrude(x,y,n_stp)
-    if ret_arr: return  surf, n_step
-    else: return surf
+    x_value = abs(detector_r * np.cos(angles1))
+    y_value = detector_r - detector_r * np.sin(angles1)
+    surf = None
+    x_coord, y_coord, n_step = calc_steps(x_value, y_value, detector_r, base_pixel=base_pxl)
+    for i, (x, y, n_stp) in enumerate(zip(x_coord, y_coord, n_step)):
+        if i == 0:
+            surf = make.rotate_extrude(x, y, n_stp)
+        else:
+            surf += make.rotate_extrude(x, y, n_stp)
+    if ret_arr:
+        return surf, n_step
+    else:
+        return surf
 
-def get_curved_surf_triangle_centers(vtx, rad, detector_r, pmt_surface_position, nsteps = 10, b_pxl=4):
-    #Changed the rotation matrix to try and keep the curved surface towards the interior
-    #Make sure diameter, etc. are set properly
+
+def get_curved_surf_triangle_centers(vtx, rad, detector_r, pmt_surface_position, nsteps=10, b_pxl=4):
+    # Changed the rotation matrix to try and keep the curved surface towards the interior
+    # Make sure diameter, etc. are set properly
     curved_surf_triangle_centers = []
-    mesh_surf, ring = curved_surface2(detector_r, diameter=2*rad, nsteps=nsteps, base_pxl=b_pxl,ret_arr=True)
-    initial_curved_surf = mh.rotate(mesh_surf, make_rotation_matrix(-np.pi/2, (1,0,0)))     #-np.pi with curved_surface2
+    mesh_surf, ring = curved_surface2(detector_r, diameter=2 * rad, nsteps=nsteps, base_pxl=b_pxl, ret_arr=True)
+    initial_curved_surf = mh.rotate(mesh_surf, make_rotation_matrix(-np.pi / 2, (1, 0, 0)))  # -np.pi with curved_surface2
     triangles_per_surface = initial_curved_surf.triangles.shape[0]
-    phi, axs = rot_axis([0,0,1],vtx)
-    for vx,ph,ax in zip(vtx,-phi,axs):
-	curved_surf_triangle_centers.extend(mh.shift(mh.rotate(initial_curved_surf,make_rotation_matrix(ph,ax)),
-                                                 -normalize(vx)*(np.linalg.norm(vx)+pmt_surface_position)).get_triangle_centers())
-    return np.asarray(curved_surf_triangle_centers),triangles_per_surface,ring
+    phi, axs = rot_axis([0, 0, 1], vtx)
+    for vx, ph, ax in zip(vtx, -phi, axs):
+        curved_surf_triangle_centers.extend(mh.shift(mh.rotate(initial_curved_surf, make_rotation_matrix(ph, ax)),
+                                                     -normalize(vx) * (np.linalg.norm(vx) + pmt_surface_position)).get_triangle_centers())
+    return np.asarray(curved_surf_triangle_centers), triangles_per_surface, ring
 
 def build_curvedsurface_icosahedron(kabamland, vtx, rad, pmt_surface_position, detector_r, nsteps = 10, b_pxl=4):
     initial_curved_surf = mh.rotate(curved_surface2(detector_r, diameter=rad*2, nsteps=nsteps, base_pxl=b_pxl), make_rotation_matrix(-np.pi/2, (1,0,0)))

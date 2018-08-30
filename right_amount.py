@@ -3,7 +3,7 @@ import scipy.spatial
 import numpy as np
 import uuid
 
-from lenssystem import get_system_measurements
+import lenssystem
 import detectorconfig as dc
 from detectorconfig import DetectorConfig  # Note: This is required for the pickle file reading, despite the fact that it is not explicitly referenced
 
@@ -101,19 +101,21 @@ if __name__ == '__main__':
     n_lens = int(raw_input('input the number of lens assemblies: '))
     EPD_ratio = float(raw_input('input the pupil ratio: '))
     vtx,max_rad,geom_eff = calc_rad(fibonacci_sphere(n_lens),sph_rad)
-    _, dtc_r = get_system_measurements(lens_system_name,max_rad)
+    lens_config = lenssystem.get_lens_sys(lens_system_name)
+    _, dtc_r = lens_config.get_system_measurements(max_rad)
     ring_count,tot_pxl = param_arr(n_lens,b_pxl,lens_system_name,dtc_r,max_rad,target_pixels)
     filling_factor = geom_eff*math.pow(EPD_ratio,2)
+    lens_system = lenssystem.get_lens_sys(lens_system_name)
     config = dc.DetectorConfig(sph_rad, n_lens, max_rad, vtx,
                                1.0,  # TODO: Is diameter ratio always 1.0?
                                ring_count,  # This is actually the ring boundary count, which is one more than the number of actual rings of pixels
                                thickness_ratio=0.25,
                                blockers=True,
                                blocker_thickness_ratio=1.0/1000,
-                               lens_system_name=lens_system_name,
+                               lens_system=lens_system,
                                EPD_ratio=EPD_ratio,
                                pmt_surface_position=1.0,
-                               light_confinement=False,
+                               light_confinement=True,
                                b_pixel=b_pxl,
                                tot_pixels=tot_pxl,
                                filling_factor=filling_factor)
