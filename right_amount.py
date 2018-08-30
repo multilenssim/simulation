@@ -111,7 +111,7 @@ if __name__ == '__main__':
                                lens_system_name=lens_system_name,
                                EPD_ratio=EPD_ratio,
                                focal_length=1.0,
-                               light_confinement=False,
+                               light_confinement=True,
                                b_pixel=b_pxl,
                                tot_pixels=tot_pxl)
     config.display_configuration()
